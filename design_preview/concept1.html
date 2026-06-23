@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concept 1: Cyber-Quant</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --sidebar: #0a0a0a;
+            --accent: #00d2ff;
+            --accent-purple: #9d50bb;
+            --node: rgba(15, 15, 15, 0.8);
+            --border: #222;
+            --text: #e0e0e0;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 18px;
+            letter-spacing: -0.05em;
+            color: var(--accent);
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo span { color: #fff; }
+
+        .nav-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid transparent;
+            color: #888;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 210, 255, 0.05);
+            color: var(--accent);
+            border-color: rgba(0, 210, 255, 0.2);
+        }
+
+        .nav-item.active {
+            background: rgba(0, 210, 255, 0.1);
+            color: var(--accent);
+            border-color: rgba(0, 210, 255, 0.3);
+            font-weight: 600;
+        }
+
+        /* Canvas Area */
+        .canvas {
+            flex: 1;
+            position: relative;
+            background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .node {
+            position: absolute;
+            width: 200px;
+            background: var(--node);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            cursor: move;
+        }
+
+        .node:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+        }
+
+        .node-body {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: #fff;
+        }
+
+        .connection {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-purple));
+            box-shadow: 0 0 8px var(--accent);
+            transform-origin: 0 0;
+            z-index: -1;
+        }
+
+        /* UI Elements */
+        .bottom-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.9);
+            padding: 8px 24px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 20px;
+            backdrop-filter: blur(20px);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            CYBER<span>QUANT</span>
+        </div>
+        
+        <div class="nav-item active">Dashboard</div>
+        <div class="nav-item">Strategy Builder</div>
+        <div class="nav-item">History</div>
+        <div class="nav-item">Global Scanner</div>
+        
+        <div style="margin-top: auto;">
+            <div class="nav-item">Settings</div>
+            <div class="nav-item" style="color: #ff4d4d;">Sign Out</div>
+        </div>
+    </div>
+
+    <div class="canvas">
+        <div class="node" style="top: 100px; left: 100px;">
+            <div class="node-header">
+                <div class="status-dot"></div>
+                Input: Mark Price
+            </div>
+            <div class="node-body">BTCUSDT: 64,231.5</div>
+        </div>
+
+        <div class="node" style="top: 120px; left: 400px; border-color: var(--accent-purple);">
+            <div class="node-header" style="color: var(--accent-purple);">
+                Logic: RSI (14)
+            </div>
+            <div class="node-body">Value: 34.2</div>
+        </div>
+
+        <div class="connection" style="top: 130px; left: 300px; width: 100px; transform: rotate(10deg);"></div>
+
+        <div class="bottom-bar">
+            <div style="font-size: 12px; font-weight: 700; opacity: 0.5;">BOT STATUS: <span style="color: #00ff88;">ACTIVE</span></div>
+            <div style="font-size: 12px; font-weight: 700; opacity: 0.5;">TPS: <span style="color: #fff;">124</span></div>
+            <div style="font-size: 12px; font-weight: 700; opacity: 0.5;">LATENCY: <span style="color: #fff;">12ms</span></div>
+        </div>
+    </div>
+</body>
+</html>

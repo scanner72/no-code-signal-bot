@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concept 2: Glassmorphism</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.5);
+            --bg-gradient: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Abstract Aurora Background */
+        .aurora {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15), transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.15), transparent 40%);
+            z-index: -1;
+        }
+
+        .main-container {
+            width: 90vw;
+            height: 85vh;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            display: flex;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 40px 20px;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 22px;
+            margin-bottom: 50px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .menu-item {
+            padding: 16px 20px;
+            border-radius: 16px;
+            margin-bottom: 8px;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 600;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        /* Workspace */
+        .workspace {
+            flex: 1;
+            padding: 40px;
+            position: relative;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .header h2 { font-size: 24px; font-weight: 800; margin: 0; }
+
+        .btn-primary {
+            background: var(--accent);
+            padding: 12px 28px;
+            border-radius: 14px;
+            border: none;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 20px -5px var(--accent-glow);
+            transition: 0.3s;
+        }
+
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px var(--accent-glow); }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 24px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-title { font-size: 14px; color: #94a3b8; font-weight: 600; margin-bottom: 12px; }
+        .card-value { font-size: 32px; font-weight: 800; }
+        .card-trend { color: #10b981; font-size: 13px; margin-top: 8px; font-weight: 600; }
+
+    </style>
+</head>
+<body>
+    <div class="aurora"></div>
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="logo">
+                <div style="width: 32px; height: 32px; background: var(--accent); border-radius: 10px; box-shadow: 0 4px 10px var(--accent-glow);"></div>
+                QuantGlass
+            </div>
+            
+            <div class="menu-item active">Dashboard</div>
+            <div class="menu-item">Strategies</div>
+            <div class="menu-item">History</div>
+            <div class="menu-item">Signals</div>
+            <div class="menu-item">Settings</div>
+        </div>
+
+        <div class="workspace">
+            <div class="header">
+                <h2>Market Overview</h2>
+                <button class="btn-primary">Build New Strategy</button>
+            </div>
+
+            <div class="card-grid">
+                <div class="glass-card">
+                    <div class="card-title">ACTIVE SIGNALS</div>
+                    <div class="card-value">12</div>
+                    <div class="card-trend">↑ 4.2% from yesterday</div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-title">AVG WIN RATE</div>
+                    <div class="card-value">68%</div>
+                    <div class="card-trend">↑ 1.5% this week</div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-title">TOTAL PROFIT</div>
+                    <div class="card-value">$2,410</div>
+                    <div class="card-trend">Stable performance</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 40px; padding: 32px; background: rgba(0,0,0,0.1); border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1); text-align: center; color: #64748b;">
+                Canvas Preview Area - Real-time Strategy Execution Graph
+            </div>
+        </div>
+    </div>
+</body>
+</html>

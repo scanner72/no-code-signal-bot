@@ -1,0 +1,12 @@
+{
+  "name": "signal-bot-root",
+  "version": "1.0.0",
+  "description": "Signal Bot Project Root",
+  "scripts": {
+    "gen-docs": "node scripts/generate-node-docs.js",
+    "dev": "docker-compose up",
+    "build:all": "docker-compose build"
+  },
+  "author": "",
+  "license": "ISC"
+}

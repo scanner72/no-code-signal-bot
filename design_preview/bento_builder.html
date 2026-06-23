@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Bot — Bento Strategy Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════
+           PHASE 1: Design Tokens
+           ═══════════════════════════════════════ */
+        :root {
+            --bg-page: #0C0D10;
+            --bg-card: #16181E;
+            --bg-card-hover: #1C1F27;
+            --bg-input: #0F1014;
+            --border-card: 1px solid rgba(255,255,255,0.06);
+            --border-hover: 1px solid rgba(255,255,255,0.12);
+
+            --radius-xl: 20px;
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 8px;
+
+            --gap: 10px;
+
+            --text-primary: #E4E6EB;
+            --text-secondary: #6B7280;
+            --text-muted: #3D4250;
+
+            --accent: #6366F1;
+            --accent-soft: rgba(99,102,241,0.15);
+            --success: #10B981;
+            --success-soft: rgba(16,185,129,0.12);
+            --error: #EF4444;
+            --error-soft: rgba(239,68,68,0.12);
+            --warning: #F59E0B;
+            --purple: #A855F7;
+            --purple-soft: rgba(168,85,247,0.12);
+
+            --shadow-card: 0 2px 8px rgba(0,0,0,0.3);
+            --shadow-node: 0 8px 32px rgba(0,0,0,0.5);
+
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-page);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+
+        /* ═══════════════════════════════════════
+           PHASE 2: Bento Grid Shell
+           ═══════════════════════════════════════ */
+        .bento-shell {
+            display: grid;
+            grid-template-columns: 64px 1fr 300px;
+            grid-template-rows: 56px 1fr;
+            grid-template-areas:
+                "nav header header"
+                "nav canvas inspector";
+            gap: var(--gap);
+            padding: var(--gap);
+            height: 100vh;
+        }
+
+        /* ── Navigation Card ── */
+        .bento-nav {
+            grid-area: nav;
+            background: var(--bg-card);
+            border: var(--border-card);
+            border-radius: var(--radius-xl);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            gap: 8px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .nav-logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-logo::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2));
+        }
+
+        .nav-btn {
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+        .nav-btn.active { background: var(--accent-soft); color: var(--accent); }
+        .nav-btn svg { width: 18px; height: 18px; }
+
+        .nav-spacer { flex: 1; }
+
+        .nav-dot {
+            width: 8px; height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Header Card ── */
+        .bento-header {
+            grid-area: header;
+            background: var(--bg-card);
+            border: var(--border-card);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 16px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .strategy-name {
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: -0.01em;
+        }
+
+        .strategy-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: var(--success-soft);
+            color: var(--success);
+        }
+
+        .header-sep {
+            width: 1px; height: 24px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .header-pair {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; font-weight: 600;
+        }
+        .pair-change { color: var(--success); font-size: 12px; }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex; gap: 8px;
+        }
+
+        .btn {
+            padding: 7px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: var(--border-card);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+        .btn:hover { background: var(--bg-card-hover); border: var(--border-hover); }
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { background: #5558E6; }
+
+        /* ── Canvas Card ── */
+        .bento-canvas {
+            grid-area: canvas;
+            background: var(--bg-card);
+            border: var(--border-card);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .canvas-dots {
+            position: absolute; inset: 0;
+            background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+        }
+
+        /* ── Inspector Card ── */
+        .bento-inspector {
+            grid-area: inspector;
+            background: var(--bg-card);
+            border: var(--border-card);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .inspector-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .inspector-title {
+            font-size: 13px; font-weight: 700;
+        }
+        .inspector-tag {
+            font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 12px;
+            background: var(--purple-soft); color: var(--purple);
+        }
+
+        .inspector-body {
+            padding: 16px 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .field-group {
+            margin-bottom: 16px;
+        }
+        .field-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+        .field-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 9px 12px;
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            transition: var(--transition);
+            outline: none;
+        }
+        .field-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .field-row {
+            display: flex; gap: 8px;
+        }
+
+        /* Mini Bento inside inspector */
+        .mini-bento {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .mini-card {
+            background: var(--bg-input);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            transition: var(--transition);
+        }
+        .mini-card:hover { border-color: rgba(255,255,255,0.1); }
+        .mini-card-label {
+            font-size: 10px; font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
+        .mini-card-value {
+            font-size: 16px; font-weight: 700;
+        }
+
+        .inspector-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .btn-danger {
+            width: 100%;
+            background: var(--error-soft);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: var(--error);
+        }
+        .btn-danger:hover {
+            background: rgba(239,68,68,0.2);
+        }
+
+        /* ═══════════════════════════════════════
+           PHASE 3: Bento Nodes
+           ═══════════════════════════════════════ */
+        .node {
+            position: absolute;
+            width: 210px;
+            background: var(--bg-page);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-node);
+            transition: border-color var(--transition), box-shadow var(--transition);
+            z-index: 2;
+            cursor: grab;
+        }
+        .node:hover {
+            border-color: rgba(255,255,255,0.14);
+        }
+        .node.selected {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-node), 0 0 0 3px var(--accent-soft);
+        }
+
+        .node-header {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .node-icon {
+            width: 22px; height: 22px;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .node-icon svg { width: 12px; height: 12px; }
+        .node-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .node-body { padding: 12px 14px; }
+
+        .node-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .node-row:last-child { margin-bottom: 0; }
+        .node-row-key { color: var(--text-secondary); }
+        .node-row-val { font-weight: 600; }
+
+        /* Port dots */
+        .port {
+            position: absolute;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            border: 2px solid var(--bg-page);
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            cursor: crosshair;
+            transition: var(--transition);
+        }
+        .port:hover { transform: translateY(-50%) scale(1.4); }
+        .port-out { right: -5px; }
+        .port-in { left: -5px; }
+
+        /* Node action button */
+        .node-action {
+            display: block;
+            width: calc(100% - 28px);
+            margin: 0 14px 12px;
+            padding: 8px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            transition: var(--transition);
+        }
+        .node-action-buy {
+            background: var(--success-soft); color: var(--success);
+        }
+        .node-action-buy:hover { background: rgba(16,185,129,0.25); }
+
+        /* ═══════════════════════════════════════
+           SVG Connections
+           ═══════════════════════════════════════ */
+        .connections-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .connections-layer path {
+            fill: none;
+            stroke: rgba(99,102,241,0.3);
+            stroke-width: 2;
+            stroke-linecap: round;
+            transition: stroke 0.3s, stroke-width 0.3s, opacity 0.3s;
+        }
+        .connections-layer path.highlight {
+            stroke: var(--accent);
+            stroke-width: 3;
+            opacity: 1;
+            filter: drop-shadow(0 0 6px var(--accent));
+        }
+
+        /* ═══════════════════════════════════════
+           PHASE 4: Animations & Interactivity
+           ═══════════════════════════════════════ */
+
+        /* Entry animation */
+        .node {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+            animation: node-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .node:nth-child(3) { animation-delay: 0.1s; }
+        .node:nth-child(4) { animation-delay: 0.25s; }
+        .node:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes node-enter {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Dragging state */
+        .node.dragging {
+            cursor: grabbing;
+            z-index: 100;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+            border-color: rgba(255,255,255,0.18);
+        }
+
+        /* Node glow on hover */
+        .node.glow {
+            box-shadow: var(--shadow-node), 0 0 20px var(--accent-soft);
+        }
+
+        /* Canvas transform wrapper */
+        .canvas-transform {
+            position: absolute;
+            inset: 0;
+            transform-origin: 0 0;
+            transition: none;
+        }
+
+        /* Zoom indicator */
+        .zoom-indicator {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            background: var(--bg-card);
+            border: var(--border-card);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .zoom-indicator button {
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 14px; padding: 0 4px;
+            transition: color 0.2s;
+        }
+        .zoom-indicator button:hover { color: var(--text-primary); }
+
+        /* Context menu */
+        .ctx-menu {
+            position: fixed;
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius-md);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            min-width: 180px;
+            padding: 6px;
+            z-index: 999;
+            opacity: 0;
+            transform: scale(0.92) translateY(-4px);
+            animation: ctx-in 0.15s cubic-bezier(0.16,1,0.3,1) forwards;
+        }
+        @keyframes ctx-in {
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .ctx-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+            transition: background 0.15s;
+        }
+        .ctx-item:hover { background: rgba(255,255,255,0.06); }
+        .ctx-item.danger { color: var(--error); }
+        .ctx-sep {
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+            margin: 4px 8px;
+        }
+        .ctx-item-icon {
+            width: 16px; height: 16px;
+            opacity: 0.6;
+        }
+
+        /* Tooltip */
+        .canvas-hint {
+            position: absolute;
+            top: 16px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: var(--text-muted);
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0;
+            animation: hint-fade 4s ease forwards;
+        }
+        @keyframes hint-fade {
+            0%,10% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bento-shell">
+
+        <!-- ── NAV ── -->
+        <nav class="bento-nav">
+            <div class="nav-logo"></div>
+            <div class="nav-btn active" title="Strategy Builder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+            </div>
+            <div class="nav-btn" title="Dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </div>
+            <div class="nav-btn" title="Global Scan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            </div>
+            <div class="nav-btn" title="History">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="nav-spacer"></div>
+            <div class="nav-dot" title="Bot Online"></div>
+            <div style="height: 8px;"></div>
+            <div class="nav-btn" title="Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            </div>
+        </nav>
+
+        <!-- ── HEADER ── -->
+        <header class="bento-header">
+            <span class="strategy-name">RSI Divergence Master v2</span>
+            <span class="strategy-badge">● Active</span>
+            <div class="header-sep"></div>
+            <div class="header-pair">
+                BTCUSDT
+                <span style="color: var(--text-primary);">$64,231.50</span>
+                <span class="pair-change">+1.24%</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn">Backtest</button>
+                <button class="btn">Export</button>
+                <button class="btn btn-primary">▶ Run Strategy</button>
+            </div>
+        </header>
+
+        <!-- ── CANVAS ── -->
+        <main class="bento-canvas" id="canvas">
+            <div class="canvas-dots"></div>
+            <div class="canvas-hint">Scroll to zoom · Drag nodes · Right-click for menu</div>
+
+            <div class="canvas-transform" id="canvasTransform">
+                <!-- SVG Bezier connections -->
+                <svg class="connections-layer" id="connections"></svg>
+
+                <!-- Node: Mark Price -->
+                <div class="node" data-id="price" data-connections-out='["rsi","signal"]' style="top: 120px; left: 60px;">
+                    <div class="port port-out" style="background: var(--accent);"></div>
+                    <div class="node-header">
+                        <div class="node-icon" style="background: var(--accent-soft);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                        </div>
+                        <span class="node-label">Mark Price</span>
+                    </div>
+                    <div class="node-body">
+                        <div class="node-row"><span class="node-row-key">Symbol</span><span class="node-row-val">BTCUSDT</span></div>
+                        <div class="node-row"><span class="node-row-key">Price</span><span class="node-row-val">$64,231.50</span></div>
+                        <div class="node-row"><span class="node-row-key">24h Vol</span><span class="node-row-val" style="color: var(--text-secondary);">$1.2B</span></div>
+                    </div>
+                </div>
+
+                <!-- Node: RSI Indicator -->
+                <div class="node selected" data-id="rsi" data-connections-out='["signal"]' data-color="purple" style="top: 160px; left: 390px;">
+                    <div class="port port-in" style="background: var(--purple);"></div>
+                    <div class="port port-out" style="background: var(--purple);"></div>
+                    <div class="node-header">
+                        <div class="node-icon" style="background: var(--purple-soft);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </div>
+                        <span class="node-label">RSI (14)</span>
+                    </div>
+                    <div class="node-body">
+                        <div class="node-row"><span class="node-row-key">Period</span><span class="node-row-val">14</span></div>
+                        <div class="node-row"><span class="node-row-key">Value</span><span class="node-row-val" style="color: var(--success);">32.41</span></div>
+                        <div class="node-row"><span class="node-row-key">Zone</span><span class="node-row-val" style="color: var(--success);">Oversold</span></div>
+                    </div>
+                </div>
+
+                <!-- Node: Signal Output -->
+                <div class="node" data-id="signal" style="top: 320px; left: 250px;">
+                    <div class="port port-in" style="background: var(--success);"></div>
+                    <div class="node-header">
+                        <div class="node-icon" style="background: var(--success-soft);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <span class="node-label">Signal Output</span>
+                    </div>
+                    <div class="node-body">
+                        <div class="node-row"><span class="node-row-key">Type</span><span class="node-row-val" style="color: var(--success);">LONG</span></div>
+                        <div class="node-row"><span class="node-row-key">Confidence</span><span class="node-row-val">87%</span></div>
+                    </div>
+                    <button class="node-action node-action-buy">↑ Buy / Long</button>
+                </div>
+            </div>
+
+            <!-- Zoom controls -->
+            <div class="zoom-indicator">
+                <button id="zoomOut">−</button>
+                <span id="zoomLevel">100%</span>
+                <button id="zoomIn">+</button>
+            </div>
+        </main>
+
+        <!-- ── INSPECTOR ── -->
+        <aside class="bento-inspector">
+            <div class="inspector-header">
+                <div class="node-icon" style="background: var(--purple-soft); width: 26px; height: 26px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5" style="width:14px; height:14px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <span class="inspector-title">RSI Indicator</span>
+                <span class="inspector-tag">Indicator</span>
+            </div>
+
+            <div class="inspector-body">
+                <!-- Mini Bento Stats -->
+                <div class="mini-bento">
+                    <div class="mini-card">
+                        <div class="mini-card-label">Value</div>
+                        <div class="mini-card-value" style="color: var(--success);">32.41</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="mini-card-label">Zone</div>
+                        <div class="mini-card-value" style="color: var(--success);">Over­sold</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="mini-card-label">Signal</div>
+                        <div class="mini-card-value">Buy</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="mini-card-label">Strength</div>
+                        <div class="mini-card-value">87%</div>
+                    </div>
+                </div>
+
+                <!-- Fields -->
+                <div class="field-group">
+                    <div class="field-label">Timeframe</div>
+                    <select class="field-input">
+                        <option>15 minutes</option>
+                        <option>1 hour</option>
+                        <option>4 hours</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <div class="field-label">RSI Length</div>
+                    <input type="number" class="field-input" value="14">
+                </div>
+                <div class="field-row">
+                    <div class="field-group" style="flex:1;">
+                        <div class="field-label">Oversold</div>
+                        <input type="number" class="field-input" value="30">
+                    </div>
+                    <div class="field-group" style="flex:1;">
+                        <div class="field-label">Overbought</div>
+                        <input type="number" class="field-input" value="70">
+                    </div>
+                </div>
+                <div class="field-group">
+                    <div class="field-label">Source</div>
+                    <select class="field-input">
+                        <option>Close Price</option>
+                        <option>Open Price</option>
+                        <option>HL2</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="inspector-footer">
+                <button class="btn btn-danger">Remove Node</button>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const canvas = document.getElementById('canvas');
+        const transform = document.getElementById('canvasTransform');
+        const svg = document.getElementById('connections');
+        const nodes = document.querySelectorAll('.node');
+        const nodeMap = {};
+
+        nodes.forEach(n => { nodeMap[n.dataset.id] = n; });
+
+        // ── Zoom & Pan State ──
+        let scale = 1, panX = 0, panY = 0;
+        let isPanning = false, panStartX, panStartY;
+
+        function applyTransform() {
+            transform.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+        }
+
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.08 : 0.08;
+            scale = Math.min(2, Math.max(0.3, scale + delta));
+            applyTransform();
+        }, { passive: false });
+
+        document.getElementById('zoomIn').addEventListener('click', () => {
+            scale = Math.min(2, scale + 0.1);
+            applyTransform();
+        });
+        document.getElementById('zoomOut').addEventListener('click', () => {
+            scale = Math.max(0.3, scale - 0.1);
+            applyTransform();
+        });
+
+        // Pan with middle-click or space+drag
+        canvas.addEventListener('mousedown', e => {
+            if (e.button === 1 || (e.button === 0 && e.target === canvas.querySelector('.canvas-dots'))) {
+                isPanning = true;
+                panStartX = e.clientX - panX;
+                panStartY = e.clientY - panY;
+                canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('mousemove', e => {
+            if (isPanning) {
+                panX = e.clientX - panStartX;
+                panY = e.clientY - panStartY;
+                applyTransform();
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = '';
+            }
+        });
+
+        // ── Bezier Connections ──
+        function getPortPos(node, type) {
+            const r = node.getBoundingClientRect();
+            const tr = transform.getBoundingClientRect();
+            const x = (r.left - tr.left) / scale;
+            const y = (r.top - tr.top) / scale;
+            const w = r.width / scale;
+            const h = r.height / scale;
+            if (type === 'out') return { x: x + w + 5, y: y + h / 2 };
+            return { x: x - 5, y: y + h / 2 };
+        }
+
+        function drawConnections() {
+            svg.innerHTML = '';
+            nodes.forEach(srcNode => {
+                const outs = srcNode.dataset.connectionsOut;
+                if (!outs) return;
+                const targets = JSON.parse(outs);
+                const from = getPortPos(srcNode, 'out');
+                const color = srcNode.dataset.color === 'purple'
+                    ? 'rgba(168,85,247,0.35)'
+                    : 'rgba(99,102,241,0.35)';
+                targets.forEach(tId => {
+                    const tgt = nodeMap[tId];
+                    if (!tgt) return;
+                    const to = getPortPos(tgt, 'in');
+                    const dx = Math.abs(to.x - from.x) * 0.5;
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d',
+                        `M ${from.x} ${from.y} C ${from.x + dx} ${from.y}, ${to.x - dx} ${to.y}, ${to.x} ${to.y}`);
+                    path.style.stroke = color;
+                    path.dataset.from = srcNode.dataset.id;
+                    path.dataset.to = tId;
+                    svg.appendChild(path);
+                });
+            });
+        }
+
+        // Initial draw after entry animation settles
+        setTimeout(drawConnections, 600);
+
+        // ── Drag & Drop ──
+        let dragNode = null, dragOffX, dragOffY;
+
+        nodes.forEach(node => {
+            node.addEventListener('mousedown', e => {
+                if (e.button !== 0) return;
+                if (e.target.closest('.node-action, .port')) return;
+                e.stopPropagation();
+                dragNode = node;
+                dragNode.classList.add('dragging');
+                const r = node.getBoundingClientRect();
+                dragOffX = e.clientX - r.left;
+                dragOffY = e.clientY - r.top;
+
+                // Select node
+                nodes.forEach(n => n.classList.remove('selected'));
+                node.classList.add('selected');
+            });
+
+            // Hover glow
+            node.addEventListener('mouseenter', () => {
+                const id = node.dataset.id;
+                svg.querySelectorAll('path').forEach(p => {
+                    if (p.dataset.from === id || p.dataset.to === id) {
+                        p.classList.add('highlight');
+                    }
+                });
+                // Glow connected nodes
+                svg.querySelectorAll('path').forEach(p => {
+                    if (p.dataset.from === id) nodeMap[p.dataset.to]?.classList.add('glow');
+                    if (p.dataset.to === id) nodeMap[p.dataset.from]?.classList.add('glow');
+                });
+            });
+
+            node.addEventListener('mouseleave', () => {
+                svg.querySelectorAll('path').forEach(p => p.classList.remove('highlight'));
+                nodes.forEach(n => n.classList.remove('glow'));
+            });
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!dragNode) return;
+            const cr = transform.getBoundingClientRect();
+            const newX = (e.clientX - cr.left - dragOffX) / scale;
+            const newY = (e.clientY - cr.top - dragOffY) / scale;
+            dragNode.style.left = newX + 'px';
+            dragNode.style.top = newY + 'px';
+            drawConnections();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (dragNode) {
+                dragNode.classList.remove('dragging');
+                dragNode = null;
+            }
+        });
+
+        // ── Context Menu ──
+        function closeCtx() {
+            document.querySelectorAll('.ctx-menu').forEach(m => m.remove());
+        }
+
+        nodes.forEach(node => {
+            node.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeCtx();
+                const menu = document.createElement('div');
+                menu.className = 'ctx-menu';
+                menu.innerHTML = `
+                    <div class="ctx-item" data-action="duplicate">⧉ Duplicate Node</div>
+                    <div class="ctx-item" data-action="disable">⊘ Disable Node</div>
+                    <div class="ctx-sep"></div>
+                    <div class="ctx-item danger" data-action="delete">✕ Delete Node</div>
+                `;
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+                document.body.appendChild(menu);
+
+                menu.querySelectorAll('.ctx-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const action = item.dataset.action;
+                        if (action === 'delete') {
+                            node.style.transition = 'opacity 0.2s, transform 0.2s';
+                            node.style.opacity = '0';
+                            node.style.transform = 'scale(0.9)';
+                            setTimeout(() => { node.remove(); drawConnections(); }, 200);
+                        }
+                        if (action === 'disable') {
+                            node.style.opacity = node.style.opacity === '0.4' ? '1' : '0.4';
+                        }
+                        if (action === 'duplicate') {
+                            const clone = node.cloneNode(true);
+                            clone.dataset.id = node.dataset.id + '_copy';
+                            clone.style.top = parseInt(node.style.top) + 40 + 'px';
+                            clone.style.left = parseInt(node.style.left) + 40 + 'px';
+                            clone.classList.remove('selected');
+                            transform.appendChild(clone);
+                            drawConnections();
+                        }
+                        closeCtx();
+                    });
+                });
+            });
+        });
+
+        document.addEventListener('click', closeCtx);
+        canvas.addEventListener('contextmenu', e => {
+            if (!e.target.closest('.node')) e.preventDefault();
+        });
+    })();
+    </script>
+</body>
+</html>

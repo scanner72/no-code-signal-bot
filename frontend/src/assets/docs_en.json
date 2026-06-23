@@ -1,0 +1,518 @@
+{
+  "sections": [
+    {
+      "id": "dashboard",
+      "title": "Control Center (Dashboard)",
+      "content": "The Dashboard is your strategy control center, designed for comprehensive real-time monitoring of the builder's operations. Instead of cluttered charts and orderbooks duplicating trading terminals, it aggregates key performance indicators, signal activity, and integration management.",
+      "subsections": [
+        {
+          "title": "Key Widgets:",
+          "content": "- **KPI Panel**: Displays the status of active strategies, signal count today/week/hour, and Hermes AI filter status.\n- **Signal Activity (Sparkline)**: An interactive mini-chart of signal generation activity over the last 7 days.\n- **Quick Actions**: Instant navigation buttons to the Canvas Builder, Backtest, Templates, or Integration Settings.\n- **Live Signal Feed**: Real-time signal stream connected via WebSocket with type, pair, and strategy indicators.\n- **Top Strategies**: Leaderboard of the most active algorithms by signal count.\n- **Market Pulse**: Compact ticker tape showing current prices of top coins and their 24h changes.\n\n> **Tip:** Use the \"Quick Actions\" section for fast navigation across key areas of the platform."
+        }
+      ]
+    },
+    {
+      "id": "builder",
+      "title": "Canvas Builder Interface",
+      "content": "### Node Library Panel (Left)\n\nDrag and drop nodes onto the canvas. Categories:\n- **Inputs** — markPrice, fundingRate\n- **Indicators** — RSI, EMA, SMA, MACD, BB, Stochastic, Volume\n- **Comparison** — conditions and thresholds\n- **Logic** — AND / OR\n- **SMC Concepts** — Market Structure, FVG, Order Block, Liquidity Sweep\n- **Special** — Cross, Time Filter, Pump/Dump, Power of 3, Daily Bias\n- **Order Flow** — Delta, CVD, Orderbook\n- **🧠 AI Forecast** — Sentiment, ML Filter, Hermes Agent, Kronos Forecast\n- **Signal** — LONG / SHORT",
+      "subsections": [
+        {
+          "title": "Canvas (Center)",
+          "content": "| Action | How |\n|---|---|\n| Move Node | Left Click & Drag header |\n| Connect Nodes | Drag from output handle to input handle |\n| Delete Connection | Select line → Delete |\n| Delete Node | Select node → Delete |\n| Zoom | Ctrl + Mouse Wheel |\n| Pan | Space + Left Click & Drag |"
+        },
+        {
+          "title": "Inline Parameter Editing",
+          "content": "**Click on a node** — interactive parameter fields expand directly in the node's body. Changes are applied instantly via the Zustand store. The right properties panel is also available for advanced settings."
+        },
+        {
+          "title": "Top Header Toolbar",
+          "content": "- **Save** — Save the strategy to the database\n- **Load Template** — Library of pre-configured strategies\n- **Import Pine Script** — Auto-build graph from TradingView Pine Script code\n- **Pair / Timeframe** — Settings for the active strategy\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "strategies",
+      "title": "Template Library",
+      "content": "The **\"Load Template\"** button opens a library of 20 pre-configured strategies.\n\n| Category | Approach |\n|---|---|\n| **Trend** | EMA, MACD |\n| **Pullback** | RSI oversold in a trend |\n| **Smart Money** | FVG, Order Block, Structure |\n| **Momentum** | Momentum, Stochastic, Pump/Dump |\n| **Session** | Killzone (London, New York) |\n| **Funding** | Funding Rate strategies |\n| **AI Filter** | With Hermes or ML-filter |",
+      "subsections": [
+        {
+          "title": "How to Use",
+          "content": "1. Select a template → **\"Show Logic\"**\n2. Click **\"Load to Builder\"**\n3. Adjust parameters and trading pair\n4. Save → Run Backtest\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "signals",
+      "title": "Node Types - Complete Reference",
+      "content": "Below is an automatically generated list of all available blocks in the system registry.",
+      "subsections": [
+        {
+          "title": "Inputs",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **Mark Price** | Parameters: pair: '', operator: 'none' |\n| **Open Interest** | Parameters: pair: '', operator: 'none' |\n| **Funding Rate** | Parameters: pair: '', operator: 'none' |\n| **24h Volume** | Parameters: `source` (volume24h) |\n| **24h Change %** | Parameters: `source` (change24h) |\n| **User Chart Level** | Parameters: levelId: 0 |"
+        },
+        {
+          "title": "Indicators",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **RSI** | Parameters: period: 14 |\n| **Divergence** | Parameters: source: 'RSI' |\n| **SMA** | Parameters: period: 20 |\n| **EMA** | Parameters: period: 20 |\n| **MACD** | Parameters: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Parameters: period: 20, stdDev: 2 |\n| **ATR** | Parameters: period: 14 |\n| **Stochastic** | Parameters: k: 14, d: 3, smooth: 3 |\n| **Volume** | Parameters: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **Fair Value Gap** | Parameters: lookback: 50 |\n| **Order Block** | Parameters: lookback: 50 |\n| **Liquidity Sweep** | Parameters: lookback: 50 |\n| **Market Structure** | Parameters: lookback: 50 |\n| **Daily Bias** | Parameters: lookback: 50 |\n| **Power of 3** | Parameters: lookback: 50 |\n| **Premium/Discount** | Parameters: lookback: 50 |\n| **ICT Killzone** | Parameters: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **Volume Delta** | Parameters: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Parameters: `metric` (cvd) |\n| **Liquidations** | Parameters: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Parameters: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Forecast",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **AI Forecast** | Parameters: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Price** | Parameters: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Parameters: — |\n| **ML Predictor** | Parameters: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Parameters: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Statistics",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **VWAP** | Parameters: anchor: 'D' |\n| **Z-Score** | Parameters: period: 20 |\n| **ADR Exhaustion** | Parameters: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Logic",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **AND** | Parameters: `operator` (AND), `inputsCount` (2) |\n| **OR** | Parameters: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Parameters: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Parameters: `operator` (cross_above) |\n| **Cross Below** | Parameters: `operator` (cross_below) |\n| **> / <** | Parameters: `operator` (>) |\n| **Custom Script** | Parameters: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Filters",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **Killzone** | Parameters: — |"
+        },
+        {
+          "title": "Outputs",
+          "content": "| Name | Description / Default Parameters |\n| :--- | :--- |\n| **LONG Signal** | Parameters: `signalType` (LONG) |\n| **SHORT Signal** | Parameters: `signalType` (SHORT) |\n\n\n--- | :--- |\n| `markPrice` | Mark price (for futures PnL calculation) |\n| `fundingRate` | Funding rate (updates every 8 hours) |\n\n> By default, indicators take candle close price. INPUT is only needed to work with markPrice or fundingRate explicitly.\n\n---"
+        },
+        {
+          "title": "3.2 INDICATOR — Technical Indicators",
+          "content": "#### RSI\n- **Parameters:** `period` (14)\n- **Returns:** value 0–100\n- **Usage:** RSI > 50 (bullish momentum), RSI < 30 (oversold)\n\n#### SMA / EMA\n- **Parameters:** `period` (SMA: 50, EMA: 20/50)\n- **Usage:** EMA(20) > EMA(50) → uptrend\n\n#### MACD\n- **Parameters:** `fast` (12), `slow` (26), `signal` (9)\n- **Properties:** `histogram`, `MACD`, `signal`\n- **Usage:** histogram > 0 → buyers control\n\n#### Bollinger Bands\n- **Parameters:** `period` (20), `stdDev` (2)\n- **Properties:** `upper`, `middle`, `lower`\n\n#### Stochastic\n- **Parameters:** `period` (14), `signalPeriod` (3)\n- **Properties:** `k`, `d`\n\n#### Volume\n- **Parameters:** `period` — number of candles for average\n- **Usage:** filtering weak market moves\n\n---"
+        },
+        {
+          "title": "3.3 COMPARISON — Comparison Nodes",
+          "content": "Compares two values, returns `true` / `false`.\n\n| Operator | Meaning |\n|---|---|\n| `>` | A greater than B |\n| `<` | A less than B |\n| `>=` | A greater or equal to B |\n| `<=` | A less or equal to B |\n| `==` | A equals B (strings: 'BULLISH', 'bearish') |\n\n**Value field:** if input B is not connected, the static value in parameters is used.\n\n---"
+        },
+        {
+          "title": "3.4 AI — Forecasts & Agents",
+          "content": "#### 🧠 Hermes Agent\n- **Purpose:** Autonomous LLM filter (based on Nous Hermes 3 or GPT-4).\n- **Modes:**\n  - `Filter`: Returns PASS or BLOCK signal. Returns `true` / `false`.\n  - `Score`: Returns confidence level 0.0–1.0.\n- **Logic:** The agent receives current market context (price, RSI, volatility) and your custom prompt. It makes a decision based on \"market logic\" and patterns that are hard to describe mathematically.\n- **Caching:** Saves API costs by caching results for N minutes per pair.\n\n#### 🔮 AI Forecast (Kronos)\n- **Models:** Kronos-Base (102M), Small (24M), Mini (4M).\n- **Parameters:** `predLen` (forecast depth in candles), `minConfidence` (confidence threshold).\n- **Properties:** `direction` (UP/DOWN), `predicted_change` (expected % change).\n\n---\n\n---"
+        },
+        {
+          "title": "3.5 LOGIC — Logic Nodes",
+          "content": "| Operator | Behavior |\n|---|---|\n| `AND` | All inputs must be `true` |\n| `OR` | At least one input must be `true` |\n\nSupports any number of inputs. The Logic output goes to Signal or another Logic node.\n\n---"
+        },
+        {
+          "title": "3.6 SIGNAL — Signal Nodes",
+          "content": "Final node of a strategy. Type: `LONG` or `SHORT`.\n\n> Each strategy **must** end with a Signal node.\n\n---"
+        },
+        {
+          "title": "3.7 CROSS — Cross Crossover Nodes",
+          "content": "Triggers **only at the exact moment** when two lines cross (unlike Comparison).\n\n- `above` — A crosses B from bottom up (bullish)\n- `below` — A crosses B from top down (bearish)\n\n---"
+        },
+        {
+          "title": "3.8 TIME FILTER — Session Time Filter",
+          "content": "Restricts strategy operations to specific hours of the day (UTC).\n\n- `from` / `to` — window in HH:MM format\n- London: 07:00–10:00, New York: 13:30–16:00, Asia: 22:00–08:00\n\n> Time Filter output is typically connected directly to a Logic AND node.\n\n---"
+        },
+        {
+          "title": "3.9 MARKET STRUCTURE — Market Structure Nodes",
+          "content": "Identifies the trend through swing points (BOS / CHoCH).\n\n- `trend` → `'bullish'` / `'bearish'` / `'ranging'`\n- `lastBOS` / `lastCHoCH` — last structure break events\n- **Parameters:** `lookback` (150)\n\n---"
+        },
+        {
+          "title": "3.9 FVG — Fair Value Gap",
+          "content": "Checks whether the price is within an unfilled fair value gap.\n\n- **Returns:** `true` / `false`\n- **Parameters:** `lookback`\n\n---"
+        },
+        {
+          "title": "3.10 ORDER BLOCK — Order Block Nodes",
+          "content": "Zone of institutional buying/selling interest (reversal bar before momentum).\n\n- **Parameters:** `lookback`, `obType` (`'BULLISH'` / `'BEARISH'`)\n- **Returns:** `true` if price is within a block of the chosen type\n\n---"
+        },
+        {
+          "title": "3.11 LIQUIDITY SWEEP — Liquidity Sweeps",
+          "content": "Price pierced a level but closed back within the range (manipulation).\n\n- **Parameters:** `sweepType` — `'HIGH'` / `'LOW'` / `'ANY'`\n\n---"
+        },
+        {
+          "title": "3.12 PUMP / DUMP",
+          "content": "Abnormal price movements accompanied by high volume.\n\n- **Parameters:** `priceThreshold` (%), `volMultiplier`, `lookback`\n\n---"
+        },
+        {
+          "title": "3.13 DAILY BIAS — Daily Bias",
+          "content": "Previous day's trend bias: `'BULLISH'` / `'BEARISH'` / `'NEUTRAL'`.\n\n> Recommended for 15m–1h timeframes.\n\n---"
+        },
+        {
+          "title": "3.14 POWER OF 3 (PO3)",
+          "content": "ICT concept: Accumulation → Manipulation → Distribution.\n\n| Phase | Meaning |\n|---|---|\n| `'ACCUMULATION'` | Consolidation near daily open |\n| `'MANIPULATION_LOW_COMPLETED'` | Judas Swing down completed → LONG |\n| `'MANIPULATION_HIGH_COMPLETED'` | Judas Swing up completed → SHORT |\n| `'DISTRIBUTION'` | Active price expansion from open |\n\n---"
+        },
+        {
+          "title": "3.15 ORDER FLOW — Order Flow",
+          "content": "Analyzes buy/sell volume imbalance and cumulative volume delta.\n\n- **Metrics:** `imbalance` (orderbook tilt), `cvd` (cumulative delta), `delta` (current candle delta)\n- **Parameters:** `metric`, `period`\n- **Usage:** CVD rises as price drops → hidden accumulation\n\n---"
+        },
+        {
+          "title": "3.16 ORDERBOOK — Order Book Analyzer",
+          "content": "Real-time orderbook depth analyzer.\n\n- **Metrics:** `imbalance` (bid/ask ratio), `wallDetect` (large block wall detection)\n- **Parameters:** `levels` (depth of analysis, default is 20)\n\n---"
+        },
+        {
+          "title": "3.17 MARKET SENTIMENT — Sentiment Ticker",
+          "content": "Aggregated sentiment score from news and social feeds.\n\n- **Returns:** `score` (-1 to +1), `label` (`'BULLISH'` / `'BEARISH'` / `'NEUTRAL'`)\n- **Usage:** Comparison with `score > 0.3` to filter for bullish environment\n\n---"
+        },
+        {
+          "title": "3.18 ML FILTER — Machine Learning Filter",
+          "content": "Predicts signal success probability using a custom-trained ML model (Kronos).\n\n- **Parameters:** `minConfidence` (confidence threshold, 0–1), `timeframe`\n- **Returns:** `true` if model confidence is above threshold\n- **Usage:** Add as the final filter to a Logic AND node to only trigger high-probability signals\n\n---"
+        },
+        {
+          "title": "3.19 HERMES AGENT — AI Agent Node",
+          "content": "Connects an intelligent LLM agent (Nous Hermes) to filter signals based on natural language market context.\n\n**Modes of Operation:**\n| Mode | Behavior |\n|---|---|\n| `filter` | Agent decides PASS / BLOCK. Returns `true` / `false` |\n| `score` | Agent returns confidence score (0–1), needs a Comparison node for threshold |\n\n**Parameters:**\n- `mode` — `filter` or `score`\n- `model` — LLM model: `nous-hermes-3:8b` (local via Ollama) or `openai/gpt-4o` (cloud)\n- `promptTemplate` — request template describing market context\n- `cacheDuration` — cache duration in minutes (reduces latency)\n\n**How it works:**\n1. Engine builds market context: pair, timeframe, price, indicators\n2. Injects into `promptTemplate` and sends to Hermes Agent API\n3. Cache results in Redis for `cacheDuration` minutes\n4. During backtests, mocks are used (`isBacktest: true`) instead of live API calls\n\n> **Note:** Hermes adds latency (200–500ms local, 500–3000ms cloud). Always use caching.\n\n---"
+        },
+        {
+          "title": "3.20 KRONOS FORECAST — AI Forecasting",
+          "content": "Price direction forecast utilizing the built-in deep neural network model (Kronos via Ollama).\n\n- **Parameters:** `horizon` (forecast horizon in candles), `minConfidence`\n- **Returns:** `true` when confidence exceeds the threshold\n\n---"
+        },
+        {
+          "title": "3.21 SCANNER NODE — Multi-Pair Scanner",
+          "content": "Monitors multiple trading pairs simultaneously and forwards signals when condition is met.\n\n- **Parameters:** pair list, timeframe, scan condition\n\n---"
+        },
+        {
+          "title": "3.22 USER LEVEL — Custom User Level",
+          "content": "Allows manual price level placement (support/resistance) and triggers signal when price approaches it.\n\n- **Parameters:** `price` (level price), `tolerance` (% deviation limit)\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "backtest",
+      "title": "Backtest",
+      "content": "The **Backtest** page checks strategy performance on historical data.",
+      "subsections": [
+        {
+          "title": "Launch Parameters",
+          "content": "| Parameter | Description | Recommendation |\n|---|---|---|\n| **Strategy** | Select from saved strategies | — |\n| **Period** | Start and End dates | At least 3 months |\n| **Initial Balance** | Starting balance in USD | 1000 |\n| **Fee** | Trading fee percent | 0.001 = 0.1% |\n| **Take Profit** | TP % from entry price | 2–5% |\n| **Stop Loss** | SL % from entry price | 1–2% |\n| **Position Size** | Allocation % from balance | 80–90% |\n\n> Data for new periods is fetched dynamically from Binance upon first launch — up to 1–3 minutes.\n\n> During backtests, **Hermes Agent API calls are mocked** (`isBacktest: true`) to avoid excessive latency."
+        },
+        {
+          "title": "Performance Metrics",
+          "content": "| Metric | Meaning | Target Value |\n|---|---|---|\n| **Win Rate** | % of profitable trades | > 50% |\n| **Profit Factor** | Gross Profit / Gross Loss | > 1.5 |\n| **Max Drawdown** | Peak-to-trough drop | < 20% |\n| **Sharpe Ratio** | Return / volatility | > 1.0 |\n| **Risk-Reward Ratio** | Average Win / Average Loss | > 1.5 |\n| **Recovery Factor** | Net Profit / Max Drawdown | > 2.0 |"
+        },
+        {
+          "title": "Trade Ledger Table",
+          "content": "Each trade records: execution time, direction, price, PnL $/%, indicator metadata (e.g. RSI level, AI decision).\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "fleet",
+      "title": "Fleet Management",
+      "content": "The **Fleet Management** dashboard allows you to execute strategies in live/paper mode as independent, containerized Docker instances.",
+      "subsections": [
+        {
+          "title": "Key Features:",
+          "content": "- **Central Command**: Monitor PnL, balance, and active positions across all running bot instances.\n- **PANIC STOP**: Instant emergency stop button that halts all bots and closes all active open positions.\n- **Correlation Matrix**: Analyzes mathematical relationships between pairs in the fleet. Correlation > 0.8 (red zone) warns of high risk due to identical portfolio exposure.\n- **Risk Level**: Dynamically calculates a portfolio risk rating based on volatility and asset correlation.\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "ml",
+      "title": "AI Model Training: ML Intelligence Trainer",
+      "content": "This module allows you to train custom predictive models (Random Forest / XGBoost) based on your custom canvas strategy flow.",
+      "subsections": [
+        {
+          "title": "Training Pipeline:",
+          "content": "1. **Select Strategy**: System parses your flow graph and extracts all indicators as training features.\n2. **Parameters**: Define the target trading pair, timeframe, and prediction horizon (e.g., price action in 24 candles).\n3. **Feature Importance**: Post-training, view details about which indicators (e.g., RSI, OB, CVD) have the most predictive power.\n4. **Validation**: Model accuracy above 60% qualifies it for live filtering within the `ML Filter` node.\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "cross",
+      "title": "Cross-Exchange Analytics",
+      "content": "Analytical tools to uncover alpha through real-time price anomalies across different exchanges.\n\n- **Deltas**: Compares live Binance prices against Bybit and OKX.\n- **Arbitrage Alerts**: Highlights pairs with pricing spreads > 0.1% for potential arbitrage trade execution.\n- **Market Sync**: Identifies which exchange leads momentum moves (Smart Money Flow detection).\n\n---",
+      "subsections": []
+    },
+    {
+      "id": "settings",
+      "title": "Settings & Risk Management",
+      "content": "The **Settings** console is critical for secure live bot execution.",
+      "subsections": [
+        {
+          "title": "Telegram & Alerts",
+          "content": "- Connect your custom `Bot Token` and `Chat ID`.\n- Send a verification message before launching strategies.\n- Add Discord Webhooks as an alternative alerting channel."
+        },
+        {
+          "title": "Third-Party AI Integration",
+          "content": "- **Heym MCP**: Run analytic workflow engines. Allows checking and connecting external servers.\n- **Hermes AI Agent**: Manage API endpoints (Ollama, custom agent, or OpenAI-compatible). Set API keys (masked on input), hosts, and model names. Test the connection instantly from the interface.\n- All settings are saved dynamically to PostgreSQL (Hot-Reload supported)."
+        },
+        {
+          "title": "Global Risk Controls (Safety First)",
+          "content": "- **Global Pause**: Instantly halts signal generation across all active strategies.\n- **BTC/ETH Drop Threshold**: Safe mode trigger. If BTC drops more than X% in 24h, bots enter a pause state to protect capital."
+        },
+        {
+          "title": "Risk & Exposure Limits",
+          "content": "- **Daily Loss Limit**: Cap on daily net losses. Halts all trading activity once hit.\n- **Max Active Signals**: Limit on simultaneous positions to manage portfolio leverage and margin.\n- **Deduplication Interval**: Setup a silence period (e.g., 4 hours) per pair to avoid repeating entries on the same swing.\n\n---"
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "input_mark_price",
+      "name": "Mark Price",
+      "category": "Inputs",
+      "params": "pair: '', operator: 'none'"
+    },
+    {
+      "id": "input_open_interest",
+      "name": "Open Interest",
+      "category": "Inputs",
+      "params": "pair: '', operator: 'none'"
+    },
+    {
+      "id": "input_funding_rate",
+      "name": "Funding Rate",
+      "category": "Inputs",
+      "params": "pair: '', operator: 'none'"
+    },
+    {
+      "id": "scanner_volume24h",
+      "name": "24h Volume",
+      "category": "Inputs",
+      "params": "`source` (volume24h)"
+    },
+    {
+      "id": "scanner_change24h",
+      "name": "24h Change %",
+      "category": "Inputs",
+      "params": "`source` (change24h)"
+    },
+    {
+      "id": "user_level",
+      "name": "User Chart Level",
+      "category": "Inputs",
+      "params": "levelId: 0"
+    },
+    {
+      "id": "indicator_rsi",
+      "name": "RSI",
+      "category": "Indicators",
+      "params": "period: 14"
+    },
+    {
+      "id": "indicator_divergence",
+      "name": "Divergence",
+      "category": "Indicators",
+      "params": "source: 'RSI'"
+    },
+    {
+      "id": "indicator_sma",
+      "name": "SMA",
+      "category": "Indicators",
+      "params": "period: 20"
+    },
+    {
+      "id": "indicator_ema",
+      "name": "EMA",
+      "category": "Indicators",
+      "params": "period: 20"
+    },
+    {
+      "id": "indicator_macd",
+      "name": "MACD",
+      "category": "Indicators",
+      "params": "fast: 12, slow: 26, signal: 9"
+    },
+    {
+      "id": "indicator_bb",
+      "name": "Bollinger Bands",
+      "category": "Indicators",
+      "params": "period: 20, stdDev: 2"
+    },
+    {
+      "id": "indicator_atr",
+      "name": "ATR",
+      "category": "Indicators",
+      "params": "period: 14"
+    },
+    {
+      "id": "indicator_stoch",
+      "name": "Stochastic",
+      "category": "Indicators",
+      "params": "k: 14, d: 3, smooth: 3"
+    },
+    {
+      "id": "indicator_volume",
+      "name": "Volume",
+      "category": "Indicators",
+      "params": "—"
+    },
+    {
+      "id": "smc_fvg",
+      "name": "Fair Value Gap",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_ob",
+      "name": "Order Block",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_sweep",
+      "name": "Liquidity Sweep",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_ms",
+      "name": "Market Structure",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_bias",
+      "name": "Daily Bias",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_po3",
+      "name": "Power of 3",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_pd",
+      "name": "Premium/Discount",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_killzone",
+      "name": "ICT Killzone",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "of_delta",
+      "name": "Volume Delta",
+      "category": "📊 Order Flow",
+      "params": "`metric` (delta), `period` (1h)"
+    },
+    {
+      "id": "of_cvd",
+      "name": "CVD (Cumulative)",
+      "category": "📊 Order Flow",
+      "params": "`metric` (cvd)"
+    },
+    {
+      "id": "of_liq",
+      "name": "Liquidations",
+      "category": "📊 Order Flow",
+      "params": "`side` (BOTH), `threshold` (1000000)"
+    },
+    {
+      "id": "of_wall",
+      "name": "Orderbook Wall",
+      "category": "📊 Order Flow",
+      "params": "side: 'BUY', volume: 10, rangePct: 1"
+    },
+    {
+      "id": "ai_direction",
+      "name": "AI Forecast",
+      "category": "🧠 AI Forecast",
+      "params": "`property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6)"
+    },
+    {
+      "id": "ai_price",
+      "name": "AI Price",
+      "category": "🧠 AI Forecast",
+      "params": "`property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6)"
+    },
+    {
+      "id": "sentiment_score",
+      "name": "Market Sentiment",
+      "category": "🧠 AI Forecast",
+      "params": "—"
+    },
+    {
+      "id": "ml_predictor",
+      "name": "ML Predictor",
+      "category": "🧠 AI Forecast",
+      "params": "`modelId` (...), `minScore` (0.7)"
+    },
+    {
+      "id": "hermes_agent",
+      "name": "Hermes Agent",
+      "category": "🧠 AI Forecast",
+      "params": "`mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15)"
+    },
+    {
+      "id": "stats_vwap",
+      "name": "VWAP",
+      "category": "📈 Statistics",
+      "params": "anchor: 'D'"
+    },
+    {
+      "id": "stats_zscore",
+      "name": "Z-Score",
+      "category": "📈 Statistics",
+      "params": "period: 20"
+    },
+    {
+      "id": "stats_adr",
+      "name": "ADR Exhaustion",
+      "category": "📈 Statistics",
+      "params": "period: 7, threshold: 90"
+    },
+    {
+      "id": "logic_and",
+      "name": "AND",
+      "category": "Logic",
+      "params": "`operator` (AND), `inputsCount` (2)"
+    },
+    {
+      "id": "logic_or",
+      "name": "OR",
+      "category": "Logic",
+      "params": "`operator` (OR), `inputsCount` (2)"
+    },
+    {
+      "id": "logic_corr",
+      "name": "Correlation Filter",
+      "category": "Logic",
+      "params": "`pair` (BTCUSDT), `minCorr` (0.8)"
+    },
+    {
+      "id": "comp_cross_above",
+      "name": "Cross Above",
+      "category": "Logic",
+      "params": "`operator` (cross_above)"
+    },
+    {
+      "id": "comp_cross_below",
+      "name": "Cross Below",
+      "category": "Logic",
+      "params": "`operator` (cross_below)"
+    },
+    {
+      "id": "comp_gt_lt",
+      "name": "> / <",
+      "category": "Logic",
+      "params": "`operator` (>)"
+    },
+    {
+      "id": "custom_script",
+      "name": "Custom Script",
+      "category": "Logic",
+      "params": "`code` (return close[0] > high[1];)"
+    },
+    {
+      "id": "filter_killzone",
+      "name": "Killzone",
+      "category": "Filters",
+      "params": "—"
+    },
+    {
+      "id": "signal_long",
+      "name": "LONG Signal",
+      "category": "Outputs",
+      "params": "`signalType` (LONG)"
+    },
+    {
+      "id": "signal_short",
+      "name": "SHORT Signal",
+      "category": "Outputs",
+      "params": "`signalType` (SHORT)"
+    }
+  ]
+}

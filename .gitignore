@@ -1,0 +1,87 @@
+# ─────────────────────────────────────────────
+# 🔒 SECRETS — NEVER COMMIT THESE
+# ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.env
+**/.env
+**/.env.*
+!**/.env.example
+*.key
+*.pem
+*.p12
+secrets/
+**/free-ai/*-profile/
+**/.free-ai/
+
+# ─────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.uv/
+
+# ─────────────────────────────────────────────
+# Build output
+# ─────────────────────────────────────────────
+dist/
+build/
+**/dist/
+**/build/
+*.tsbuildinfo
+.vite/
+
+# ─────────────────────────────────────────────
+# Logs & runtime
+# ─────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pids/
+*.pid
+
+# ─────────────────────────────────────────────
+# Databases & caches
+# ─────────────────────────────────────────────
+*.sqlite
+*.sqlite3
+*.db
+.cache/
+postgres_data/
+kronos_cache/
+ldr_data/
+
+# ─────────────────────────────────────────────
+# Editor / OS
+# ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─────────────────────────────────────────────
+# Third-party projects (NOT part of this repo)
+# ─────────────────────────────────────────────
+# Hermes Agent by Nous Research (MIT) — clone separately to enable the Hermes AI node.
+# See README → Acknowledgements.
+hermes-agent/
+
+# ─────────────────────────────────────────────
+# Project scratch / internal (not for public repo)
+# ─────────────────────────────────────────────
+scratch/
+artifacts/
+test-bot/
+memory.md
+docs/superpowers/

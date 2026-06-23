@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Professional - Strategy Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #0b0e14;
+            --bg-sidebar: #131722;
+            --bg-card: #1e222d;
+            --accent: #2962ff;
+            --border: #2a2e39;
+            --text-primary: #d1d4dc;
+            --text-secondary: #787b86;
+            --success: #089981;
+            --error: #f23645;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+
+        .logo-area {
+            padding: 24px;
+            font-weight: 800;
+            font-size: 18px;
+            color: #fff;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-box {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 6px;
+        }
+
+        .nav-group {
+            padding: 16px 12px;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            padding: 0 12px 8px;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+            transition: 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-item.active {
+            background: rgba(41, 98, 255, 0.1);
+            color: #fff;
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+        }
+
+        /* Main Workspace */
+        .workspace {
+            flex: 1;
+            position: relative;
+            background-image: 
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center;
+        }
+
+        /* Top Header */
+        .top-header {
+            height: 64px;
+            background: rgba(11, 14, 20, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 10;
+        }
+
+        .strategy-title {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: #fff;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: #1e4bd8;
+        }
+
+        /* Professional Nodes */
+        .node {
+            position: absolute;
+            width: 220px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .node-head {
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .node-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .node-body {
+            padding: 14px;
+        }
+
+        .field {
+            margin-bottom: 8px;
+        }
+
+        .field-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .field-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Connection Lines (Simulated) */
+        .path {
+            position: absolute;
+            height: 2px;
+            background: var(--accent);
+            opacity: 0.4;
+            transform-origin: 0 0;
+            z-index: 0;
+        }
+
+        /* Floating Tooltip */
+        .inspector {
+            width: 300px;
+            background: var(--bg-sidebar);
+            border-left: 1px solid var(--border);
+            padding: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo-area">
+            <div class="logo-box"></div>
+            CYBER-QUANT
+        </div>
+        
+        <div class="nav-group">
+            <div class="nav-label">Main</div>
+            <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Dashboard</div>
+            <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"></path></svg> Strategy Builder</div>
+            <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> Global Scan</div>
+        </div>
+
+        <div class="nav-group" style="margin-top: auto;">
+            <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path></svg> Settings</div>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="top-header">
+            <div class="strategy-title">RSI Divergence Master v2</div>
+            <div class="actions">
+                <button class="btn">Backtest</button>
+                <button class="btn btn-primary">Save Strategy</button>
+            </div>
+        </div>
+
+        <div class="node" style="top: 150px; left: 100px;">
+            <div class="node-head"><div class="node-dot" style="background: var(--accent);"></div> MARK PRICE</div>
+            <div class="node-body">
+                <div class="field">
+                    <div class="field-label">SYMBOL</div>
+                    <div class="field-value">BTCUSDT</div>
+                </div>
+                <div class="field">
+                    <div class="field-label">CURRENT PRICE</div>
+                    <div class="field-value">$64,231.50</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="node" style="top: 180px; left: 450px;">
+            <div class="node-head"><div class="node-dot" style="background: #a855f7;"></div> RSI INDICATOR</div>
+            <div class="node-body">
+                <div class="field">
+                    <div class="field-label">PERIOD</div>
+                    <div class="field-value">14</div>
+                </div>
+                <div class="field">
+                    <div class="field-label">LATEST VALUE</div>
+                    <div class="field-value" style="color: var(--success);">32.41</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="path" style="top: 195px; left: 320px; width: 130px;"></div>
+
+        <div class="node" style="top: 350px; left: 280px;">
+            <div class="node-head"><div class="node-dot" style="background: var(--success);"></div> SIGNAL OUTPUT</div>
+            <div class="node-body">
+                <div class="field">
+                    <div class="field-label">TYPE</div>
+                    <div class="field-value">LONG SIGNAL</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inspector">
+        <h3 style="margin-top: 0; font-size: 16px;">Node Inspector</h3>
+        <p style="font-size: 13px; color: var(--text-secondary);">Select a node on the canvas to edit its properties.</p>
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 24px 0;">
+        <div class="field">
+            <label class="field-label">NAME</label>
+            <input type="text" value="RSI Indicator" style="width: 100%; background: var(--bg-main); border: 1px solid var(--border); padding: 8px; border-radius: 4px; color: #fff; margin-top: 4px;">
+        </div>
+    </div>
+</body>
+</html>

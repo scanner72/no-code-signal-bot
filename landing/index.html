@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber-Quant Signal Bot — Visual no-code crypto strategy builder</title>
+<meta name="description" content="Design crypto trading strategies by connecting blocks on a canvas — indicators, Smart Money Concepts, order-flow, AI risk filters. Backtest, optimize, and deploy automated bots.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050505; --panel:#0c0d10; --accent:#00d2ff; --purple:#9d50bb;
+    --text:#e6e8ec; --muted:#8b909a; --border:rgba(0,210,255,.14);
+    --grad:linear-gradient(135deg,#00d2ff 0%,#9d50bb 100%);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+    line-height:1.6;overflow-x:hidden;
+    background-image:radial-gradient(circle,#15171c 1px,transparent 1px);
+    background-size:32px 32px;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  .accent{color:var(--accent)}
+  .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);
+      background:rgba(5,5,5,.7);border-bottom:1px solid var(--border)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{font-weight:800;font-size:18px;letter-spacing:-.02em}
+  .logo span{color:var(--muted);font-weight:500}
+  .nav-links{display:flex;gap:28px;align-items:center}
+  .nav-links a{color:var(--muted);font-size:14px;font-weight:500;transition:.2s}
+  .nav-links a:hover{color:var(--text)}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;
+       padding:10px 18px;border-radius:10px;transition:.2s;cursor:pointer;border:1px solid transparent}
+  .btn-primary{background:var(--grad);color:#04060a;box-shadow:0 6px 24px rgba(0,210,255,.25)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(0,210,255,.35)}
+  .btn-ghost{border-color:var(--border);color:var(--text);background:rgba(255,255,255,.02)}
+  .btn-ghost:hover{border-color:var(--accent);background:rgba(0,210,255,.06)}
+  @media(max-width:640px){.nav-links a:not(.btn){display:none}}
+
+  /* hero */
+  .hero{padding:96px 0 72px;text-align:center;position:relative}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+        color:var(--accent);background:rgba(0,210,255,.07);border:1px solid var(--border);
+        padding:6px 14px;border-radius:999px;margin-bottom:28px}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  h1{font-size:clamp(34px,6vw,62px);font-weight:900;letter-spacing:-.03em;line-height:1.05}
+  .sub{font-size:clamp(16px,2.4vw,20px);color:var(--muted);max-width:680px;margin:24px auto 0}
+  .cta{display:flex;gap:14px;justify-content:center;margin-top:36px;flex-wrap:wrap}
+  .cta .btn{padding:14px 26px;font-size:15px}
+  .trust{margin-top:22px;font-size:13px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+
+  /* canvas preview strip */
+  .preview{margin:64px auto 0;max-width:980px;border:1px solid var(--border);border-radius:16px;
+           background:linear-gradient(180deg,#0c0d10,#070809);overflow:hidden;
+           box-shadow:0 24px 80px rgba(0,0,0,.6)}
+  .preview-bar{display:flex;gap:7px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .preview-bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .preview-body{padding:34px;background-image:radial-gradient(circle,#1a1d22 1px,transparent 1px);
+                background-size:24px 24px;display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
+  .node{background:#0e1015;border:1px solid var(--border);border-radius:12px;padding:14px 18px;
+        min-width:150px;text-align:left}
+  .node .h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+  .node .v{font-family:'JetBrains Mono',monospace;font-size:15px;margin-top:6px;color:var(--accent)}
+  .node.sig{border-color:rgba(157,80,187,.4)}
+  .node.sig .v{color:var(--purple)}
+
+  /* sections */
+  section{padding:72px 0}
+  .eyebrow{text-align:center;color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+  h2{text-align:center;font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-.02em;margin-top:10px}
+  .lead{text-align:center;color:var(--muted);max-width:600px;margin:14px auto 0}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px;transition:.2s}
+  .card:hover{transform:translateY(-3px);border-color:var(--accent)}
+  .card .ic{font-size:26px;margin-bottom:14px}
+  .card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+  .card p{color:var(--muted);font-size:14px}
+
+  /* screenshots */
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:48px}
+  @media(max-width:760px){.shots{grid-template-columns:1fr}}
+  .shot{margin:0;border:1px solid var(--border);border-radius:14px;overflow:hidden;
+        background:var(--panel);box-shadow:0 18px 60px rgba(0,0,0,.5);transition:.25s}
+  .shot:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 24px 70px rgba(0,210,255,.12)}
+  .shot img{display:block;width:100%;height:auto;border-bottom:1px solid rgba(255,255,255,.05)}
+  .shot figcaption{padding:14px 18px;font-size:13px;color:var(--muted);font-weight:500}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px;counter-reset:s}
+  @media(max-width:740px){.steps{grid-template-columns:1fr}}
+  .step{position:relative;padding:28px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
+  .step::before{counter-increment:s;content:"0" counter(s);font-family:'JetBrains Mono',monospace;
+                font-size:34px;font-weight:700;color:var(--accent);opacity:.35}
+  .step h3{margin:10px 0 8px;font-size:18px}
+  .step p{color:var(--muted);font-size:14px}
+
+  /* final cta */
+  .final{text-align:center;border:1px solid var(--border);border-radius:20px;padding:60px 24px;
+         background:radial-gradient(120% 120% at 50% 0%,rgba(0,210,255,.08),transparent 60%),var(--panel)}
+
+  footer{border-top:1px solid var(--border);padding:40px 0;color:var(--muted);font-size:13px}
+  .disclaimer{background:rgba(157,80,187,.06);border:1px solid rgba(157,80,187,.25);
+              border-radius:12px;padding:16px 20px;font-size:13px;color:#c9b3d6;margin-top:28px}
+  .foot-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:24px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <div class="logo">⚡ Cyber-Quant <span>Signal Bot</span></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a class="btn btn-primary" href="#get-started">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill"><span class="dot"></span> Open, source-available · self-hostable</span>
+    <h1>Build crypto trading bots<br><span class="grad-text">without writing code</span></h1>
+    <p class="sub">Connect blocks on an infinite canvas — indicators, Smart Money Concepts,
+      order-flow and AI risk filters. Backtest, optimize, and deploy automated bots.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#get-started">🚀 Try it now</a>
+      <a class="btn btn-ghost" href="https://github.com/scanner72/no-code-signal-bot" target="_blank" rel="noopener">★ View on GitHub</a>
+    </div>
+    <p class="trust">34 strategy nodes · multi-exchange (CCXT) · backtester · genetic optimizer</p>
+
+    <div class="preview">
+      <div class="preview-bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i></div>
+      <div class="preview-body">
+        <div class="node"><div class="h">Input</div><div class="v">BTC/USDT · 1h</div></div>
+        <div class="node"><div class="h">Indicator</div><div class="v">RSI(14) &lt; 30</div></div>
+        <div class="node"><div class="h">SMC</div><div class="v">FVG + Order Block</div></div>
+        <div class="node"><div class="h">AI Filter</div><div class="v">Hermes → PASS</div></div>
+        <div class="node sig"><div class="h">Signal</div><div class="v">▲ LONG</div></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <p class="eyebrow">Everything in one canvas</p>
+    <h2>From market data to live orders</h2>
+    <p class="lead">A full trading pipeline built visually — no scripts, no lock-in.</p>
+    <div class="grid">
+      <div class="card"><div class="ic">📥</div><h3>Multi-exchange data</h3><p>Binance, Bybit, OKX, MEXC, Kraken via CCXT. Candles, order-book, funding, scanners.</p></div>
+      <div class="card"><div class="ic">📈</div><h3>Technical analysis</h3><p>RSI, MACD, Bollinger, ATR, EMA, Stochastic, divergence and multi-timeframe filtering.</p></div>
+      <div class="card"><div class="ic">🏛</div><h3>Smart Money Concepts</h3><p>Fair Value Gaps, Order Blocks, BOS/CHoCH, liquidity sweeps, Daily Bias & Killzones.</p></div>
+      <div class="card"><div class="ic">🧠</div><h3>AI risk filters</h3><p>Time-series forecasting plus an LLM that returns PASS/BLOCK with a confidence score.</p></div>
+      <div class="card"><div class="ic">🔬</div><h3>Backtest & optimize</h3><p>Full backtester with equity curve, Sharpe, profit factor — and a genetic optimizer.</p></div>
+      <div class="card"><div class="ic">🚀</div><h3>Deploy as bots</h3><p>Compile any strategy to a standalone Python bot in Docker. Manage a fleet, Panic Stop.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="screens">
+  <div class="wrap">
+    <p class="eyebrow">See it in action</p>
+    <h2>A visual canvas, not a config file</h2>
+    <p class="lead">Drag nodes, wire your logic, and tune every parameter in the inspector — live.</p>
+    <div class="shots">
+      <figure class="shot">
+        <img src="assets/builder.png" alt="Strategy builder canvas with Mark Price, RSI and Signal nodes and the properties panel" loading="lazy">
+        <figcaption>Strategy canvas &amp; node properties</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/platform.png" alt="Full platform with sidebar navigation, node inspector and strategy builder" loading="lazy">
+        <figcaption>The full platform — dashboard, builder &amp; global scan</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="how" style="background:linear-gradient(180deg,transparent,rgba(0,210,255,.03),transparent)">
+  <div class="wrap">
+    <p class="eyebrow">Three steps</p>
+    <h2>Idea → strategy → bot</h2>
+    <div class="steps">
+      <div class="step"><h3>Design visually</h3><p>Drag nodes onto the canvas and wire your logic. Or import a TradingView PineScript and get a node graph automatically.</p></div>
+      <div class="step"><h3>Backtest & tune</h3><p>Run it on historical data, read the performance report, let the genetic optimizer find the best parameters.</p></div>
+      <div class="step"><h3>Go live</h3><p>Paper-trade first, then deploy as an automated bot with Telegram alerts and server-side risk controls.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="get-started">
+  <div class="wrap">
+    <div class="final">
+      <p class="eyebrow">Free & self-hostable</p>
+      <h2>Get started in minutes</h2>
+      <p class="lead">Clone the repo and run one command with Docker. Start with paper trading and built-in templates — no API keys needed.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/scanner72/no-code-signal-bot" target="_blank" rel="noopener">★ Get it on GitHub</a>
+      </div>
+      <div class="disclaimer">⚠️ <strong>Not financial advice.</strong> This software can place real orders on live exchanges. Crypto trading carries substantial risk of loss. Use paper trading first and never risk money you can't afford to lose.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <div class="logo">⚡ Cyber-Quant <span>Signal Bot</span></div>
+      <div style="display:flex;gap:24px">
+        <a href="https://github.com/scanner72/no-code-signal-bot" target="_blank" rel="noopener">GitHub</a>
+        <a href="#features">Features</a>
+        <a href="#get-started">Get started</a>
+      </div>
+    </div>
+    <p style="margin-top:20px">© 2026 x0tta6b · Source-available (PolyForm Noncommercial). Built for traders who think in systems.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,710 @@
+{
+  "sections": [
+    {
+      "id": "dashboard",
+      "title": "Главный экран (Dashboard / Control Center)",
+      "content": "Дашборд — это ваш командный центр стратегий (Control Center), спроектированный для комплексного мониторинга работы конструктора в реальном времени. Вместо громоздких графиков и стаканов, дублирующих торговые терминалы, здесь собраны ключевые показатели эффективности, активность сигналов и управление интеграциями.",
+      "subsections": [
+        {
+          "title": "Ключевые виджеты:",
+          "content": "- **Панель KPI**: Включает статус активных стратегий, количество сигналов сегодня/за неделю/за последний час, а также статус Hermes AI фильтрации.\n- **Активность сигналов (Sparkline)**: Интерактивный мини-график активности генерации сигналов за последние 7 дней.\n- **Быстрые действия (Quick Actions)**: Кнопки мгновенного перехода в Конструктор, Бэктест, Шаблоны или Настройки интеграций.\n- **Последние сигналы (Live Signal Feed)**: Лента сигналов в реальном времени, подключенная по WebSocket с указанием типа, пары и стратегии.\n- **Топ стратегий**: Лидерборд самых активных алгоритмов по количеству сигналов.\n- **Market Pulse**: Компактная бегущая строка с текущими ценами топ монет и их суточным изменением.\n\n> **Совет:** Используйте раздел \"Быстрые действия\" для быстрой навигации по ключевым разделам платформы."
+        }
+      ]
+    },
+    {
+      "id": "builder",
+      "title": "Интерфейс конструктора",
+      "content": "### Панель нод (слева)\n\nПеретащите ноду на канвас. Категории:\n- **Входные данные** — markPrice, fundingRate\n- **Индикаторы** — RSI, EMA, SMA, MACD, BB, Stochastic, Volume\n- **Сравнение** — условия и пороги\n- **Логика** — AND / OR\n- **SMC концепты** — Market Structure, FVG, Order Block, Liquidity Sweep\n- **Специальные** — Cross, Time Filter, Pump/Dump, Power of 3, Daily Bias\n- **Order Flow** — Delta, CVD, Orderbook\n- **🧠 AI Прогноз** — Sentiment, ML Filter, Hermes Agent, Kronos Forecast\n- **Сигнал** — LONG / SHORT",
+      "subsections": [
+        {
+          "title": "Канвас (центр)",
+          "content": "| Действие | Как |\n|---|---|\n| Переместить ноду | ЛКМ на заголовок |\n| Соединить ноды | потяните за handle с выхода на вход |\n| Удалить связь | выбрать стрелку → Delete |\n| Удалить ноду | выбрать ноду → Delete |\n| Масштаб | Ctrl + колесо мыши |\n| Перемещение | Пробел + ЛКМ |"
+        },
+        {
+          "title": "Inline-редактирование параметров",
+          "content": "**Кликните на ноду** — прямо в её теле раскроются интерактивные поля для редактирования параметров. Изменения применяются мгновенно через Zustand store. Правая панель свойств также доступна для углублённой настройки."
+        },
+        {
+          "title": "Верхняя панель",
+          "content": "- **Сохранить** — сохранить стратегию в БД\n- **Загрузить шаблон** — библиотека готовых стратегий\n- **Импорт Pine Script** — автоматически построить граф из TradingView кода\n- **Пара / Таймфрейм** — инструмент для стратегии\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "strategies",
+      "title": "Библиотека шаблонов",
+      "content": "Кнопка **\"Загрузить шаблон\"** открывает библиотеку из 20 готовых стратегий.\n\n| Категория | Подход |\n|---|---|\n| **Тренд** | EMA, MACD |\n| **Откат** | RSI oversold в тренде |\n| **Smart Money** | FVG, Order Block, структура |\n| **Импульс** | Momentum, Stochastic, Pump/Dump |\n| **Сессия** | Killzone (Лондон, Нью-Йорк) |\n| **Финансирование** | Funding Rate стратегии |\n| **AI-фильтр** | С Hermes или ML-фильтром |",
+      "subsections": [
+        {
+          "title": "Как использовать",
+          "content": "1. Выберите шаблон → **\"Показать логику\"**\n2. Нажмите **\"Загрузить в конструктор\"**\n3. Измените параметры и пару\n4. Сохраните → запустите бэктест\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "signals",
+      "title": "Типы нод — полный справочник",
+      "content": "Ниже приведен автоматически сгенерированный список всех доступных блоков из реестра системы.",
+      "subsections": [
+        {
+          "title": "Входные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n--- | :--- |\n| **Mark Price** | Параметры: pair: '', operator: 'none' |\n| **Open Interest** | Параметры: pair: '', operator: 'none' |\n| **Funding Rate** | Параметры: pair: '', operator: 'none' |\n| **24h Volume** | Параметры: `source` (volume24h) |\n| **24h Change %** | Параметры: `source` (change24h) |\n| **User Chart Level** | Параметры: levelId: 0 |"
+        },
+        {
+          "title": "Индикаторы",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **RSI** | Параметры: period: 14 |\n| **Divergence** | Параметры: source: 'RSI' |\n| **SMA** | Параметры: period: 20 |\n| **EMA** | Параметры: period: 20 |\n| **MACD** | Параметры: fast: 12, slow: 26, signal: 9 |\n| **Bollinger Bands** | Параметры: period: 20, stdDev: 2 |\n| **ATR** | Параметры: period: 14 |\n| **Stochastic** | Параметры: k: 14, d: 3, smooth: 3 |\n| **Volume** | Параметры: — |"
+        },
+        {
+          "title": "Smart Money",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Fair Value Gap** | Параметры: lookback: 50 |\n| **Order Block** | Параметры: lookback: 50 |\n| **Liquidity Sweep** | Параметры: lookback: 50 |\n| **Market Structure** | Параметры: lookback: 50 |\n| **Daily Bias** | Параметры: lookback: 50 |\n| **Power of 3** | Параметры: lookback: 50 |\n| **Premium/Discount** | Параметры: lookback: 50 |\n| **ICT Killzone** | Параметры: lookback: 50 |"
+        },
+        {
+          "title": "📊 Order Flow",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Volume Delta** | Параметры: `metric` (delta), `period` (1h) |\n| **CVD (Cumulative)** | Параметры: `metric` (cvd) |\n| **Liquidations** | Параметры: `side` (BOTH), `threshold` (1000000) |\n| **Orderbook Wall** | Параметры: side: 'BUY', volume: 10, rangePct: 1 |"
+        },
+        {
+          "title": "🧠 AI Прогноз",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AI Forecast** | Параметры: `property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **AI Цена** | Параметры: `property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6) |\n| **Market Sentiment** | Параметры: — |\n| **ML Predictor** | Параметры: `modelId` (...), `minScore` (0.7) |\n| **Hermes Agent** | Параметры: `mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15) |"
+        },
+        {
+          "title": "📈 Статистика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **VWAP** | Параметры: anchor: 'D' |\n| **Z-Score** | Параметры: period: 20 |\n| **ADR Exhaustion** | Параметры: period: 7, threshold: 90 |"
+        },
+        {
+          "title": "Логика",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **AND** | Параметры: `operator` (AND), `inputsCount` (2) |\n| **OR** | Параметры: `operator` (OR), `inputsCount` (2) |\n| **Correlation Filter** | Параметры: `pair` (BTCUSDT), `minCorr` (0.8) |\n| **Cross Above** | Параметры: `operator` (cross_above) |\n| **Cross Below** | Параметры: `operator` (cross_below) |\n| **> / <** | Параметры: `operator` (>) |\n| **Custom Script** | Параметры: `code` (return close[0] > high[1];) |"
+        },
+        {
+          "title": "Фильтры",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **Killzone** | Параметры: — |"
+        },
+        {
+          "title": "Выходные",
+          "content": "| Название | Описание / Параметры по умолчанию |\n| :--- | :--- |\n| **LONG сигнал** | Параметры: `signalType` (LONG) |\n| **SHORT сигнал** | Параметры: `signalType` (SHORT) |\n\n\n---|---|\n| `markPrice` | Цена маркировки (для расчёта PnL на фьючерсах) |\n| `fundingRate` | Ставка финансирования (обновляется каждые 8 часов) |\n\n> По умолчанию индикаторы берут цену закрытия свечи. INPUT нужен только для явной работы с markPrice или fundingRate.\n\n---"
+        },
+        {
+          "title": "3.2 INDICATOR — Технические индикаторы",
+          "content": "#### RSI\n- **Параметры:** `period` (14)\n- **Возвращает:** число 0–100\n- **Применение:** RSI > 50 (бычий импульс), RSI < 30 (перепроданность)\n\n#### SMA / EMA\n- **Параметры:** `period` (SMA: 50, EMA: 20/50)\n- **Применение:** EMA(20) > EMA(50) → аптренд\n\n#### MACD\n- **Параметры:** `fast` (12), `slow` (26), `signal` (9)\n- **Свойства:** `histogram`, `MACD`, `signal`\n- **Применение:** histogram > 0 → покупатели контролируют\n\n#### Bollinger Bands\n- **Параметры:** `period` (20), `stdDev` (2)\n- **Свойства:** `upper`, `middle`, `lower`\n\n#### Stochastic\n- **Параметры:** `period` (14), `signalPeriod` (3)\n- **Свойства:** `k`, `d`\n\n#### Volume\n- **Параметры:** `period` — кол-во свечей для среднего\n- **Применение:** фильтрация слабых движений\n\n---"
+        },
+        {
+          "title": "3.3 COMPARISON — Сравнение",
+          "content": "Сравнивает два значения, возвращает `true` / `false`.\n\n| Оператор | Значение |\n|---|---|\n| `>` | A больше B |\n| `<` | A меньше B |\n| `>=` | A больше или равно B |\n| `<=` | A меньше или равно B |\n| `==` | A равно B (строки: 'BULLISH', 'bearish') |\n\n**Поле Value:** если вход B не подключён — используется статическое значение.\n\n---"
+        },
+        {
+          "title": "3.4 AI — Прогнозы и Агенты",
+          "content": "#### 🧠 Hermes Agent\n- **Назначение:** Автономный LLM-фильтр (на базе Nous Hermes 3 или GPT-4).\n- **Режимы:**\n  - `Filter`: Возвращает PASS (пропустить) или BLOCK (заблокировать сигнал).\n  - `Score`: Возвращает уверенность 0.0–1.0.\n- **Логика:** Агент получает текущий рыночный контекст (цена, RSI, волатильность) и ваш текстовый промпт. Он принимает решение на основе \"здравого смысла\" и паттернов, которые сложно описать математически.\n- **Кэширование:** Позволяет экономить API-запросы, сохраняя решение на N минут для данной пары.\n\n#### 🔮 AI Forecast (Kronos)\n- **Модели:** Kronos-Base (102M), Small (24M), Mini (4M).\n- **Параметры:** `predLen` (глубина прогноза в свечах), `minConfidence` (порог уверенности).\n- **Свойства:** `direction` (UP/DOWN), `predicted_change` (ожидаемое % изменение).\n\n---\n\n---"
+        },
+        {
+          "title": "3.5 LOGIC — Логика",
+          "content": "| Оператор | Поведение |\n|---|---|\n| `AND` | Все входы должны быть `true` |\n| `OR` | Хотя бы один вход `true` |\n\nВходов может быть любое количество. Выход Logic → Signal или другая Logic.\n\n---"
+        },
+        {
+          "title": "3.6 SIGNAL — Сигнал",
+          "content": "Финальная нода. Тип: `LONG` или `SHORT`.\n\n> Каждая стратегия **обязана** заканчиваться нодой Signal.\n\n---"
+        },
+        {
+          "title": "3.7 CROSS — Пересечение",
+          "content": "Срабатывает **только в момент** пересечения двух линий (в отличие от Comparison).\n\n- `above` — A пересекает B снизу вверх (бычье)\n- `below` — A пересекает B сверху вниз (медвежье)\n\n---"
+        },
+        {
+          "title": "3.8 TIME FILTER — Временной фильтр",
+          "content": "Ограничивает работу стратегии по времени суток (UTC).\n\n- `from` / `to` — окно в формате HH:MM\n- Лондон: 07:00–10:00, Нью-Йорк: 13:30–16:00, Азия: 22:00–08:00\n\n> Выход Time Filter идёт напрямую в Logic AND.\n\n---"
+        },
+        {
+          "title": "3.9 MARKET STRUCTURE — Рыночная структура",
+          "content": "Определяет тренд по свинг-точкам (BOS / CHoCH).\n\n- `trend` → `'bullish'` / `'bearish'` / `'ranging'`\n- `lastBOS` / `lastCHoCH` — последние события структуры\n- **Параметры:** `lookback` (150)\n\n---"
+        },
+        {
+          "title": "3.9 FVG — Fair Value Gap",
+          "content": "Определяет, находится ли цена внутри незакрытого ценового разрыва.\n\n- **Возвращает:** `true` / `false`\n- **Параметры:** `lookback`\n\n---"
+        },
+        {
+          "title": "3.10 ORDER BLOCK — Ордер Блок",
+          "content": "Зона институционального интереса (разворотный бар перед импульсом).\n\n- **Параметры:** `lookback`, `obType` (`'BULLISH'` / `'BEARISH'`)\n- **Возвращает:** `true` если цена внутри блока нужного типа\n\n---"
+        },
+        {
+          "title": "3.11 LIQUIDITY SWEEP — Метла ликвидности",
+          "content": "Цена пробила уровень, но закрылась обратно (манипуляция).\n\n- **Параметры:** `sweepType` — `'HIGH'` / `'LOW'` / `'ANY'`\n\n---"
+        },
+        {
+          "title": "3.12 PUMP / DUMP",
+          "content": "Аномальное движение цены с повышенным объёмом.\n\n- **Параметры:** `priceThreshold` (%), `volMultiplier`, `lookback`\n\n---"
+        },
+        {
+          "title": "3.13 DAILY BIAS — Дневной байас",
+          "content": "Тренд предыдущего дня: `'BULLISH'` / `'BEARISH'` / `'NEUTRAL'`.\n\n> Лучше использовать на таймфреймах 15m–1h.\n\n---"
+        },
+        {
+          "title": "3.14 POWER OF 3 (PO3)",
+          "content": "ICT-концепция: Accumulation → Manipulation → Distribution.\n\n| Фаза | Смысл |\n|---|---|\n| `'ACCUMULATION'` | Консолидация у дневного открытия |\n| `'MANIPULATION_LOW_COMPLETED'` | Judas Swing вниз завершён → LONG |\n| `'MANIPULATION_HIGH_COMPLETED'` | Judas Swing вверх завершён → SHORT |\n| `'DISTRIBUTION'` | Активное движение от открытия |\n\n---"
+        },
+        {
+          "title": "3.15 ORDER FLOW — Поток ордеров",
+          "content": "Анализирует дисбаланс покупок/продаж и накопленную дельту.\n\n- **Метрики:** `imbalance` (перекос стакана), `cvd` (кумулятивная дельта), `delta` (дельта текущей свечи)\n- **Параметры:** `metric`, `period`\n- **Применение:** CVD растёт при падении цены → скрытое накопление\n\n---"
+        },
+        {
+          "title": "3.16 ORDERBOOK — Книга ордеров",
+          "content": "Анализ стакана в реальном времени.\n\n- **Метрики:** `imbalance` (bid/ask ratio), `wallDetect` (крупные стены)\n- **Параметры:** `levels` (глубина анализа, по умолчанию 20)\n\n---"
+        },
+        {
+          "title": "3.17 MARKET SENTIMENT — Рыночный сентимент",
+          "content": "Агрегированный индекс настроений из новостных и социальных источников.\n\n- **Возвращает:** `score` (−1 до +1), `label` (`'BULLISH'` / `'BEARISH'` / `'NEUTRAL'`)\n- **Применение:** Comparison с `score > 0.3` для фильтра бычьего настроения\n\n---"
+        },
+        {
+          "title": "3.18 ML FILTER — ML-фильтр",
+          "content": "Предсказание вероятности успеха сигнала на основе обученной ML-модели (Kronos).\n\n- **Параметры:** `minConfidence` (порог уверенности, 0–1), `timeframe`\n- **Возвращает:** `true` если уверенность модели выше порога\n- **Применение:** добавить последним фильтром в AND — пропускать только высоковероятные сигналы\n\n---"
+        },
+        {
+          "title": "3.19 HERMES AGENT — AI-агент",
+          "content": "Подключает LLM-агент (Nous Hermes) для интеллектуальной фильтрации сигналов на основе рыночного контекста.\n\n**Режимы работы:**\n| Режим | Поведение |\n|---|---|\n| `filter` | Агент решает PASS / BLOCK. Возвращает `true` / `false` |\n| `score` | Агент возвращает числовой score (0–1), нужен Comparison для порога |\n\n**Параметры:**\n- `mode` — `filter` или `score`\n- `model` — LLM-модель: `nous-hermes-3:8b` (локально через Ollama) или `openai/gpt-4o` (cloud)\n- `promptTemplate` — шаблон запроса агенту (описывает контекст рынка)\n- `cacheDuration` — кэширование ответа в минутах (снижает latency)\n\n**Как работает:**\n1. Движок собирает контекст: пара, таймфрейм, цена, индикаторы\n2. Подставляет в `promptTemplate` и отправляет в Hermes Agent API\n3. Ответ кэшируется в Redis на `cacheDuration` минут\n4. При бэктесте API не вызывается — используются детерминированные моки\n\n> **Важно:** Hermes добавляет latency (200–500мс локально, 500–3000мс cloud). Используйте кэш.\n\n---"
+        },
+        {
+          "title": "3.20 KRONOS FORECAST — AI-прогноз",
+          "content": "Прогноз направления цены на основе встроенной нейронной сети (Kronos, Ollama).\n\n- **Параметры:** `horizon` (горизонт прогноза в свечах), `minConfidence`\n- **Возвращает:** `true` при достаточной уверенности прогноза\n\n---"
+        },
+        {
+          "title": "3.21 SCANNER NODE — Мультипарный сканер",
+          "content": "Мониторит несколько пар одновременно и передаёт сигнал при срабатывании условия.\n\n- **Параметры:** список пар, таймфрейм, условие сканирования\n\n---"
+        },
+        {
+          "title": "3.22 USER LEVEL — Пользовательский уровень",
+          "content": "Позволяет задать вручную ценовой уровень (поддержка/сопротивление) и проверить нахождение цены вблизи него.\n\n- **Параметры:** `price` (уровень), `tolerance` (% отклонение)\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "backtest",
+      "title": "Бэктест",
+      "content": "Страница **Бэктест** проверяет стратегию на исторических данных.",
+      "subsections": [
+        {
+          "title": "Параметры запуска",
+          "content": "| Параметр | Описание | Рекомендация |\n|---|---|---|\n| **Стратегия** | Выбор из сохранённых | — |\n| **Период** | Даты начала и конца | Минимум 3 месяца |\n| **Начальный баланс** | Условный капитал ($) | 1000 |\n| **Комиссия** | Торговая комиссия | 0.001 = 0.1% |\n| **Take Profit** | TP в % от цены входа | 2–5% |\n| **Stop Loss** | SL в % от цены входа | 1–2% |\n| **Размер позиции** | % от баланса | 80–90% |\n\n> Данные за новые периоды загружаются с Binance при первом запуске — до 1–3 минут.\n\n> При бэктесте **Hermes Agent не вызывается** — используются детерминированные моки (`isBacktest: true`)."
+        },
+        {
+          "title": "Метрики результата",
+          "content": "| Метрика | Что означает | Хорошее значение |\n|---|---|---|\n| **Win Rate** | % прибыльных сделок | > 50% |\n| **Profit Factor** | Прибыли / Убытки | > 1.5 |\n| **Max Drawdown** | Максимальная просадка | < 20% |\n| **Sharpe Ratio** | Доходность / волатильность | > 1.0 |\n| **Risk-Reward Ratio** | Средний выигрыш / убыток | > 1.5 |\n| **Recovery Factor** | Прибыль / Max Drawdown | > 2.0 |"
+        },
+        {
+          "title": "Таблица сделок",
+          "content": "Каждая сделка: время входа, направление, цена, PnL $/%,  метаданные индикаторов (RSI, AI-решение).\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "fleet",
+      "title": "Управление флотом ботов (Fleet)",
+      "content": "Раздел **Fleet Management** позволяет запускать стратегии в автономном режиме как независимые Docker-инстансы.",
+      "subsections": [
+        {
+          "title": "Основные возможности:",
+          "content": "- **Центральный пульт**: Мониторинг PnL, баланса и активных позиций всех запущенных ботов.\n- **PANIC STOP**: Кнопка экстренной остановки всех ботов и закрытия позиций.\n- **Корреляционная матрица**: Анализ взаимосвязи пар во флоте. Если корреляция > 0.8 (красная зона), система предупредит о высоком риске одновременного убытка.\n- **Risk Level**: Автоматическая оценка безопасности флота на основе волатильности и корреляции.\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "ml",
+      "title": "AI-обучение: ML Intelligence Trainer",
+      "content": "Этот модуль позволяет тренировать собственные прогностические модели (Random Forest / XGBoost) на основе данных вашего графа.",
+      "subsections": [
+        {
+          "title": "Процесс обучения:",
+          "content": "1. **Выбор стратегии**: Система сканирует ваш граф и извлекает все индикаторы как \"фичи\" (Features).\n2. **Параметры**: Укажите пару, таймфрейм и горизонт прогнозирования (например, движение цены через 24 свечи).\n3. **Анализ**: После обучения вы увидите **Feature Importance** — какие именно ноды вашего графа (RSI, OB, CVD) больше всего влияют на успех сделки.\n4. **Валидация**: Точность выше 60% считается пригодной для использования в качестве фильтра в ноде `ML Filter`.\n\n---"
+        }
+      ]
+    },
+    {
+      "id": "cross",
+      "title": "Кросс-биржевая аналитика",
+      "content": "Инструмент для поиска \"альфы\" через расхождения цен между биржами.\n\n- **Deltas**: Сравнение цены Binance с Bybit и OKX в реальном времени.\n- **Arbitrage Alert**: При расхождении > 0.1% система подсвечивает пару как потенциальное арбитражное окно.\n- **Синхронизация**: Помогает понять, где началось импульсное движение (Smart Money Flow).\n\n---",
+      "subsections": []
+    },
+    {
+      "id": "settings",
+      "title": "Настройки и Риск-менеджмент",
+      "content": "Раздел **Настройки** критически важен для безопасной работы.",
+      "subsections": [
+        {
+          "title": "Telegram и Уведомления",
+          "content": "- Подключите `Bot Token` и `Chat ID`.\n- Используйте кнопку \"Проверить связь\" перед запуском стратегий.\n- Можно настроить Discord Webhooks как резервный канал."
+        },
+        {
+          "title": "Интеграции сторонних AI-сервисов",
+          "content": "- **Heym MCP**: Запуск аналитических MCP-воркфлоу. Позволяет пинговать и подключать внешние воркфлоу.\n- **Hermes AI Agent**: Выбор провайдеров (Ollama, Custom Agent, OpenAI-compatible). Настройка API-ключей (маскируются при вводе), хоста и имени модели. Кнопка тестирования соединения прямо из интерфейса.\n- Данные сохраняются в PostgreSQL и обновляются без перезагрузки Docker-сервисов (Hot-Reload)."
+        },
+        {
+          "title": "Глобальные Фильтры (Safety First)",
+          "content": "- **Global Pause**: Мгновенно блокирует генерацию новых сигналов всеми стратегиями.\n- **BTC/ETH Drop Threshold**: Если BTC упадет более чем на X% за 24ч, бот уйдет в режим ожидания (защита от рыночного обвала)."
+        },
+        {
+          "title": "Лимиты Риска",
+          "content": "- **Daily Loss Limit**: Лимит убытка в $ на текущий день. При достижении — торговля останавливается.\n- **Max Active Signals**: Ограничение количества одновременно открытых позиций во избежание перегрузки маржи.\n- **Дедупликация**: Настройка \"интервала тишины\" (например, 4 часа) для одной пары, чтобы не заходить в сделку повторно на том же движении.\n\n---"
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "input_mark_price",
+      "name": "Mark Price",
+      "category": "Входные",
+      "params": "pair: '', operator: 'none'"
+    },
+    {
+      "id": "input_open_interest",
+      "name": "Open Interest",
+      "category": "Входные",
+      "params": "pair: '', operator: 'none'"
+    },
+    {
+      "id": "input_funding_rate",
+      "name": "Funding Rate",
+      "category": "Входные",
+      "params": "pair: '', operator: 'none'"
+    },
+    {
+      "id": "scanner_volume24h",
+      "name": "24h Volume",
+      "category": "Входные",
+      "params": "`source` (volume24h)"
+    },
+    {
+      "id": "scanner_change24h",
+      "name": "24h Change %",
+      "category": "Входные",
+      "params": "`source` (change24h)"
+    },
+    {
+      "id": "user_level",
+      "name": "User Chart Level",
+      "category": "Входные",
+      "params": "levelId: 0"
+    },
+    {
+      "id": "indicator_rsi",
+      "name": "RSI",
+      "category": "Индикаторы",
+      "params": "period: 14"
+    },
+    {
+      "id": "indicator_divergence",
+      "name": "Divergence",
+      "category": "Индикаторы",
+      "params": "source: 'RSI'"
+    },
+    {
+      "id": "indicator_sma",
+      "name": "SMA",
+      "category": "Индикаторы",
+      "params": "period: 20"
+    },
+    {
+      "id": "indicator_ema",
+      "name": "EMA",
+      "category": "Индикаторы",
+      "params": "period: 20"
+    },
+    {
+      "id": "indicator_macd",
+      "name": "MACD",
+      "category": "Индикаторы",
+      "params": "fast: 12, slow: 26, signal: 9"
+    },
+    {
+      "id": "indicator_bb",
+      "name": "Bollinger Bands",
+      "category": "Индикаторы",
+      "params": "period: 20, stdDev: 2"
+    },
+    {
+      "id": "indicator_atr",
+      "name": "ATR",
+      "category": "Индикаторы",
+      "params": "period: 14"
+    },
+    {
+      "id": "indicator_stoch",
+      "name": "Stochastic",
+      "category": "Индикаторы",
+      "params": "k: 14, d: 3, smooth: 3"
+    },
+    {
+      "id": "indicator_volume",
+      "name": "Volume",
+      "category": "Индикаторы",
+      "params": "—"
+    },
+    {
+      "id": "smc_fvg",
+      "name": "Fair Value Gap",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_ob",
+      "name": "Order Block",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_sweep",
+      "name": "Liquidity Sweep",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_ms",
+      "name": "Market Structure",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_bias",
+      "name": "Daily Bias",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_po3",
+      "name": "Power of 3",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_pd",
+      "name": "Premium/Discount",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "smc_killzone",
+      "name": "ICT Killzone",
+      "category": "Smart Money",
+      "params": "lookback: 50"
+    },
+    {
+      "id": "of_delta",
+      "name": "Volume Delta",
+      "category": "📊 Order Flow",
+      "params": "`metric` (delta), `period` (1h)"
+    },
+    {
+      "id": "of_cvd",
+      "name": "CVD (Cumulative)",
+      "category": "📊 Order Flow",
+      "params": "`metric` (cvd)"
+    },
+    {
+      "id": "of_liq",
+      "name": "Liquidations",
+      "category": "📊 Order Flow",
+      "params": "`side` (BOTH), `threshold` (1000000)"
+    },
+    {
+      "id": "of_wall",
+      "name": "Orderbook Wall",
+      "category": "📊 Order Flow",
+      "params": "side: 'BUY', volume: 10, rangePct: 1"
+    },
+    {
+      "id": "ai_direction",
+      "name": "AI Forecast",
+      "category": "🧠 AI Прогноз",
+      "params": "`property` (direction), `predLen` (24), `model` (auto), `minConfidence` (0.6)"
+    },
+    {
+      "id": "ai_price",
+      "name": "AI Цена",
+      "category": "🧠 AI Прогноз",
+      "params": "`property` (predicted_close), `predLen` (24), `model` (auto), `minConfidence` (0.6)"
+    },
+    {
+      "id": "sentiment_score",
+      "name": "Market Sentiment",
+      "category": "🧠 AI Прогноз",
+      "params": "—"
+    },
+    {
+      "id": "ml_predictor",
+      "name": "ML Predictor",
+      "category": "🧠 AI Прогноз",
+      "params": "`modelId` (...), `minScore` (0.7)"
+    },
+    {
+      "id": "hermes_agent",
+      "name": "Hermes Agent",
+      "category": "🧠 AI Прогноз",
+      "params": "`mode` (filter), `model` (nous-hermes-3), `cacheMinutes` (15)"
+    },
+    {
+      "id": "stats_vwap",
+      "name": "VWAP",
+      "category": "📈 Статистика",
+      "params": "anchor: 'D'"
+    },
+    {
+      "id": "stats_zscore",
+      "name": "Z-Score",
+      "category": "📈 Статистика",
+      "params": "period: 20"
+    },
+    {
+      "id": "stats_adr",
+      "name": "ADR Exhaustion",
+      "category": "📈 Статистика",
+      "params": "period: 7, threshold: 90"
+    },
+    {
+      "id": "logic_and",
+      "name": "AND",
+      "category": "Логика",
+      "params": "`operator` (AND), `inputsCount` (2)"
+    },
+    {
+      "id": "logic_or",
+      "name": "OR",
+      "category": "Логика",
+      "params": "`operator` (OR), `inputsCount` (2)"
+    },
+    {
+      "id": "logic_corr",
+      "name": "Correlation Filter",
+      "category": "Логика",
+      "params": "`pair` (BTCUSDT), `minCorr` (0.8)"
+    },
+    {
+      "id": "comp_cross_above",
+      "name": "Cross Above",
+      "category": "Логика",
+      "params": "`operator` (cross_above)"
+    },
+    {
+      "id": "comp_cross_below",
+      "name": "Cross Below",
+      "category": "Логика",
+      "params": "`operator` (cross_below)"
+    },
+    {
+      "id": "comp_gt_lt",
+      "name": "> / <",
+      "category": "Логика",
+      "params": "`operator` (>)"
+    },
+    {
+      "id": "custom_script",
+      "name": "Custom Script",
+      "category": "Логика",
+      "params": "`code` (return close[0] > high[1];)"
+    },
+    {
+      "id": "filter_killzone",
+      "name": "Killzone",
+      "category": "Фильтры",
+      "params": "—"
+    },
+    {
+      "id": "signal_long",
+      "name": "LONG сигнал",
+      "category": "Выходные",
+      "params": "`signalType` (LONG)"
+    },
+    {
+      "id": "signal_short",
+      "name": "SHORT сигнал",
+      "category": "Выходные",
+      "params": "`signalType` (SHORT)"
+    }
+  ]
+}

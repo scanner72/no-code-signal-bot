@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: signals_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d signals_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6450:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: user
+      DB_PASS: password
+      DB_NAME: signals_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_TTL: 30
+      BINANCE_API_KEY: ${BINANCE_API_KEY}
+      BINANCE_SECRET: ${BINANCE_SECRET}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      TRADING_PAIRS: ${TRADING_PAIRS:-BTCUSDT,ETHUSDT,SOLUSDT}
+      KRONOS_URL: http://kronos:8070
+      # heym MCP (running on host via Docker Desktop)
+      HEYM_API_URL: ${HEYM_API_URL:-http://host.docker.internal:4017/api}
+      HEYM_API_KEY: ${HEYM_API_KEY:-}
+      HEYM_SIGNAL_VALIDATOR_ID: ${HEYM_SIGNAL_VALIDATOR_ID:-}
+      LDR_URL: ${LDR_URL:-http://ldr:5000}
+      LDR_USERNAME: ${LDR_USERNAME:-admin}
+      LDR_PASSWORD: ${LDR_PASSWORD:-admin}
+      # Free AI Integration (Playwright — Qwen / DeepSeek)
+      FREE_AI_CHROME_PATH: auto
+      FREE_AI_PLAYWRIGHT_TIMEOUT: "120000"
+      FREE_AI_QWEN_THINKING: "true"
+      FREE_AI_DEEPSEEK_THINKING: "true"
+      FREE_AI_QWEN_PROFILE_DIR: /app/.free-ai/qwen-profile
+      FREE_AI_DEEPSEEK_PROFILE_DIR: /app/.free-ai/deepseek-profile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3000:3000"
+    volumes:
+      - free_ai_data:/app/.free-ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  kronos:
+    build: ./kronos
+    environment:
+      # Leave KRONOS_MODEL empty for auto-detection, or set to:
+      # kronos-mini (4.1M) | kronos-small (24.7M) | kronos-base (102.3M)
+      KRONOS_MODEL: ${KRONOS_MODEL:-}
+    ports:
+      - "8070:8070"
+    volumes:
+      - kronos_cache:/app/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────────────
+  # 🧠 Hermes — OPTIONAL LLM risk-filter agent.
+  # Third-party project (Hermes Agent by Nous Research, MIT).
+  # NOT bundled in this repo. To enable the Hermes AI node:
+  #   1. git clone https://github.com/NousResearch/hermes-agent ./hermes-agent
+  #   2. Uncomment the service block below
+  #   3. docker compose up -d hermes
+  # ─────────────────────────────────────────────────────
+  # hermes:
+  #   build:
+  #     context: ./hermes-agent
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     - HERMES_MODEL_PROVIDER=custom
+  #     - OLLAMA_HOST=http://host.docker.internal:11434
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   ports:
+  #     - "7700:7700"
+  #   command: ["uv", "run", "run_agent.py", "--mode", "api", "--port", "7700"]
+
+  # ─────────────────────────────────────────────────────
+  # 🔍 SearXNG — privacy-first search engine for LDR
+  # ─────────────────────────────────────────────────────
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "8181:8080"
+    volumes:
+      - ./infra/searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────
+  # 🧠 Local Deep Research — Knowledge Layer AI Agent
+  # Source: https://github.com/LearningCircuit/local-deep-research
+  # ─────────────────────────────────────────────────────
+  ldr:
+    image: localdeepresearch/local-deep-research:latest
+    ports:
+      - "5001:5000"
+    volumes:
+      - ldr_data:/data
+    environment:
+      - LDR_DATA_DIR=/data
+      - LDR_LLM_PROVIDER=${LDR_LLM_PROVIDER:-ollama}
+      - LDR_LLM_OLLAMA_URL=${LDR_LLM_OLLAMA_URL:-http://host.docker.internal:11434}
+      - LDR_LLM_MODEL=${LDR_LLM_MODEL:-qwen2.5:14b}
+      - LDR_SEARCH_ENGINE_PRIMARY=${LDR_SEARCH_ENGINE_PRIMARY:-searxng}
+      - SEARXNG_URL=http://searxng:8080
+      - LDR_BOOTSTRAP_ALLOW_UNENCRYPTED=${LDR_BOOTSTRAP_ALLOW_UNENCRYPTED:-true}
+      - LDR_DEFAULT_USERNAME=${LDR_DEFAULT_USERNAME:-admin}
+      - LDR_DEFAULT_PASSWORD=${LDR_DEFAULT_PASSWORD:-admin}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      searxng:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  kronos_cache:
+  ldr_data:
+  free_ai_data:

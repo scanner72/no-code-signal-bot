@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Desk - Strategy Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #131722;
+            --bg-panel: #1e222d;
+            --bg-active: #2a2e39;
+            --border: #363c4e;
+            --text-primary: #d1d4dc;
+            --text-secondary: #787b86;
+            --accent: #2962ff;
+            --success: #26a69a;
+            --error: #ef5350;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Toolbar */
+        .toolbar {
+            height: 48px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 20px;
+        }
+
+        .symbol-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-active);
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .tool-btn {
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .tool-btn:hover { background: var(--bg-active); }
+        .tool-btn.active { color: var(--accent); }
+
+        /* Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+        }
+
+        /* Left Indicator Bar */
+        .indicator-sidebar {
+            width: 56px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 16px;
+            gap: 20px;
+        }
+
+        .side-icon {
+            width: 24px;
+            height: 24px;
+            opacity: 0.6;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .side-icon:hover { opacity: 1; color: var(--accent); }
+
+        /* Canvas */
+        .canvas {
+            flex: 1;
+            position: relative;
+            background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* TradingView Style Nodes */
+        .node {
+            position: absolute;
+            width: 190px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .node-title {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .node-content {
+            padding: 12px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .data-label { color: var(--text-secondary); }
+        .data-val { font-weight: 500; }
+
+        .btn-action {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .btn-buy { background: var(--success); color: white; }
+        .btn-sell { background: var(--error); color: white; }
+
+        /* Property Panel (Right) */
+        .properties {
+            width: 300px;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .prop-item {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .prop-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .prop-input {
+            width: 100%;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            padding: 8px;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* Simulated connections */
+        .wire {
+            position: absolute;
+            border-bottom: 2px solid var(--text-secondary);
+            opacity: 0.3;
+            z-index: 0;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="symbol-picker">BTCUSDT 64,231.50 <span style="color: var(--success); font-size: 12px;">+1.2%</span></div>
+        <div class="tool-btn active">Indicators</div>
+        <div class="tool-btn">Strategy</div>
+        <div class="tool-btn">Alerts</div>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button style="background: none; border: 1px solid var(--border); color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Save</button>
+            <button style="background: var(--accent); border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Execute</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="indicator-sidebar">
+            <div class="side-icon" title="Indicators">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </div>
+            <div class="side-icon" title="Logic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+            </div>
+            <div class="side-icon" title="Scanner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+        </div>
+
+        <div class="canvas">
+            <div class="node" style="top: 100px; left: 50px;">
+                <div class="node-title">MARK PRICE <span>●</span></div>
+                <div class="node-content">
+                    <div class="data-row"><span class="data-label">Price</span><span class="data-val">$64,231.5</span></div>
+                    <div class="data-row"><span class="data-label">24h Vol</span><span class="data-val">$1.2B</span></div>
+                </div>
+            </div>
+
+            <div class="wire" style="top: 125px; left: 240px; width: 100px;"></div>
+
+            <div class="node" style="top: 130px; left: 340px;">
+                <div class="node-title">RSI (14) <span>●</span></div>
+                <div class="node-content">
+                    <div class="data-row"><span class="data-label">Value</span><span class="data-val" style="color: var(--success);">32.41</span></div>
+                </div>
+            </div>
+
+            <div class="node" style="top: 300px; left: 200px;">
+                <div class="node-title">SIGNAL <span>●</span></div>
+                <div class="node-content">
+                    <button class="btn-action btn-buy">BUY / LONG</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="properties">
+            <div class="panel-header">Settings: RSI Indicator</div>
+            <div class="prop-item">
+                <div class="prop-label">Timeframe</div>
+                <select class="prop-input"><option>15 minutes</option><option>1 hour</option></select>
+            </div>
+            <div class="prop-item">
+                <div class="prop-label">RSI Length</div>
+                <input type="number" class="prop-input" value="14">
+            </div>
+            <div class="prop-item">
+                <div class="prop-label">Oversold Threshold</div>
+                <input type="number" class="prop-input" value="30">
+            </div>
+            <div style="margin-top: auto; padding: 16px;">
+                <button style="width: 100%; padding: 12px; background: var(--bg-active); border: 1px solid var(--border); color: white; border-radius: 4px; cursor: pointer;">Remove Node</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

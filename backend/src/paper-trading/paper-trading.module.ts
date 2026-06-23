@@ -1,0 +1,19 @@
+import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { VirtualTrade } from './virtual-trade.entity';
+import { PaperTradingService } from './paper-trading.service';
+import { StrategiesModule } from '../strategies/strategies.module';
+import { CandlesModule } from '../candles/candles.module';
+import { PaperTradingController } from './paper-trading.controller';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([VirtualTrade]),
+    forwardRef(() => StrategiesModule),
+    forwardRef(() => CandlesModule),
+  ],
+  controllers: [PaperTradingController],
+  providers: [PaperTradingService],
+  exports: [PaperTradingService],
+})
+export class PaperTradingModule {}
