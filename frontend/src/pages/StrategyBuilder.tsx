@@ -9,7 +9,7 @@ import ReactFlow, {
   BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { BookOpen, Maximize2, X, Bot, Download, Play, Sparkles } from 'lucide-react';
+import { BookOpen, Maximize2, X, Bot, Download, Play } from 'lucide-react';
 
 import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
@@ -42,7 +42,6 @@ import DeepResearchNode from '../components/nodes/DeepResearchNode';
 import PortfolioRiskSizerNode from '../components/nodes/PortfolioRiskSizerNode';
 import HeymNode from '../components/nodes/HeymNode';
 import McpToolNode from '../components/nodes/McpToolNode';
-import LlmFilterNode from '../components/nodes/LlmFilterNode';
 import { strategiesApi } from '../api/strategies';
 import axios from 'axios';
 import { PythonPreview } from '../components/PythonPreview';
@@ -60,7 +59,6 @@ import { useUiStore } from '../stores/uiStore';
 import { useExecutionStore } from '../stores/executionStore';
 import { useCollaboration } from '../hooks/useCollaboration';
 import { getLayoutedElements } from '../utils/layout';
-import { CopilotPanel } from '../components/CopilotPanel';
 
 const nodeTypes = {
   input:      InputNode,
@@ -95,7 +93,6 @@ const nodeTypes = {
   portfolio_risk_sizer: PortfolioRiskSizerNode,
   heym_mcp: HeymNode,
   mcp_tool: McpToolNode,
-  llm_filter: LlmFilterNode,
 };
 
 
@@ -149,21 +146,13 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
     reset(initialStrategy);
   }, [initialStrategy, reset]);
 
-  useEffect(() => {
-    if (localStorage.getItem('open_copilot_on_load') === 'true') {
-      setIsCopilotOpen(true);
-      localStorage.removeItem('open_copilot_on_load');
-    }
-  }, []);
-
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const reactFlowInstanceRef = useRef<any>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null;
   const [backtestProgress, setBacktestProgress] = useState(0);
   const [backtestProgressStage, setBacktestProgressStage] = useState('');
-  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
-  
+
   const [activeSubTab, setActiveSubTab] = useState<'canvas' | 'visual_ta'>('canvas');
   const [candlesData, setCandlesData] = useState<any[]>([]);
   const [candlesLoading, setCandlesLoading] = useState(false);
@@ -1182,24 +1171,6 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
 
           {/* RIGHT GROUP: Segregated Analytics Actions & Tools dropdown */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
-            {/* Quick Action: AI Copilot */}
-            <button
-              onClick={() => setIsCopilotOpen(!isCopilotOpen)}
-              title="AI Strategy Copilot"
-              style={{
-                ...iconBtnStyle,
-                padding: '8px',
-                borderColor: isCopilotOpen ? 'var(--accent-color)' : 'rgba(255,255,255,0.06)',
-                background: isCopilotOpen ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.02)',
-                color: isCopilotOpen ? 'var(--accent-color)' : 'var(--text-secondary)',
-                borderRadius: '10px'
-              }}
-              onMouseEnter={e => { if (!isCopilotOpen) e.currentTarget.style.background = 'var(--bg-accent)'; }}
-              onMouseLeave={e => { if (!isCopilotOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-            >
-              <Sparkles size={14} />
-            </button>
-
             {/* Quick Action: Backtest (Play) */}
             <button
               onClick={() => { setBacktestOpen(true); setBacktestReq({ status: 'idle' }); }}
@@ -1665,16 +1636,6 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
             }}
             onClose={() => setSelectedNodeId(null)}
             nodeCount={nodes.length}
-            pair={pair}
-            timeframe={timeframe}
-          />
-          <CopilotPanel
-            isOpen={isCopilotOpen}
-            onClose={() => setIsCopilotOpen(false)}
-            nodes={nodes}
-            edges={edges}
-            setNodes={setNodes}
-            setEdges={setEdges}
             pair={pair}
             timeframe={timeframe}
           />

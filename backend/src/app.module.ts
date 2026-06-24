@@ -35,7 +35,6 @@ import { HermesModule } from './hermes/hermes.module';
 import { LdrModule } from './ldr/ldr.module';
 import { PaperTradingModule } from './paper-trading/paper-trading.module';
 import { OrdersModule } from './orders/orders.module';
-import { FreeAiModule } from './free-ai/free-ai.module';
 
 @Module({
   imports: [
@@ -93,7 +92,6 @@ import { FreeAiModule } from './free-ai/free-ai.module';
     LdrModule,
     PaperTradingModule,
     OrdersModule,
-    FreeAiModule,
   ],
 })
 export class AppModule {}

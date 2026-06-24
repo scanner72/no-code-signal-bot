@@ -24,7 +24,6 @@ import { KronosService } from '../kronos/kronos.service';
 import { OrderbookService } from '../orderbook/orderbook.service';
 import { OcoManagerService } from '../orders/oco-manager.service';
 import { CCXTQueueService } from '../orders/ccxt-queue.service';
-import { FreeAiService } from '../free-ai/free-ai.service';
 import { AlgoExecutionService } from '../orders/algo-execution.service';
 
 /** Parse a percent/ATR string to a numeric fraction ("2%" → 0.02) */
@@ -86,7 +85,6 @@ export class SignalsEngineService {
     private orderbookService: OrderbookService,
     private ocoManagerService: OcoManagerService,
     private ccxtQueueService: CCXTQueueService,
-    private freeAiService: FreeAiService,
     private algoExecutionService: AlgoExecutionService,
   ) { }
 
@@ -1613,58 +1611,10 @@ export class SignalsEngineService {
           const condVal = await this.evaluateNode(node.condition, currentCandles, getHistory, context);
           if (!condVal) return getHistory ? [false] : false;
         }
-        // Free AI (Qwen/DeepSeek) signal filter node
-        // Params: { provider, model, prompt, temperature, mockBacktest }
-        const llmProvider = (node.params?.provider || 'qwen') as 'qwen' | 'deepseek';
-        const llmModel = node.params?.model || (llmProvider === 'qwen' ? 'qwen-max' : 'deepseek-reasoner');
-        const llmTemperature = node.params?.temperature ?? 0.2;
-
-        // In backtest — deterministic positive (saves tokens and API limits)
-        if (context.isBacktest && (node.params?.mockBacktest ?? true)) {
-          return getHistory ? [true] : true;
-        }
-
-        // Build market context string for the LLM
-        const closesArr = currentCandles.map(c => parseFloat(c.close)).reverse();
-        const rsiResults = this.indicatorsService.calculateRSI(closesArr, 14);
-        const rsiNow = rsiResults.length > 0 ? rsiResults[rsiResults.length - 1].toFixed(1) : 'N/A';
-        const price = parseFloat(currentCandles[0].close).toFixed(2);
-        const vol24h = parseFloat(currentCandles[0].volume).toFixed(0);
-        const trend = currentCandles[0].close > currentCandles[1]?.close ? 'UP' : 'DOWN';
-
-        const marketCtx = (node.params?.prompt || 'You are a trading assistant. Analyze the market and respond with only one word: LONG, SHORT, or FILTER.')
-          .replace(/\{\{pair\}\}/gi, context.pair)
-          .replace(/\{\{price\}\}/gi, price)
-          .replace(/\{\{rsi\}\}/gi, rsiNow)
-          .replace(/\{\{trend\}\}/gi, trend)
-          .replace(/\{\{volume\}\}/gi, vol24h)
-          .replace(/\{\{timeframe\}\}/gi, context.timeframe);
-
-        const systemPrompt = `You are a professional crypto trading assistant analyzing ${context.pair} on ${context.timeframe} timeframe. Current price: ${price}. RSI(14): ${rsiNow}. Trend: ${trend}. Volume: ${vol24h}. Respond with exactly one word: LONG, SHORT, or FILTER.`;
-
-        try {
-          const decision = await this.freeAiService.filterSignal(
-            llmProvider,
-            llmModel,
-            systemPrompt,
-            marketCtx,
-            llmTemperature,
-          );
-
-          if (context?.metadata) {
-            context.metadata.llm_filter = { provider: llmProvider, model: llmModel, decision };
-          }
-
-          this.logger.log(`[llm_filter] ${llmProvider}/${llmModel} → ${decision} for ${context.pair}`);
-
-          const isLong = context.signalType === 'LONG' || !context.signalType;
-          const passed = isLong ? decision === 'LONG' : decision === 'SHORT';
-          return getHistory ? [passed] : passed;
-        } catch (err: any) {
-          this.logger.error(`[llm_filter] Error calling ${llmProvider}: ${err.message}`);
-          // Fail-open: let signal through on provider error
-          return getHistory ? [true] : true;
-        }
+        // NOTE: the Free AI provider (Qwen/DeepSeek web-scraping) was removed for
+        // ToS/legal reasons. This node now passes signals through (no-op), so older
+        // saved strategies that still reference 'llm_filter' keep working.
+        return getHistory ? [true] : true;
       }
 
       case 'mcp_tool': {

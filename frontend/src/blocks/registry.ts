@@ -62,22 +62,8 @@ export const registry: Record<string, BlockConfig> = {
   hermes_agent: { type: 'hermes', id: 'hermes_agent', name: 'Hermes Agent', category: '🧠 AI Прогноз', dotColor: '#ec4899', defaultData: { mode: 'filter', model: 'nous-hermes-3', cacheMinutes: 15 } },
   heym_mcp:     { type: 'heym_mcp', id: 'heym_mcp', name: '⚡ heym Validator', category: '🧠 AI Прогноз', dotColor: '#6366f1', defaultData: { mode: 'filter', mockBacktest: true, additionalContext: '' } },
   mcp_tool:     { type: 'mcp_tool', id: 'mcp_tool', name: '🛠️ MCP Tool Call', category: '🧠 AI Прогноз', dotColor: '#a855f7', defaultData: { workflowId: '', inputData: '{}', mode: 'value', outputKey: 'result', mockBacktest: true } },
-  llm_filter:   {
-    type: 'llm_filter',
-    id: 'llm_filter',
-    name: '🤖 LLM Filter (Free AI)',
-    category: '🧠 AI Прогноз',
-    dotColor: '#22d3ee',
-    defaultData: {
-      provider: 'qwen',
-      model: 'qwen-max',
-      prompt: 'Analyze {{pair}} on {{timeframe}} timeframe. Price: {{price}}, RSI: {{rsi}}, Trend: {{trend}}. Answer LONG, SHORT or FILTER.',
-      temperature: 0.2,
-      mockBacktest: true,
-    },
-  },
-  
-  
+
+
   // Статистика
   stats_vwap: { type: 'indicator', id: 'stats_vwap', name: 'VWAP', category: '📈 Статистика', dotColor: '#10b981', defaultData: { name: 'VWAP', params: { anchor: 'D' } } },
   stats_zscore: { type: 'indicator', id: 'stats_zscore', name: 'Z-Score', category: '📈 Статистика', dotColor: '#6366f1', defaultData: { name: 'ZScore', params: { period: 20 } } },
@@ -194,5 +180,4 @@ export const EDGE_COLORS: Record<string, string> = {
   fusion_combiner: '#ec4899',
   deep_research: '#6366f1',
   portfolio_risk_sizer: '#f59e0b',
-  llm_filter: '#22d3ee',
 };

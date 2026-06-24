@@ -68,7 +68,6 @@ describe('SignalsEngineService.evaluateNode', () => {
       null as any, // orderbookService
       null as any, // ocoManagerService
       null as any, // ccxtQueueService
-      null as any, // freeAiService
       null as any, // algoExecutionService
     );
   });
@@ -281,53 +280,18 @@ describe('SignalsEngineService.evaluateNode', () => {
 
   describe('llm_filter node', () => {
     const candles = makeCandles(5);
-    let mockFreeAi: any;
 
-    beforeEach(() => {
-      mockFreeAi = {
-        filterSignal: jest.fn().mockResolvedValue('LONG'),
-      };
-      (service as any).freeAiService = mockFreeAi;
-    });
-
-    it('returns true in backtest mode when mockBacktest is true (short circuit)', async () => {
+    // The Free AI provider (Qwen/DeepSeek scraping) was removed for ToS/legal
+    // reasons; the node is now a pass-through that never blocks a signal.
+    it('passes the signal through (no-op) regardless of params', async () => {
       const node = {
         type: 'llm_filter',
-        params: {
-          provider: 'deepseek',
-          model: 'deepseek-reasoner',
-          mockBacktest: true,
-        },
+        params: { provider: 'deepseek', model: 'deepseek-reasoner', mockBacktest: false },
       };
 
-      const context = { pair: 'BTCUSDT', timeframe: '1h', isBacktest: true, signalType: 'LONG' };
+      const context = { pair: 'BTCUSDT', timeframe: '1h', isBacktest: false, signalType: 'LONG' };
       const result = await service.evaluateNode(node, candles, false, context);
       expect(result).toBe(true);
-      expect(mockFreeAi.filterSignal).not.toHaveBeenCalled();
-    });
-
-    it('calls freeAiService and evaluates filter result', async () => {
-      const node = {
-        type: 'llm_filter',
-        params: {
-          provider: 'deepseek',
-          model: 'deepseek-reasoner',
-          mockBacktest: false,
-          prompt: 'Analyze {{pair}} market data. RSI: {{rsi}}. Trend is {{trend}}.',
-        },
-      };
-
-      const context = { pair: 'BTCUSDT', timeframe: '1h', isBacktest: false, signalType: 'LONG', metadata: {} as any };
-      const result = await service.evaluateNode(node, candles, false, context);
-      
-      expect(mockFreeAi.filterSignal).toHaveBeenCalledWith(
-        'deepseek',
-        'deepseek-reasoner',
-        expect.stringContaining('RSI(14)'),
-        expect.stringContaining('BTCUSDT'),
-        0.2
-      );
-      expect(result).toBe(true); // decision was LONG and signalType was LONG
     });
   });
 });

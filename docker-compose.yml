@@ -51,19 +51,14 @@ services:
       LDR_URL: ${LDR_URL:-http://ldr:5000}
       LDR_USERNAME: ${LDR_USERNAME:-admin}
       LDR_PASSWORD: ${LDR_PASSWORD:-admin}
-      # Free AI Integration (Playwright — Qwen / DeepSeek)
-      FREE_AI_CHROME_PATH: auto
-      FREE_AI_PLAYWRIGHT_TIMEOUT: "120000"
-      FREE_AI_QWEN_THINKING: "true"
-      FREE_AI_DEEPSEEK_THINKING: "true"
-      FREE_AI_QWEN_PROFILE_DIR: /app/.free-ai/qwen-profile
-      FREE_AI_DEEPSEEK_PROFILE_DIR: /app/.free-ai/deepseek-profile
+      # Auth — set these to your public URL on a server deployment, e.g.
+      # BETTER_AUTH_URL=http://YOUR_HOST/api/auth and TRUSTED_ORIGINS=http://YOUR_HOST
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost/api/auth}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
-    volumes:
-      - free_ai_data:/app/.free-ai
     depends_on:
       postgres:
         condition: service_healthy
@@ -185,4 +180,3 @@ volumes:
   postgres_data:
   kronos_cache:
   ldr_data:
-  free_ai_data:

@@ -49,7 +49,6 @@ const NODE_DOCS_RU: Record<string, any> = {
     polymarket_scanner: { title: '🔮 Polymarket Scanner', desc: 'Отслеживает аномально крупные ставки ("whale bets") на платформе предсказаний Polymarket (блокчейн Polygon).', logic: 'Срабатывает, если обнаружена одиночная ставка на любой исход, превышающая заданный лимит объема в USD.' },
     finviz_scanner: { title: '📈 Finviz Stock Scanner', desc: 'Сканирует фондовый рынок (NYSE, NASDAQ) на предмет сигналов роста/падения, а также отслеживает транзакции инсайдеров (CEO/CFO).', logic: 'Срабатывает, если акция удовлетворяет фильтру (например, Лидеры роста или Крупные покупки инсайдеров).' },
     mcp_tool: { title: '🛠️ Вызов MCP Tool', desc: 'Запуск произвольного инструмента Model Context Protocol (MCP) через воркфлоу Heym.', logic: 'Помогает гибко передавать рыночный контекст (пару, цену, индикаторы) в формате JSON и получать отфильтрованное решение.' },
-    llm_filter: { title: '🤖 LLM Фильтр (Free AI)', desc: 'Фильтрует сигналы стратегии с помощью бесплатных веб-сессий Qwen и DeepSeek.', logic: 'Система отправляет контекст рынка в LLM. Если ответ содержит LONG — сигнал пропускается как LONG, если SHORT — как SHORT, иначе — блокируется (FILTER).' },
 };
 
 // Advanced Documentation Object (English)
@@ -95,7 +94,6 @@ const NODE_DOCS_EN: Record<string, any> = {
     polymarket_scanner: { title: '🔮 Polymarket Scanner', desc: 'Tracks large bets ("whale bets") on prediction platform Polymarket (Polygon blockchain).', logic: 'Triggers when a single bet on any outcome exceeds the set volume limit in USD.' },
     finviz_scanner: { title: '📈 Finviz Stock Scanner', desc: 'Scans NYSE/NASDAQ stock markets for gains/losses and insider transactions (CEO/CFO).', logic: 'Triggers when a stock matches scanner criteria (e.g. Top Gainers or Large Insider Buying).' },
     mcp_tool: { title: '🛠️ MCP Tool Call', desc: 'Executes an arbitrary Model Context Protocol (MCP) tool via Heym workflows.', logic: 'Allows sending custom market context (pair, price, indicator parameters) in JSON format and processes decisions or values.' },
-    llm_filter: { title: '🤖 LLM Filter (Free AI)', desc: 'Filters strategy signals using free web sessions of Qwen and DeepSeek.', logic: 'The system sends market context to the LLM. If the response contains LONG — it passes as LONG, if SHORT — it passes as SHORT, otherwise — it is blocked (FILTER).' },
 };
 
 interface HeymMcpTool {
@@ -1706,88 +1704,6 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
                         <div 
                             style={{ background: 'rgba(245,158,11,0.08)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.6 }}
                             dangerouslySetInnerHTML={{ __html: t('portfolio_risk_sizer_desc') }}
-                        />
-                    </>
-                )}
-
-                {type === 'llm_filter' && (
-                    <>
-                        <Row label={t('llm_filter_provider_label')}>
-                            <select
-                                value={data.provider || 'qwen'}
-                                onChange={(e) => {
-                                    const prov = e.target.value;
-                                    const defaultModel = prov === 'qwen' ? 'qwen-max' : 'deepseek-reasoner';
-                                    onUpdate(selectedNode.id, { ...data, provider: prov, model: defaultModel });
-                                }}
-                                style={inputStyle}
-                            >
-                                <option value="qwen">Qwen (Alibaba)</option>
-                                <option value="deepseek">DeepSeek (Web API)</option>
-                            </select>
-                        </Row>
-
-                        <Row label={t('llm_filter_model_label')}>
-                            {data.provider === 'deepseek' ? (
-                                <select value={data.model || 'deepseek-reasoner'} onChange={(e) => set('model', e.target.value)} style={inputStyle}>
-                                    <option value="deepseek-reasoner">deepseek-reasoner (R1)</option>
-                                    <option value="deepseek-chat">deepseek-chat (V3)</option>
-                                </select>
-                            ) : (
-                                <select value={data.model || 'qwen-max'} onChange={(e) => set('model', e.target.value)} style={inputStyle}>
-                                    <option value="qwen-max">qwen-max (Premium)</option>
-                                    <option value="qwen-plus">qwen-plus (Fast & Capable)</option>
-                                    <option value="qwen-turbo">qwen-turbo (Ultra Fast)</option>
-                                </select>
-                            )}
-                        </Row>
-
-                        <div style={{ marginBottom: '20px' }}>
-                            <div style={labelStyle}>
-                                <span>{t('llm_filter_temperature_label')}</span>
-                                <span style={{ color: '#06b6d4', fontWeight: 800 }}>{data.temperature ?? 0.2}</span>
-                            </div>
-                            <input
-                                type="range" min="0.0" max="1.0" step="0.1"
-                                value={data.temperature ?? 0.2}
-                                onChange={(e) => set('temperature', parseFloat(e.target.value))}
-                                style={{ width: '100%', accentColor: '#06b6d4', height: '4px' }}
-                            />
-                        </div>
-
-                        <Row label={t('llm_filter_mock_backtest')}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={data.mockBacktest ?? true}
-                                    onChange={(e) => set('mockBacktest', e.target.checked)}
-                                    style={{ width: '16px', height: '16px', accentColor: '#06b6d4', cursor: 'pointer' }}
-                                    id="llmMockBacktest"
-                                />
-                                <label htmlFor="llmMockBacktest" style={{ fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
-                                    {t('use_mock_backtest')}
-                                </label>
-                            </div>
-                        </Row>
-
-                        <Row label={t('llm_filter_prompt_label')}>
-                            <textarea
-                                value={data.promptTemplate || ''}
-                                onChange={(e) => set('promptTemplate', e.target.value)}
-                                style={{
-                                    ...inputStyle, height: '110px', resize: 'vertical',
-                                    fontFamily: 'inherit', fontSize: '12px', lineHeight: 1.5
-                                }}
-                                placeholder="Analyze market: {{pair}} at {{price}} with RSI {{rsi}}. Reply with LONG, SHORT or FILTER."
-                            />
-                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
-                                {t('llm_filter_prompt_vars')}
-                            </div>
-                        </Row>
-
-                        <div 
-                            style={{ background: 'rgba(34,211,238,0.08)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(34,211,238,0.2)', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.6 }}
-                            dangerouslySetInnerHTML={{ __html: t('llm_filter_desc') }}
                         />
                     </>
                 )}

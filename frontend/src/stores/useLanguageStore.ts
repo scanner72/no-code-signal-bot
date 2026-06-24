@@ -719,15 +719,6 @@ const translations: Record<Language, Record<string, string>> = {
     placeholder_tolerance_eg: "Напр. 0.1",
     level_id_chart_link: "ID уровня (Связь с графиком)",
 
-    // LLM Filter (Free AI)
-    llm_filter: "🤖 LLM Фильтр (Free AI)",
-    llm_filter_provider_label: "Провайдер LLM",
-    llm_filter_model_label: "Модель",
-    llm_filter_prompt_label: "Промпт для анализа",
-    llm_filter_temperature_label: "Температура (0-1)",
-    llm_filter_mock_backtest: "Мок в бэктесте (PASS/FILTER без LLM)",
-    llm_filter_prompt_vars: "Доступные переменные: {{pair}}, {{price}}, {{rsi}}, {{trend}}, {{volume}}, {{timeframe}}",
-    llm_filter_desc: "🤖 LLM Фильтр (Free AI) — фильтрует сигналы через бесплатный веб-интерфейс Qwen/DeepSeek с помощью Playwright.\n\n⚠️ ВАЖНО (Авторизация): Требуется активная сессия в браузере. Выполните логин через Playwright интерактивно (non-headless) или скопируйте cookies сессии в директорию .free-ai/ внутри Docker-контейнера для сохранения состояния авторизации.\n\nВ бэктесте: автоматически подменяется моком.",
     opt_provider_qwen: "Qwen (chat.qwen.ai)",
     opt_provider_deepseek: "DeepSeek (chat.deepseek.com)",
     opt_model_qwen_max: "qwen-max (быстрый)",
@@ -1451,15 +1442,6 @@ const translations: Record<Language, Record<string, string>> = {
     placeholder_tolerance_eg: "e.g. 0.1",
     level_id_chart_link: "Level ID (Chart link)",
 
-    // LLM Filter (Free AI)
-    llm_filter: "🤖 LLM Filter (Free AI)",
-    llm_filter_provider_label: "LLM Provider",
-    llm_filter_model_label: "Model",
-    llm_filter_prompt_label: "Analysis Prompt",
-    llm_filter_temperature_label: "Temperature (0-1)",
-    llm_filter_mock_backtest: "Mock in backtest (no LLM calls)",
-    llm_filter_prompt_vars: "Available variables: {{pair}}, {{price}}, {{rsi}}, {{trend}}, {{volume}}, {{timeframe}}",
-    llm_filter_desc: "🤖 LLM Filter (Free AI) — filters signals via Qwen/DeepSeek web interface using Playwright.\n\n⚠️ IMPORTANT (Auth): Requires active browser profile. Authenticate via interactive (non-headless) Playwright session, or copy active session cookies to the .free-ai/ directory inside Docker volume to persist session state.\n\nIn backtest: automatically replaced with a mock.",
     opt_provider_qwen: "Qwen (chat.qwen.ai)",
     opt_provider_deepseek: "DeepSeek (chat.deepseek.com)",
     opt_model_qwen_max: "qwen-max (fast)",
