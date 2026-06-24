@@ -80,13 +80,15 @@ services:
       - "8070:8070"
     volumes:
       - kronos_cache:/app/.cache/huggingface
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # Runs on CPU by default (auto-falls back to kronos-mini). To use an NVIDIA
+    # GPU for faster forecasts, install nvidia-container-toolkit and uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
       interval: 30s
