@@ -44,6 +44,13 @@ services:
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
       TRADING_PAIRS: ${TRADING_PAIRS:-BTCUSDT,ETHUSDT,SOLUSDT}
       KRONOS_URL: http://kronos:8070
+      # Hermes LLM provider (optional). For DeepSeek/OpenRouter/OpenAI set
+      # HERMES_PROVIDER=openai, HERMES_API_URL=https://api.deepseek.com,
+      # HERMES_MODEL=deepseek-chat, HERMES_API_KEY=... in your .env
+      HERMES_PROVIDER: ${HERMES_PROVIDER:-}
+      HERMES_API_URL: ${HERMES_API_URL:-}
+      HERMES_MODEL: ${HERMES_MODEL:-}
+      HERMES_API_KEY: ${HERMES_API_KEY:-}
       # heym MCP (running on host via Docker Desktop)
       HEYM_API_URL: ${HEYM_API_URL:-http://host.docker.internal:4017/api}
       HEYM_API_KEY: ${HEYM_API_KEY:-}
