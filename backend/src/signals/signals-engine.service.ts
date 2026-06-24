@@ -1129,6 +1129,9 @@ export class SignalsEngineService {
           return getHistory ? [passed] : passed;
         } catch (err) {
           this.logger.error(`Error in Finviz scanner node: ${err.message}`);
+          if (context?.metadata) {
+            context.metadata.finviz = { status: 'unavailable', reason: err.message };
+          }
           return getHistory ? [false] : false;
         }
       }
@@ -1287,6 +1290,7 @@ export class SignalsEngineService {
               sentimentScore: research.sentimentScore,
               riskLevel: research.riskLevel,
               cached: research.cached,
+              status: research.unavailable ? 'unavailable' : 'ok',
             };
           }
 
@@ -1546,7 +1550,8 @@ export class SignalsEngineService {
           context.metadata.hermes = {
             decision: decision.decision,
             confidence: decision.confidence,
-            reason: decision.reason
+            reason: decision.reason,
+            status: decision.unavailable ? 'unavailable' : 'ok',
           };
         }
 

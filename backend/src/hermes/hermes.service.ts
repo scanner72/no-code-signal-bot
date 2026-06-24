@@ -20,6 +20,7 @@ interface HermesDecision {
   decision: 'PASS' | 'BLOCK';
   confidence: number;
   reason: string;
+  unavailable?: boolean;
 }
 
 /** Runtime config loaded from DB (with env-var fallback). Hot-reloads on settings change. */
@@ -180,7 +181,7 @@ export class HermesService {
     } catch (error) {
       const msg = error?.response?.data?.detail || error?.response?.data?.error?.message || error.message;
       this.logger.error(`Hermes Agent error: ${msg}`);
-      return { decision: 'PASS', confidence: 1.0, reason: `Hermes unavailable: ${msg}` };
+      return { decision: 'PASS', confidence: 1.0, reason: `Hermes unavailable: ${msg}`, unavailable: true };
     }
   }
 

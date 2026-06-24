@@ -12,6 +12,7 @@ export interface LdrResearchResult {
   keyFindings: string[];
   sources: string[];
   cached: boolean;
+  unavailable?: boolean;
 }
 
 /**
@@ -198,6 +199,7 @@ export class LdrService {
         keyFindings: [],
         sources: [],
         cached: false,
+        unavailable: true,
       };
     }
   }

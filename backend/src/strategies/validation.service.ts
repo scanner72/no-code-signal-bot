@@ -41,7 +41,9 @@ export class ValidationService {
             return buildExpr(node.condition);
 
           case 'logic':
-            const ops = node.operands.map((op: any) => buildExpr(op)).filter((op: any) => typeof op !== 'number');
+            const ops = node.operands
+              .map((op: any) => buildExpr(op))
+              .filter((op: any) => typeof op !== 'number' && typeof op !== 'boolean' && op != null);
             if (ops.length === 0) return true;
             if (node.operator === 'AND') return And(...ops);
             if (node.operator === 'OR') return Or(...ops);
@@ -57,8 +59,10 @@ export class ValidationService {
                 return left > right; // This won't work well for And/Or in Z3 if it's just a JS bool
             }
 
-            const lExpr = typeof left === 'number' ? left : (left.type ? left : getVar(node.left));
-            const rExpr = typeof right === 'number' ? right : (right.type ? right : getVar(node.right));
+            // Wrap raw JS numbers as Z3 Real values — passing a primitive number
+            // into a Z3 expression method throws "Cannot use 'in' operator ... in 0".
+            const lExpr = typeof left === 'number' ? Real.val(left) : (left?.type ? left : getVar(node.left));
+            const rExpr = typeof right === 'number' ? Real.val(right) : (right?.type ? right : getVar(node.right));
 
             switch (node.operator) {
               case '>': return lExpr.gt(rExpr);
