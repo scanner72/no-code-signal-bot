@@ -1,10 +1,14 @@
 import { createAuthClient } from "better-auth/react";
 
-// Use a same-origin relative path by default: nginx proxies /api -> backend.
-// This works on localhost and on any server (e.g. http://10.10.10.11) with no
-// host-specific config, and avoids cross-origin cookie/CORS issues.
+// better-auth requires an ABSOLUTE base URL. Build it from the current origin
+// so it works on localhost and on any server (e.g. http://10.10.10.11) without
+// host-specific config — nginx proxies /api -> backend (same origin, no CORS).
+const authBase =
+    import.meta.env.VITE_API_URL ||
+    (typeof window !== "undefined" ? `${window.location.origin}/api` : "http://localhost/api");
+
 export const authClient = createAuthClient({
-    baseURL: (import.meta.env.VITE_API_URL || "/api") + "/auth",
+    baseURL: authBase + "/auth",
 });
 
 export const { useSession, signIn, signUp, signOut } = authClient;
