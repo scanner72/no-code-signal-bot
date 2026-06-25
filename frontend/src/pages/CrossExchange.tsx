@@ -9,7 +9,7 @@ const CrossExchange = () => {
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const apiBase = import.meta.env.VITE_API_URL?.includes('localhost') ? '/api' : (import.meta.env.VITE_API_URL || '/api');
 
     const fetchDeltas = async () => {
         try {

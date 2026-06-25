@@ -13,6 +13,8 @@ interface SidebarProps {
 const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, onMouseLeave }: SidebarProps) => {
   const { t } = useLanguageStore();
   const [isLocalDragging, setIsLocalDragging] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
 
   const onDragStart = (e: React.DragEvent, type: string, data: object) => {
     setIsLocalDragging(true);
@@ -27,6 +29,34 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
       onMouseLeave();
     }
   };
+
+  // Filter blocks by search query
+  const filteredBlocks = React.useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const allBlocks: any[] = [];
+    CATEGORIES.forEach(cat => {
+      allBlocks.push(...getBlocksByCategory(cat));
+    });
+
+    return allBlocks.filter(block => {
+      const matchSearch = !query ||
+        block.name.toLowerCase().includes(query) ||
+        (block.description || '').toLowerCase().includes(query) ||
+        (t(block.id) || block.name).toLowerCase().includes(query);
+
+      const matchCategory = !selectedCategory || block.category === selectedCategory;
+
+      return matchSearch && matchCategory;
+    });
+  }, [searchQuery, selectedCategory, t]);
+
+  // Group filtered blocks by category for display
+  const groupedBlocks = React.useMemo(() => {
+    return CATEGORIES.map(category => ({
+      category,
+      blocks: filteredBlocks.filter(b => b.category === category)
+    })).filter(group => group.blocks.length > 0);
+  }, [filteredBlocks]);
 
   return (
     <aside 
@@ -98,60 +128,157 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
         )}
       </div>
 
+      {/* Search Box */}
+      <div style={{ padding: '8px 8px', marginBottom: '8px' }}>
+        <input
+          type="text"
+          placeholder="Search blocks..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search blocks"
+          style={{
+            width: '100%',
+            padding: 'var(--space-2) var(--space-3)',
+            background: 'var(--bg-accent)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--text-primary)',
+            fontSize: 'var(--font-size-sm)',
+            fontFamily: 'inherit',
+            transition: 'all 0.2s',
+            boxSizing: 'border-box' as const,
+          }}
+          onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
+          onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+        />
+      </div>
+
+      {/* Category Tabs */}
+      {groupedBlocks.length > 1 && (
+        <div style={{
+          padding: '4px 8px 8px',
+          display: 'flex',
+          gap: 'var(--space-2)',
+          overflowX: 'auto',
+          marginBottom: '8px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <button
+            onClick={() => setSelectedCategory(null)}
+            style={{
+              padding: 'var(--space-1) var(--space-2)',
+              border: selectedCategory === null ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
+              background: selectedCategory === null ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+              color: 'var(--text-primary)',
+              fontSize: 'var(--font-size-xs)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap' as const,
+              transition: 'all 0.2s',
+              fontWeight: 500,
+            }}
+          >
+            All ({filteredBlocks.length})
+          </button>
+          {groupedBlocks.map(group => (
+            <button
+              key={group.category}
+              onClick={() => setSelectedCategory(group.category)}
+              style={{
+                padding: 'var(--space-1) var(--space-2)',
+                border: selectedCategory === group.category ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
+                background: selectedCategory === group.category ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: 'var(--font-size-xs)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap' as const,
+                transition: 'all 0.2s',
+                fontWeight: 500,
+              }}
+            >
+              {t(group.category)} ({group.blocks.length})
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Sections */}
-      <div style={{ padding: '8px 8px', flex: 1 }}>
-        {CATEGORIES.map((category) => {
-          const items = getBlocksByCategory(category);
-          if (items.length === 0) return null;
-          return (
-          <div key={category} style={{ marginBottom: 12 }}>
-            <div style={{
-              fontSize: 10, color: 'var(--text-secondary)',
-              letterSpacing: '0.06em',
-              padding: '4px 10px 6px',
-              textTransform: 'uppercase' as const,
-              fontWeight: 800,
-            }}>
-              {t(category)}
-            </div>
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="node-chip"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'grab', fontSize: 13,
-                  color: 'var(--text-primary)',
-                  marginBottom: 2,
-                  border: '1px solid transparent',
-                  userSelect: 'none' as const,
-                  transition: 'all 0.15s ease',
-                  fontWeight: 500,
-                }}
-                draggable
-                onDragStart={(e) => onDragStart(e, item.type, item.defaultData)}
-                onDragEnd={onDragEnd}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-accent)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.borderColor = 'transparent';
-                }}
-              >
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: item.dotColor, flexShrink: 0,
-                  boxShadow: `0 0 6px ${item.dotColor}60`,
-                }} />
-                {t(item.id) || item.name}
-              </div>
-            ))}
+      <div style={{ padding: '8px 8px', flex: 1, overflowY: 'auto' }}>
+        {filteredBlocks.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: 'var(--space-6)',
+            color: 'var(--text-muted)',
+            fontSize: 'var(--font-size-sm)',
+          }}>
+            No blocks found
           </div>
-        )})}
+        ) : (
+          groupedBlocks.map((group) => (
+            <div key={group.category} style={{ marginBottom: 12 }}>
+              <div style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.06em',
+                padding: '4px 10px 6px',
+                textTransform: 'uppercase' as const,
+                fontWeight: 800,
+              }}>
+                {t(group.category)} ({group.blocks.length})
+              </div>
+              {group.blocks.map((item) => (
+                <div
+                  key={item.id}
+                  className="node-chip"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: 'var(--space-2) var(--space-3)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'grab', fontSize: 'var(--font-size-sm)',
+                    color: 'var(--text-primary)',
+                    marginBottom: 2,
+                    border: '1px solid transparent',
+                    userSelect: 'none' as const,
+                    transition: 'all 0.15s ease',
+                    fontWeight: 500,
+                  }}
+                  draggable
+                  onDragStart={(e) => onDragStart(e, item.type, item.defaultData)}
+                  onDragEnd={onDragEnd}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Add ${item.name} node`}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-accent)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      onDragStart(e as any, item.type, item.defaultData);
+                    }
+                  }}
+                >
+                  <span style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: item.dotColor, flexShrink: 0,
+                    boxShadow: `0 0 6px ${item.dotColor}60`,
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div>{t(item.id) || item.name}</div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {item.description}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
       </div>
     </aside>
   );

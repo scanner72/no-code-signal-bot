@@ -84,57 +84,123 @@ const Layout = ({ children, activeTab, onTabChange }) => {
 
       {/* ── BENTO NAV (Wide Sidebar / Drawer on mobile) ── */}
       <nav className={`bento-nav ${sidebarOpen ? 'open' : ''}`}>
-        <div className="nav-logo-wrapper" onClick={() => handleTabChange('dashboard')}>
+        <div
+          className="nav-logo-wrapper"
+          onClick={() => handleTabChange('dashboard')}
+          role="button"
+          tabIndex={0}
+          aria-label="Signal Bot home"
+          onKeyDown={(e) => e.key === 'Enter' && handleTabChange('dashboard')}
+        >
           <div className="nav-logo" title="SignalBot" />
           <span className="nav-logo-title">SignalBot</span>
         </div>
 
         <div className="nav-group-title">Trading Hub</div>
-        <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}>
+        <button
+          className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => handleTabChange('dashboard')}
+          aria-label="Navigate to Control Center"
+          aria-current={activeTab === 'dashboard' ? 'page' : undefined}
+        >
           <LayoutDashboard size={18} /> <span>Control Center</span>
         </button>
-        <button className={`nav-btn ${activeTab === 'cross' ? 'active' : ''}`} onClick={() => handleTabChange('cross')}>
+        <button
+          className={`nav-btn ${activeTab === 'cross' ? 'active' : ''}`}
+          onClick={() => handleTabChange('cross')}
+          aria-label="Navigate to Cross-Exchange"
+          aria-current={activeTab === 'cross' ? 'page' : undefined}
+        >
           <Globe size={18} /> <span>Кросс-Биржа (Спреды)</span>
         </button>
-        <button className={`nav-btn ${activeTab === 'paper' ? 'active' : ''}`} onClick={() => handleTabChange('paper')}>
+        <button
+          className={`nav-btn ${activeTab === 'paper' ? 'active' : ''}`}
+          onClick={() => handleTabChange('paper')}
+          aria-label="Navigate to Paper Trading"
+          aria-current={activeTab === 'paper' ? 'page' : undefined}
+        >
           <Activity size={18} /> <span>Paper Trading</span>
         </button>
-        <button className={`nav-btn ${activeTab === 'signals' ? 'active' : ''}`} onClick={() => handleTabChange('signals')}>
+        <button
+          className={`nav-btn ${activeTab === 'signals' ? 'active' : ''}`}
+          onClick={() => handleTabChange('signals')}
+          aria-label="Navigate to Signal History"
+          aria-current={activeTab === 'signals' ? 'page' : undefined}
+        >
           <History size={18} /> <span>Журнал сигналов</span>
         </button>
 
         <div className="nav-group-title">Strategy Studio</div>
-        <button className={`nav-btn ${activeTab === 'builder' ? 'active' : ''}`} onClick={() => handleTabChange('builder')}>
+        <button
+          className={`nav-btn ${activeTab === 'builder' ? 'active' : ''}`}
+          onClick={() => handleTabChange('builder')}
+          aria-label="Navigate to Strategy Builder"
+          aria-current={activeTab === 'builder' ? 'page' : undefined}
+        >
           <PencilRuler size={18} /> <span>Конструктор (Канвас)</span>
         </button>
-        <button className={`nav-btn ${activeTab === 'strategies' ? 'active' : ''}`} onClick={() => handleTabChange('strategies')}>
+        <button
+          className={`nav-btn ${activeTab === 'strategies' ? 'active' : ''}`}
+          onClick={() => handleTabChange('strategies')}
+          aria-label="Navigate to Strategy Templates"
+          aria-current={activeTab === 'strategies' ? 'page' : undefined}
+        >
           <BarChart2 size={18} /> <span>Шаблоны стратегий</span>
         </button>
-        <button className={`nav-btn ${activeTab === 'backtest' ? 'active' : ''}`} onClick={() => handleTabChange('backtest')}>
+        <button
+          className={`nav-btn ${activeTab === 'backtest' ? 'active' : ''}`}
+          onClick={() => handleTabChange('backtest')}
+          aria-label="Navigate to Backtest"
+          aria-current={activeTab === 'backtest' ? 'page' : undefined}
+        >
           <LineChart size={18} /> <span>Бэктест</span>
         </button>
 
         <div className="nav-group-title">Intelligence Lab</div>
-        <button className={`nav-btn ${activeTab === 'ml' ? 'active' : ''}`} onClick={() => handleTabChange('ml')}>
+        <button
+          className={`nav-btn ${activeTab === 'ml' ? 'active' : ''}`}
+          onClick={() => handleTabChange('ml')}
+          aria-label="Navigate to ML Trainer"
+          aria-current={activeTab === 'ml' ? 'page' : undefined}
+        >
           <Brain size={18} /> <span>ML Trainer (AI)</span>
         </button>
 
         <div className="nav-group-title">Fleet Management</div>
-        <button className={`nav-btn ${activeTab === 'fleet' ? 'active' : ''}`} onClick={() => handleTabChange('fleet')}>
+        <button
+          className={`nav-btn ${activeTab === 'fleet' ? 'active' : ''}`}
+          onClick={() => handleTabChange('fleet')}
+          aria-label="Navigate to Bot Fleet"
+          aria-current={activeTab === 'fleet' ? 'page' : undefined}
+        >
           <Zap size={18} /> <span>Ферма ботов</span>
         </button>
 
         <div className="nav-spacer" />
 
-        <button className="nav-btn" onClick={() => setOnboardingOpen(true)} style={{ marginBottom: 12 }}>
+        <button
+          className="nav-btn"
+          onClick={() => setOnboardingOpen(true)}
+          style={{ marginBottom: 12 }}
+          aria-label="Open onboarding guide"
+        >
           <HelpCircle size={18} /> <span>Обучение (Гид)</span>
         </button>
 
         {/* Health Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px', marginBottom: 8, cursor: 'pointer' }} onClick={() => setShowHealth(!showHealth)}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px', marginBottom: 8, cursor: 'pointer' }}
+          onClick={() => setShowHealth(!showHealth)}
+          role="button"
+          tabIndex={0}
+          aria-label={`System health: ${allOk ? 'healthy' : 'degraded'}`}
+          aria-pressed={showHealth}
+          onKeyDown={(e) => e.key === 'Enter' && setShowHealth(!showHealth)}
+        >
           <div
             className="nav-dot"
             title={allOk ? 'Все системы работают' : 'Есть проблемы'}
+            aria-hidden="true"
             style={{
               background: allOk ? 'var(--success)' : 'var(--danger)',
               boxShadow: `0 0 8px ${allOk ? 'var(--success)' : 'var(--danger)'}`,
@@ -145,11 +211,21 @@ const Layout = ({ children, activeTab, onTabChange }) => {
           </span>
         </div>
 
-        <button className={`nav-btn ${activeTab === 'docs' ? 'active' : ''}`} onClick={() => handleTabChange('docs')}>
+        <button
+          className={`nav-btn ${activeTab === 'docs' ? 'active' : ''}`}
+          onClick={() => handleTabChange('docs')}
+          aria-label="Navigate to Documentation"
+          aria-current={activeTab === 'docs' ? 'page' : undefined}
+        >
           <Book size={18} /> <span>Документация</span>
         </button>
 
-        <button className={`nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleTabChange('settings')}>
+        <button
+          className={`nav-btn ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => handleTabChange('settings')}
+          aria-label="Navigate to API Settings"
+          aria-current={activeTab === 'settings' ? 'page' : undefined}
+        >
           <Settings size={18} /> <span>Настройки API</span>
         </button>
       </nav>
@@ -178,6 +254,8 @@ const Layout = ({ children, activeTab, onTabChange }) => {
             {/* Theme Toggle Button */}
             <button
               onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              aria-pressed={theme === 'light'}
               style={{
                 background: 'none',
                 border: 'none',
@@ -194,13 +272,16 @@ const Layout = ({ children, activeTab, onTabChange }) => {
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
               title={theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
             >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === 'dark' ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
             </button>
 
             {/* Bell Icon & Notification Center Trigger */}
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 onClick={() => setNotifOpen(!notifOpen)}
+                aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+                aria-haspopup="menu"
+                aria-expanded={notifOpen}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -217,40 +298,47 @@ const Layout = ({ children, activeTab, onTabChange }) => {
                 onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-accent)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
               >
-                <Bell size={20} />
+                <Bell size={20} aria-hidden="true" />
                 {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: 'var(--accent-color)',
-                    boxShadow: '0 0 8px var(--accent-color)'
-                  }} />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: 'var(--accent-color)',
+                      boxShadow: '0 0 8px var(--accent-color)'
+                    }}
+                    aria-label={`${unreadCount} unread notifications`}
+                  />
                 )}
               </button>
               
               {/* Notification Center Dropdown */}
               {notifOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: '45px',
-                  right: '0',
-                  width: '360px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '20px',
-                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
-                  padding: '20px',
-                  zIndex: 1000,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
+                <div
+                  role="menu"
+                  aria-labelledby="notification-btn"
+                  style={{
+                    position: 'absolute',
+                    top: '45px',
+                    right: '0',
+                    width: '360px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '20px',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+                    padding: '20px',
+                    zIndex: 1000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>Уведомления</span>
+                    <span id="notification-title" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>Уведомления</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={markAllAsRead} style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Прочитать все</button>
                       <span style={{ color: 'var(--border-color)' }}>|</span>
