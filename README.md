@@ -25,7 +25,7 @@ then backtest, optimize, and deploy them as standalone bots.
 
 ## ✨ Features
 
-Build a full trading pipeline — from data in to order out — visually, with **34 node types**:
+Build a full trading pipeline — from data in to order out — visually, with **45+ node types**:
 
 - **📥 Data & exchanges** — multi-exchange via CCXT (Binance, Bybit, OKX, MEXC, Kraken…),
   OHLCV + order-book streams, volume/volatility scanners, Polymarket whale tracking, Finviz (US stocks).
@@ -42,14 +42,15 @@ Build a full trading pipeline — from data in to order out — visually, with *
 - **🔬 Test & optimize** — full backtester, genetic parameter optimizer, visual execution-trail debugger.
 - **🚀 Deploy** — compile any strategy to a standalone Python + FastAPI bot in a Docker
   container; manage a fleet of bots with a Panic Stop.
-- **🔌 Extras** — PineScript v5 importer (paste TradingView code → get a node graph),
-  TradingView-style charts, bilingual UI (EN/RU).
+- **🔌 Extras** — PineScript v3–v6 importer (paste TradingView code → get a node graph,
+  with quality report and coverage feedback), TradingView-style charts, bilingual UI (EN/RU),
+  URL-based navigation (React Router), searchable node palette (140+ blocks).
 
 ## 🚀 Quick Start
 
 > **Requirements:** [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-> For the full AI stack you'll also want an NVIDIA GPU (Kronos) and [Ollama](https://ollama.com)
-> on the host (Hermes / Local Deep Research). The core platform runs without them.
+> For the full AI stack you'll also want an NVIDIA GPU (Kronos) or an OpenAI-compatible LLM
+> API (LM Studio, DeepSeek, etc.) for Hermes. The core platform runs without them.
 
 ```bash
 git clone <your-repo-url> signal-bot
@@ -81,15 +82,22 @@ React + ReactFlow canvas  ─►  NestJS API (CCXT, signals engine, backtest, op
                                   └─ LDR + SearXNG — fundamental deep research
 ```
 
-- **Frontend:** React 18, TypeScript, Vite, Zustand, ReactFlow 11, Lightweight Charts, Tailwind.
+- **Frontend:** React 18, TypeScript, Vite, Zustand, React Router v7, ReactFlow 11,
+  Lightweight Charts, CSS design tokens, ARIA accessibility.
 - **Backend:** NestJS, TypeORM, PostgreSQL, Redis + Bull, CCXT — 26 modules
   (signals engine, backtest, optimizer, orders, paper-trading, risk, fleet, codegen, …).
-- **AI:** Kronos (time-series), Hermes/Nous Hermes (LLM), Local Deep Research, sentiment & ML filters.
+- **AI:** Kronos (time-series forecasting), Hermes (LLM risk filter — supports OpenAI-compatible
+  APIs: LM Studio, DeepSeek, Ollama), Local Deep Research, sentiment & ML filters.
 
 ## 🗺 Roadmap
 
+- [x] AST logic validation (Z3 SMT solver catches impossible conditions like `RSI > 70 AND RSI < 30`)
+- [x] PineScript v3–v6 importer with quality report and pine_block fallback nodes
+- [x] React Router navigation (shareable URLs, browser back/forward)
+- [x] Searchable node palette with category filtering (140+ blocks)
+- [x] ARIA accessibility & keyboard navigation
+- [ ] Strategy marketplace — share strategies, earn rating, get subscription discounts
 - [ ] Dynamic Top-50 relative-volume scanner (adaptive to market regime)
-- [ ] AST logic validation (catch impossible conditions like `RSI > 70 AND RSI < 30`)
 - [ ] Sandbox that test-runs generated Python bots before download
 - [ ] Hosted cloud version (one-click, no setup)
 
@@ -100,9 +108,10 @@ This project integrates third-party open-source components:
 - **[Kronos](https://huggingface.co/NeoQuasar)** by NeoQuasar — time-series forecasting
   model. Architecture code is included with attribution (see [`kronos/NOTICE.md`](kronos/NOTICE.md));
   weights are downloaded at runtime from Hugging Face.
-- **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** by Nous Research (MIT) —
-  powers the optional Hermes LLM risk-filter node. **Not bundled.** To enable it, clone it
-  into `./hermes-agent` and uncomment the `hermes` service in `docker-compose.yml`.
+- **Hermes AI risk filter** — built-in LLM-based risk filter node. Supports any
+  OpenAI-compatible API (LM Studio, DeepSeek, Ollama, etc.) via environment variables.
+  No separate service needed — configure `HERMES_PROVIDER`, `HERMES_API_URL`, `HERMES_MODEL`
+  in `.env`.
 - **[Local Deep Research](https://github.com/LearningCircuit/local-deep-research)** and
   **SearXNG** — used (as external Docker images) for the fundamental-research node.
 

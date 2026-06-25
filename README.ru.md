@@ -27,7 +27,7 @@
 ## ✨ Возможности
 
 Собирай полный торговый пайплайн — от получения данных до выставления ордера —
-визуально, из **34 типов нод**:
+визуально, из **45+ типов нод**:
 
 - **📥 Данные и биржи** — мульти-биржа через CCXT (Binance, Bybit, OKX, MEXC, Kraken…),
   свечи OHLCV + стримы стакана, сканеры объёма/волатильности, отслеживание китов
@@ -48,15 +48,16 @@
   параметров, визуальный отладчик трассировки выполнения.
 - **🚀 Деплой** — компиляция любой стратегии в независимого Python + FastAPI бота в
   Docker-контейнере; управление флотом ботов с кнопкой Panic Stop.
-- **🔌 Дополнительно** — импортёр PineScript v5 (вставь код TradingView → получи граф
-  нод), графики в стиле TradingView, двуязычный интерфейс (EN/RU).
+- **🔌 Дополнительно** — импортёр PineScript v3–v6 (вставь код TradingView → получи граф
+  нод с отчётом о качестве конверсии), графики в стиле TradingView, двуязычный интерфейс
+  (EN/RU), навигация по URL (React Router), поиск среди 140+ блоков с фильтрами.
 
 ## 🚀 Быстрый старт
 
 > **Требования:** [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-> Для полного AI-стека также понадобятся видеокарта NVIDIA (Kronos) и
-> [Ollama](https://ollama.com) на хосте (Hermes / Local Deep Research). Базовая
-> платформа работает и без них.
+> Для полного AI-стека также понадобятся видеокарта NVIDIA (Kronos) или любой
+> OpenAI-совместимый LLM API (LM Studio, DeepSeek и т.д.) для Hermes.
+> Базовая платформа работает и без них.
 
 ```bash
 git clone <ссылка-на-репозиторий> signal-bot
@@ -88,15 +89,22 @@ docker compose up -d
                                   └─ LDR + SearXNG — фундаментальное исследование
 ```
 
-- **Frontend:** React 18, TypeScript, Vite, Zustand, ReactFlow 11, Lightweight Charts, Tailwind.
+- **Frontend:** React 18, TypeScript, Vite, Zustand, React Router v7, ReactFlow 11,
+  Lightweight Charts, CSS design tokens, ARIA accessibility.
 - **Backend:** NestJS, TypeORM, PostgreSQL, Redis + Bull, CCXT — 26 модулей
   (движок сигналов, бэктест, оптимизатор, ордера, бумажная торговля, риск, флот, codegen…).
-- **AI:** Kronos (временные ряды), Hermes/Nous Hermes (LLM), Local Deep Research, фильтры сентимента и ML.
+- **AI:** Kronos (прогноз временных рядов), Hermes (LLM-фильтр риска — поддерживает любой
+  OpenAI-совместимый API: LM Studio, DeepSeek, Ollama), Local Deep Research, фильтры сентимента и ML.
 
 ## 🗺 Планы
 
+- [x] Валидация логики AST (Z3 SMT solver ловит невозможные условия вроде `RSI > 70 AND RSI < 30`)
+- [x] Импортёр PineScript v3–v6 с отчётом о качестве и pine_block fallback нодами
+- [x] React Router навигация (прямые ссылки, браузерные back/forward)
+- [x] Поиск и фильтрация по 140+ блокам в палитре нод
+- [x] ARIA accessibility и клавиатурная навигация
+- [ ] Маркетплейс стратегий — делись стратегиями, зарабатывай рейтинг, получай скидки
 - [ ] Динамический сканер Топ-50 по относительному объёму (адаптивный к фазе рынка)
-- [ ] Валидация логики AST (ловить невозможные условия вроде `RSI > 70 AND RSI < 30`)
 - [ ] Песочница, прогоняющая сгенерированных Python-ботов перед скачиванием
 - [ ] Облачная версия (в один клик, без установки)
 
@@ -107,9 +115,10 @@ docker compose up -d
 - **[Kronos](https://huggingface.co/NeoQuasar)** от NeoQuasar — модель прогноза временных
   рядов. Код архитектуры включён с указанием авторства (см. [`kronos/NOTICE.md`](kronos/NOTICE.md));
   веса скачиваются при запуске с Hugging Face.
-- **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** от Nous Research (MIT) —
-  обеспечивает опциональную ноду LLM-фильтра риска Hermes. **Не включён в репозиторий.** Чтобы
-  включить, склонируй его в `./hermes-agent` и раскомментируй сервис `hermes` в `docker-compose.yml`.
+- **Hermes AI-фильтр риска** — встроенная LLM-нода фильтрации рисков. Поддерживает любой
+  OpenAI-совместимый API (LM Studio, DeepSeek, Ollama и др.) через переменные окружения.
+  Отдельный сервис не нужен — настрой `HERMES_PROVIDER`, `HERMES_API_URL`, `HERMES_MODEL`
+  в `.env`.
 - **[Local Deep Research](https://github.com/LearningCircuit/local-deep-research)** и
   **SearXNG** — используются (как внешние Docker-образы) для ноды фундаментального исследования.
 
