@@ -78,6 +78,7 @@ export const registry: Record<string, BlockConfig> = {
   comp_cross_below: { type: 'comparison', id: 'comp_cross_below', name: 'Cross Below', category: 'Логика', dotColor: '#10B981', defaultData: { operator: 'cross_below' } },
   comp_gt_lt: { type: 'comparison', id: 'comp_gt_lt', name: '> / <', category: 'Логика', dotColor: '#6B7280', defaultData: { operator: '>' } },
   custom_script: { type: 'custom_code', id: 'custom_script', name: 'Custom Script', category: 'Логика', dotColor: '#6366f1', defaultData: { name: 'My Logic', code: 'return close[0] > high[1];' } },
+  pine_block: { type: 'pine_block', id: 'pine_block', name: '🌲 Pine Block', category: 'Логика', dotColor: '#F59E0B', defaultData: { varName: 'expression', pineCode: '// Pine Script code', funcName: '', needsManualReplace: true } },
   fusion_combiner: { type: 'fusion_combiner', id: 'fusion_combiner', name: '🎛️ Fusion Combiner', category: 'Логика', dotColor: '#ec4899', defaultData: { weights: {}, params: { threshold: 0.5, enableLearning: false, alpha: 0.1 } } },
 
   // Фильтры

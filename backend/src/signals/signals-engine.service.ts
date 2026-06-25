@@ -810,6 +810,9 @@ export class SignalsEngineService {
           return getHistory ? [false] : false;
         }
 
+      case 'pine_block':
+        return getHistory ? [true] : true;
+
       case 'ml_filter': {
         const modelId = node.params?.modelId || node.modelId;
         const minScore = node.params?.minScore || node.minScore || 0.7;

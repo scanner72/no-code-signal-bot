@@ -390,6 +390,53 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     if (!vars[alias] && vars[source]) vars[alias] = vars[source];
   }
 
+  // ── 1b. Pine Block: catch unrecognized variable assignments ─────────────────
+  // Any "varName = <expression>" that wasn't already captured as an indicator
+  const assignRx = /^(\w+)\s*=\s*(.+)$/mg;
+  const skipVarNames = new Set(['true', 'false', 'na', 'bar_index', 'last_bar_index', 'timenow', 'time']);
+  const skipPrefixes = ['indicator(', 'strategy(', 'plot(', 'plotshape(', 'plotchar(', 'bgcolor(', 'barcolor(', 'fill(', 'hline(', 'alertcondition(', 'alert(', 'strategy.entry(', 'strategy.close(', 'strategy.exit(', 'strategy.order('];
+
+  for (const m of src.matchAll(assignRx)) {
+    const [fullMatch, varName, expr] = m;
+    if (vars[varName]) continue;
+    if (skipVarNames.has(varName)) continue;
+    if (skipPrefixes.some(p => expr.trim().startsWith(p))) continue;
+    if (/^\s*input/.test(expr)) continue;
+    if (/^\d+(\.\d+)?$/.test(expr.trim())) continue;
+    if (/^["']/.test(expr.trim())) continue;
+    if (/^\w+$/.test(expr.trim()) && !vars[expr.trim()]) continue;
+
+    // Extract function name if it's a ta.* or other call
+    const funcMatch = expr.match(/(?:ta\.)?(\w+)\s*\(/);
+    const funcName = funcMatch ? funcMatch[1] : '';
+
+    const nodeId = uid(`pine_${varName}`);
+    nodes.push({
+      id: nodeId,
+      type: 'pine_block',
+      position: { x: 320, y: indY },
+      data: {
+        varName,
+        pineCode: fullMatch.trim(),
+        funcName,
+        needsManualReplace: true,
+      }
+    });
+    addEdge(inputId, nodeId, undefined, '#F59E0B');
+
+    // Resolve dependencies: if expr references known vars, connect them
+    for (const [knownVar, meta] of Object.entries(vars)) {
+      if (knownVar !== 'close' && knownVar !== 'open' && knownVar !== 'high' && knownVar !== 'low') {
+        if (expr.includes(knownVar)) {
+          addEdge(meta.nodeId, nodeId, undefined, '#F59E0B');
+        }
+      }
+    }
+
+    vars[varName] = { nodeId, indType: 'pine_block' };
+    indY += 110;
+  }
+
   // ── 2. Cross ─────────────────────────────────────────────────────────────────
 
   const crossRx = /(\w+)\s*=\s*ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;

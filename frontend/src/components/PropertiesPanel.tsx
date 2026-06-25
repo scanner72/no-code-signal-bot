@@ -1249,6 +1249,32 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
                     </>
                 )}
 
+                {type === 'pine_block' && (
+                    <>
+                        <Row label="Variable">
+                            <input
+                                type="text" value={data.varName || ''}
+                                onChange={(e) => set('varName', e.target.value)}
+                                style={inputStyle}
+                            />
+                        </Row>
+                        <Row label="Pine Script Code">
+                            <textarea
+                                value={data.pineCode || ''}
+                                onChange={(e) => set('pineCode', e.target.value)}
+                                style={{
+                                    ...inputStyle, height: '120px', fontFamily: 'monospace',
+                                    fontSize: '11px', lineHeight: 1.5, resize: 'vertical',
+                                    background: 'rgba(245, 158, 11, 0.05)', color: '#F59E0B', padding: '10px'
+                                }}
+                            />
+                        </Row>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', padding: '8px 0', lineHeight: 1.4 }}>
+                            ⚠ This node is a placeholder for Pine Script code that couldn't be auto-converted. It passes through as TRUE. Replace it with the appropriate node when possible.
+                        </div>
+                    </>
+                )}
+
                 {type === 'ml_filter' && (
                     <>
                         <Row label={t('ml_model_label')}>

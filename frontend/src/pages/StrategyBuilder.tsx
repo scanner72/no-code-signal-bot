@@ -42,6 +42,7 @@ import DeepResearchNode from '../components/nodes/DeepResearchNode';
 import PortfolioRiskSizerNode from '../components/nodes/PortfolioRiskSizerNode';
 import HeymNode from '../components/nodes/HeymNode';
 import McpToolNode from '../components/nodes/McpToolNode';
+import PineBlockNode from '../components/nodes/PineBlockNode';
 import { strategiesApi } from '../api/strategies';
 import axios from 'axios';
 import { PythonPreview } from '../components/PythonPreview';
@@ -93,6 +94,7 @@ const nodeTypes = {
   portfolio_risk_sizer: PortfolioRiskSizerNode,
   heym_mcp: HeymNode,
   mcp_tool: McpToolNode,
+  pine_block: PineBlockNode,
 };
 
 
