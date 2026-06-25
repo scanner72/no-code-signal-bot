@@ -164,14 +164,19 @@ services:
       - ldr_data:/data
     environment:
       - LDR_DATA_DIR=/data
-      - LDR_LLM_PROVIDER=${LDR_LLM_PROVIDER:-ollama}
-      - LDR_LLM_OLLAMA_URL=${LDR_LLM_OLLAMA_URL:-http://host.docker.internal:11434}
-      - LDR_LLM_MODEL=${LDR_LLM_MODEL:-qwen2.5:14b}
+      # Use OpenAI-compatible provider (LM Studio on GPU) instead of Ollama
+      - LDR_LLM_PROVIDER=${LDR_LLM_PROVIDER:-openai}
+      - LDR_LLM_OPENAI_API_KEY=${LDR_LLM_OPENAI_API_KEY:-lm-studio}
+      - LDR_LLM_OPENAI_ENDPOINT_URL=${LDR_LLM_OPENAI_ENDPOINT_URL:-http://192.168.88.153:1234/v1}
+      - LDR_LLM_MODEL=${LDR_LLM_MODEL:-qwen2.5-7b-instruct-1m}
       - LDR_SEARCH_ENGINE_PRIMARY=${LDR_SEARCH_ENGINE_PRIMARY:-searxng}
       - SEARXNG_URL=http://searxng:8080
       - LDR_BOOTSTRAP_ALLOW_UNENCRYPTED=${LDR_BOOTSTRAP_ALLOW_UNENCRYPTED:-true}
       - LDR_DEFAULT_USERNAME=${LDR_DEFAULT_USERNAME:-admin}
       - LDR_DEFAULT_PASSWORD=${LDR_DEFAULT_PASSWORD:-admin}
+      # Suppress slow transformers import — not needed for API-only LLM
+      - TRANSFORMERS_OFFLINE=1
+      - TOKENIZERS_PARALLELISM=false
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -183,7 +188,7 @@ services:
       interval: 30s
       timeout: 15s
       retries: 5
-      start_period: 60s
+      start_period: 180s
 
 volumes:
   postgres_data:
