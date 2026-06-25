@@ -1760,15 +1760,30 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
                   background: '#0f172a', color: '#cbd5e1', border: '1px solid var(--border-color)', borderRadius: '12px', resize: 'none', outline: 'none'
                 }}
               />
-              <button 
+              <button
                 disabled={!pineCode.trim()}
-                onClick={() => { 
+                onClick={() => {
                   const parsed = parsePineScript(pineCode);
                   if (parsed.nodes.length > 0) {
                     setNodes((nds) => [...nds, ...parsed.nodes]);
                     setEdges((eds) => [...eds, ...parsed.edges]);
                     setPineModalOpen(false);
                     setPineCode('');
+
+                    const r = parsed.report;
+                    const nodesCount = parsed.nodes.length;
+                    const indList = r.indicators.length > 0 ? r.indicators.join(', ') : '—';
+                    const sigList = r.signals.length > 0 ? r.signals.join(', ') : '—';
+
+                    if (r.quality === 'full') {
+                      toast.success(`Импорт: ${nodesCount} нод (${r.qualityPercent}%). Индикаторы: ${indList}. Сигналы: ${sigList}`);
+                    } else if (r.quality === 'partial') {
+                      toast.warning(`Импорт: ${nodesCount} нод (${r.qualityPercent}%). Индикаторы: ${indList}. ${r.warnings.length > 0 ? 'Пропущено: ' + r.warnings.slice(0, 3).join('; ') : ''}`);
+                    } else {
+                      toast.error(`Парсер не распознал индикаторы — скрипт помещён в Custom Code. ${r.warnings.slice(0, 2).join('; ')}`);
+                    }
+                  } else {
+                    toast.error('Не удалось распарсить Pine Script — проверьте синтаксис');
                   }
                 }}
                 style={{ ...primaryBtnStyle, width: '100%', marginTop: '24px' }}

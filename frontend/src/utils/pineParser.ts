@@ -56,6 +56,17 @@ interface CmpNode {
   rightVar?: string;
 }
 
+export interface ParseReport {
+  totalLines: number;
+  recognizedLines: number;
+  skippedLines: string[];
+  indicators: string[];
+  signals: string[];
+  warnings: string[];
+  quality: 'full' | 'partial' | 'fallback';
+  qualityPercent: number;
+}
+
 interface SignalSource {
   id: string;
   type: 'LONG' | 'SHORT';
@@ -63,13 +74,34 @@ interface SignalSource {
 
 // ─── main ─────────────────────────────────────────────────────────────────────
 
-export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[] } {
+export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; report: ParseReport } {
   _counter = 0;
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const push = (e: Edge) => edges.push(e);
 
   const src = normalizeToV5(stripComments(code));
+
+  const report: ParseReport = {
+    totalLines: 0,
+    recognizedLines: 0,
+    skippedLines: [],
+    indicators: [],
+    signals: [],
+    warnings: [],
+    quality: 'full',
+    qualityPercent: 100,
+  };
+
+  const meaningfulLines = src.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0 && !l.startsWith('//'));
+  report.totalLines = meaningfulLines.length;
+
+  const recognizedPatterns = new Set<string>();
+  function markRecognized(line: string) {
+    recognizedPatterns.add(line.trim().substring(0, 60));
+  }
 
   // Input node
   const inputId = uid('input');
@@ -562,23 +594,82 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[] } 
     sigY += 220;
   }
 
-  // Fallback: If no nodes were generated (other than the input node), 
-  // we couldn't parse the specific indicators. In this case, we just create 
-  // a Custom Code node with the entire script so the user doesn't lose it.
+  // ── Build report ──────────────────────────────────────────────────────────────
+
+  // Collect recognized indicators
+  for (const [varName, meta] of Object.entries(vars)) {
+    if (meta.indType !== 'input') {
+      report.indicators.push(meta.indType.toUpperCase());
+    }
+  }
+  report.indicators = [...new Set(report.indicators)];
+
+  // Collect signal types
+  for (const ss of signalSources) {
+    report.signals.push(ss.type);
+  }
+
+  // Detect unrecognized ta.* calls
+  const allTaCalls = [...src.matchAll(/ta\.(\w+)\s*\(/g)].map(m => m[1]);
+  const handledTa = new Set([
+    'rsi', 'sma', 'ema', 'wma', 'dema', 'tema', 'vwma', 'hma', 'alma',
+    'macd', 'bb', 'stoch', 'atr', 'cci', 'mfi', 'obv', 'adx', 'dmi',
+    'roc', 'mom', 'vwap', 'wpr', 'supertrend',
+    'crossover', 'crossunder', 'cross',
+    'highest', 'lowest', 'pivothigh', 'pivotlow',
+  ]);
+  const unhandledTa = [...new Set(allTaCalls.filter(f => !handledTa.has(f)))];
+  for (const fn of unhandledTa) {
+    report.warnings.push(`ta.${fn}() not supported — skipped`);
+  }
+
+  // Detect unrecognized Pine constructs
+  const unsupported: string[] = [];
+  if (/\bfor\b/.test(src)) unsupported.push('for loops');
+  if (/\bwhile\b/.test(src)) unsupported.push('while loops');
+  if (/\bswitch\b/.test(src)) unsupported.push('switch statements');
+  if (/\btype\b\s+\w+/.test(src)) unsupported.push('custom types (v5)');
+  if (/\bmethod\b\s+\w+/.test(src)) unsupported.push('methods (v5)');
+  if (/\bimport\b\s+\w+/.test(src)) unsupported.push('library imports (v5)');
+  if (/\bmap\.new/.test(src)) unsupported.push('maps (v6)');
+  if (/\bmatrix\.new/.test(src)) unsupported.push('matrices (v6)');
+  if (/\barray\.new/.test(src)) unsupported.push('arrays');
+  if (/\bline\.new|label\.new|box\.new/.test(src)) unsupported.push('drawing objects');
+  if (/\btable\.new/.test(src)) unsupported.push('tables');
+  for (const u of unsupported) {
+    report.warnings.push(`${u} — not supported, skipped`);
+  }
+
+  // Count recognized nodes (excluding input node and signal nodes)
+  const parsedNodeCount = nodes.filter(n => n.type !== 'input' && n.type !== 'signal').length;
+
+  // Fallback: If no nodes were generated (other than the input node),
+  // create a Custom Code node with the entire script.
   if (nodes.length === 1) {
     const customId = uid('custom_pine');
-    nodes.push({ 
-      id: customId, 
-      type: 'custom_code', 
-      position: { x: 320, y: 220 }, 
-      data: { name: 'PineScript Block', code: code } 
+    nodes.push({
+      id: customId,
+      type: 'custom_code',
+      position: { x: 320, y: 220 },
+      data: { name: 'PineScript Block', code: code }
     });
     addEdge(inputId, customId);
-    
+
     const sigId = uid('signal');
     nodes.push({ id: sigId, type: 'signal', position: { x: 620, y: 220 }, data: { signalType: 'LONG' } });
     addEdge(customId, sigId, undefined, '#E53935');
+
+    report.quality = 'fallback';
+    report.qualityPercent = 0;
+    report.warnings.push('No indicators recognized — entire script placed in Custom Code node');
+  } else {
+    // Estimate quality: ratio of recognized ta.* calls vs total
+    const totalTaCalls = allTaCalls.length || 1;
+    const recognizedTaCalls = allTaCalls.filter(f => handledTa.has(f)).length;
+    report.qualityPercent = Math.round((recognizedTaCalls / totalTaCalls) * 100);
+    report.quality = report.qualityPercent >= 90 ? 'full' : 'partial';
+    report.recognizedLines = parsedNodeCount;
   }
 
-  return { nodes, edges };
+  return { nodes, edges, report };
 }
