@@ -8,8 +8,36 @@ function uid(label: string) {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function stripComments(code: string): string {
-  // Remove line comments (//)
-  return code.replace(/\/\/[^\n]*/g, '').replace(/\r/g, '');
+  return code
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\r/g, '');
+}
+
+function normalizeToV5(code: string): string {
+  // v3/v4 functions without ta. prefix → add ta. prefix
+  const taFuncs = [
+    'rsi', 'sma', 'ema', 'wma', 'dema', 'tema', 'vwma', 'hma', 'alma',
+    'macd', 'bb', 'bbw', 'stoch', 'atr', 'cci', 'mfi', 'obv', 'adx',
+    'roc', 'mom', 'vwap', 'wpr', 'dmi', 'supertrend',
+    'crossover', 'crossunder', 'cross',
+    'highest', 'lowest', 'highestbars', 'lowestbars',
+    'rising', 'falling', 'change', 'tr', 'pivothigh', 'pivotlow',
+    'valuewhen', 'barssince', 'cum',
+  ];
+  const pattern = new RegExp(`(?<!\\w|ta\\.)\\b(${taFuncs.join('|')})\\s*\\(`, 'g');
+  let result = code.replace(pattern, 'ta.$1(');
+
+  // v3 security() → request.security()
+  result = result.replace(/(?<!request\.)security\s*\(/g, 'request.security(');
+
+  // v3 input() → input.int() / input.float() / input.string() — normalize to input()
+  // (keep as-is, we handle input.* below)
+
+  // v3 study() → indicator()
+  result = result.replace(/\bstudy\s*\(/g, 'indicator(');
+
+  return result;
 }
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -41,7 +69,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[] } 
   const edges: Edge[] = [];
   const push = (e: Edge) => edges.push(e);
 
-  const src = stripComments(code);
+  const src = normalizeToV5(stripComments(code));
 
   // Input node
   const inputId = uid('input');
@@ -206,6 +234,123 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[] } 
     indY += 110;
   }
 
+  // ta.adx(period) / ta.dmi(period) → ADX indicator
+  const adxRx = /(\w+)\s*=\s*ta\.(?:adx|dmi)\s*\(\s*(?:\w+\s*,\s*)?(\d+)\s*\)/g;
+  for (const m of src.matchAll(adxRx)) {
+    const [, varName, period] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`adx_${varName}`);
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'ADX', params: { period: +period }, property: 'adx' } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: 'adx' };
+    indY += 110;
+  }
+
+  // ta.mfi(src, period) → mapped to RSI node (similar oscillator 0-100)
+  const mfiRx = /(\w+)\s*=\s*ta\.mfi\s*\(\s*\w+\s*,\s*(\d+)\s*\)/g;
+  for (const m of src.matchAll(mfiRx)) {
+    const [, varName, period] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`mfi_${varName}`);
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'RSI', params: { period: +period } } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: 'mfi' };
+    indY += 110;
+  }
+
+  // ta.obv → Volume indicator
+  const obvRx = /(\w+)\s*=\s*ta\.obv/g;
+  for (const m of src.matchAll(obvRx)) {
+    const [, varName] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`obv_${varName}`);
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'VOLUME', params: {} } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: 'obv' };
+    indY += 110;
+  }
+
+  // ta.supertrend(factor, period) → [value, direction]
+  const stDestructRx = /\[(\w+)\s*,\s*(\w+)\s*\]\s*=\s*ta\.supertrend\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+)\s*\)/g;
+  for (const m of src.matchAll(stDestructRx)) {
+    const [, valVar, dirVar, factor, period] = m;
+    const nodeId = uid('supertrend');
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'EMA', params: { period: +period } } });
+    addEdge(inputId, nodeId);
+    vars[valVar] = { nodeId, indType: 'supertrend' };
+    vars[dirVar] = { nodeId, indType: 'supertrend' };
+    indY += 110;
+  }
+
+  // ta.hma / ta.alma / ta.vwma(src, period) → mapped to EMA
+  const altMaRx = /(\w+)\s*=\s*ta\.(hma|alma|vwma)\s*\(\s*\w+\s*,\s*(\d+)(?:\s*,\s*[\d.]+)*\s*\)/g;
+  for (const m of src.matchAll(altMaRx)) {
+    const [, varName, maType, period] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`${maType}_${varName}`);
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'EMA', params: { period: +period } } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: maType };
+    indY += 110;
+  }
+
+  // ta.wpr(period) → Williams %R, map to Stochastic (similar -100..0 oscillator)
+  const wprRx = /(\w+)\s*=\s*ta\.wpr\s*\(\s*(\d+)\s*\)/g;
+  for (const m of src.matchAll(wprRx)) {
+    const [, varName, period] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`wpr_${varName}`);
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'STOCHASTIC', params: { period: +period, signalPeriod: 3 }, property: 'k' } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: 'wpr' };
+    indY += 110;
+  }
+
+  // ta.highest(src, period) / ta.lowest(src, period) → comparison proxy
+  const hlRx = /(\w+)\s*=\s*ta\.(highest|lowest)\s*\(\s*(\w+)\s*,\s*(\d+)\s*\)/g;
+  for (const m of src.matchAll(hlRx)) {
+    const [, varName, fn, srcVar, period] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`${fn}_${varName}`);
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'EMA', params: { period: +period } } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: fn };
+    indY += 110;
+  }
+
+  // ta.pivothigh / ta.pivotlow(leftbars, rightbars) → user_level proxy
+  const pivotRx = /(\w+)\s*=\s*ta\.(pivothigh|pivotlow)\s*\(\s*(?:\w+\s*,\s*)?(\d+)\s*,\s*(\d+)\s*\)/g;
+  for (const m of src.matchAll(pivotRx)) {
+    const [, varName, pivotType, left, right] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`pivot_${varName}`);
+    nodes.push({ id: nodeId, type: 'user_level', position: { x: 320, y: indY }, data: { type: 'horizontal_line', params: { levelId: 0 } } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: pivotType };
+    indY += 110;
+  }
+
+  // input.int / input.float / input.bool / input.source / input() → extract default value
+  const inputRx = /(\w+)\s*=\s*input(?:\.\w+)?\s*\(\s*(?:defval\s*=\s*)?(\d+(?:\.\d+)?)/g;
+  for (const m of src.matchAll(inputRx)) {
+    const [, varName, defVal] = m;
+    if (vars[varName]) continue;
+    // Store as a pseudo-variable with the input node (default value as a constant)
+    vars[varName] = { nodeId: inputId, indType: 'input' };
+  }
+
+  // request.security(syminfo, timeframe, expr) → MTF node
+  const secRx = /(\w+)\s*=\s*request\.security\s*\(\s*(?:\w+)\s*,\s*["'](\w+)["']/g;
+  for (const m of src.matchAll(secRx)) {
+    const [, varName, tf] = m;
+    if (vars[varName]) continue;
+    const nodeId = uid(`mtf_${varName}`);
+    nodes.push({ id: nodeId, type: 'mtf', position: { x: 320, y: indY }, data: { timeframe: tf.toUpperCase() } });
+    addEdge(inputId, nodeId);
+    vars[varName] = { nodeId, indType: 'mtf' };
+    indY += 110;
+  }
+
   // Variable aliases: alias = existingVar
   const aliasRx = /^(\w+)\s*=\s*(\w+)\s*$/mg;
   for (const m of src.matchAll(aliasRx)) {
@@ -215,9 +360,8 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[] } 
 
   // ── 2. Cross ─────────────────────────────────────────────────────────────────
 
-  const crossRx = /(\w+)\s*=\s*ta\.(crossover|crossunder)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
-  // Also direct (unassigned): ta.crossover(...)
-  const crossDirectRx = /(?<!\w=\s*)ta\.(crossover|crossunder)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
+  const crossRx = /(\w+)\s*=\s*ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
+  const crossDirectRx = /(?<!\w=\s*)ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
 
   const crossMap: Record<string, SignalSource> = {};
 
@@ -326,23 +470,59 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[] } 
 
   const signalSources: SignalSource[] = [];
 
-  const stratEntryRx = /strategy\.entry\s*\(\s*["'](\w+)["']\s*,\s*strategy\.(long|short)\s*(?:,\s*when\s*=\s*(\w+))?\s*\)/gi;
+  function resolveCondition(condVar: string): string | null {
+    return logicSources[condVar] || crossMap[condVar]?.id || cmpNodes.find(c => c.varName === condVar)?.nodeId || vars[condVar]?.nodeId || null;
+  }
+
+  // strategy.entry("Long", strategy.long, when = condition)
+  const stratEntryRx = /strategy\.entry\s*\(\s*["']([^"']+)["']\s*,\s*strategy\.(long|short)\s*(?:,\s*(?:when|comment)\s*=\s*(\w+))?\s*\)/gi;
   for (const m of src.matchAll(stratEntryRx)) {
     const [, , dir, condVar] = m;
     const type = dir.toLowerCase() === 'long' ? 'LONG' : 'SHORT';
-    const srcId = condVar
-      ? (logicSources[condVar] || crossMap[condVar]?.id || cmpNodes.find(c => c.varName === condVar)?.nodeId)
-      : null;
+    const srcId = condVar ? resolveCondition(condVar) : null;
     if (srcId) signalSources.push({ id: srcId, type });
   }
 
-  // alertcondition(longCond, ...) — first arg as LONG signal
+  // if (condition) strategy.entry(...)  — v5 pattern
+  const ifEntryRx = /if\s+(\w+)\s*\n\s*strategy\.entry\s*\(\s*["'][^"']+["']\s*,\s*strategy\.(long|short)/gi;
+  for (const m of src.matchAll(ifEntryRx)) {
+    const [, condVar, dir] = m;
+    const type = dir.toLowerCase() === 'long' ? 'LONG' : 'SHORT';
+    const srcId = resolveCondition(condVar);
+    if (srcId) signalSources.push({ id: srcId, type });
+  }
+
+  // plotshape(condition, ..., style=shape.triangleup) → LONG, triangledown → SHORT
+  const plotshapeRx = /plotshape\s*\(\s*(\w+)\s*(?:,[\s\S]*?style\s*=\s*shape\.(triangleup|triangledown|arrowup|arrowdown|cross|labelup|labeldown))?/gi;
+  for (const m of src.matchAll(plotshapeRx)) {
+    const [, condVar, shape] = m;
+    const isShort = shape && /down/i.test(shape);
+    const srcId = resolveCondition(condVar);
+    if (srcId) signalSources.push({ id: srcId, type: isShort ? 'SHORT' : 'LONG' });
+  }
+
+  // alertcondition(condition, ...) — first arg as LONG signal
   if (signalSources.length === 0) {
     const alertRx = /alertcondition\s*\(\s*(\w+)\s*,/g;
     for (const m of src.matchAll(alertRx)) {
       const [, condVar] = m;
-      const srcId = logicSources[condVar] || crossMap[condVar]?.id || cmpNodes.find(c => c.varName === condVar)?.nodeId;
+      const srcId = resolveCondition(condVar);
       if (srcId) signalSources.push({ id: srcId, type: 'LONG' });
+    }
+  }
+
+  // alert() with message containing "buy"/"sell"/"long"/"short"
+  if (signalSources.length === 0) {
+    const alertMsgRx = /alert\s*\(\s*["']([^"']+)["']/gi;
+    for (const m of src.matchAll(alertMsgRx)) {
+      const msg = m[1].toLowerCase();
+      if (/buy|long/i.test(msg) || /sell|short/i.test(msg)) {
+        const type = /sell|short/i.test(msg) ? 'SHORT' : 'LONG';
+        const lastLogic = Object.values(logicSources).pop();
+        const lastCross = Object.values(crossMap).pop();
+        const srcId = lastLogic || lastCross?.id;
+        if (srcId) signalSources.push({ id: srcId, type });
+      }
     }
   }
 
