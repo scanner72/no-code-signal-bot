@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 export const nodeWrap = (selected?: boolean): CSSProperties => ({
   position: 'relative',
   background: 'var(--bg-primary)',
-  borderRadius: '14px',
+  borderRadius: 'var(--radius-lg)',
   minWidth: '240px',
   overflow: 'visible',
   border: selected ? '2px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.15)',
@@ -12,15 +12,15 @@ export const nodeWrap = (selected?: boolean): CSSProperties => ({
     : '0 8px 32px rgba(0,0,0,0.5)',
   cursor: 'move',
   userSelect: 'none',
-  transition: 'all 0.2s ease',
+  transition: 'var(--transition)',
 });
 
 export const nodeHead: CSSProperties = {
-  padding: '10px 14px',
+  padding: 'var(--space-3) var(--space-4)',
   borderBottom: '1px solid rgba(255,255,255,0.05)',
   display: 'flex',
   alignItems: 'center',
-  gap: 8,
+  gap: 'var(--space-2)',
 };
 
 export const nodeIcon = (bg: string): CSSProperties => ({
@@ -43,24 +43,24 @@ export const nodeDot = (color: string): CSSProperties => ({
 });
 
 export const nodeType = (color: string): CSSProperties => ({
-  fontSize: '11px',
+  fontSize: 'var(--font-size-xs)',
   fontWeight: 700,
-  letterSpacing: '0.02em',
+  letterSpacing: 'var(--tracking-normal)',
   textTransform: 'uppercase',
   color: color,
 });
 
 export const nodeBody: CSSProperties = {
-  padding: '12px 14px',
+  padding: 'var(--space-3) var(--space-4)',
 };
 
 export const nodeParam: CSSProperties = {
-  fontSize: '12px',
+  fontSize: 'var(--font-size-xs)',
   color: 'var(--text-secondary)',
   lineHeight: 1.6,
   display: 'flex',
   justifyContent: 'space-between',
-  gap: '8px',
+  gap: 'var(--space-2)',
   marginBottom: 2,
 };
 

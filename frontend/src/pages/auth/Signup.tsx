@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { signUp } from '../../lib/auth-client';
+import { toast } from '../../stores/notificationStore';
 
 const Signup = ({ onSignup, onSwitchToLogin }: { onSignup: () => void, onSwitchToLogin: () => void }) => {
   const [name, setName] = useState('');
@@ -15,12 +16,13 @@ const Signup = ({ onSignup, onSwitchToLogin }: { onSignup: () => void, onSwitchT
         password,
       });
       if (error) {
-        alert(error.message);
+        toast.error(error.message || 'Ошибка регистрации');
       } else {
+        toast.success('Аккаунт создан!');
         onSignup();
       }
     } catch (err: any) {
-      alert("Network Error: " + (err.message || String(err)));
+      toast.error('Ошибка сети. Проверьте соединение.');
     }
   };
 

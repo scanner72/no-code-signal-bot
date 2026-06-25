@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { signIn } from '../../lib/auth-client';
+import { toast } from '../../stores/notificationStore';
 
 const Login = ({ onLogin, onSwitchToSignup }: { onLogin: () => void, onSwitchToSignup: () => void }) => {
   const [email, setEmail] = useState('');
@@ -13,12 +14,13 @@ const Login = ({ onLogin, onSwitchToSignup }: { onLogin: () => void, onSwitchToS
         password,
       });
       if (error) {
-        alert(error.message);
+        toast.error(error.message || 'Неверный логин или пароль');
       } else {
+        toast.success('Добро пожаловать!');
         onLogin();
       }
     } catch (err: any) {
-      alert("Network Error: " + (err.message || String(err)));
+      toast.error('Ошибка сети. Проверьте соединение.');
     }
   };
 

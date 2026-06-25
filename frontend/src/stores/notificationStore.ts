@@ -40,13 +40,13 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   addToast: (message, type = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
     const newToast: ToastMessage = { id, message, type, timestamp: new Date() };
-    
+
     set((state) => ({ toasts: [...state.toasts, newToast] }));
-    
-    // Auto-remove toast after 4 seconds
+
+    const timeout = type === 'error' ? 8000 : type === 'warning' ? 6000 : 4000;
     setTimeout(() => {
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
-    }, 4000);
+    }, timeout);
   },
 
   removeToast: (id) => {

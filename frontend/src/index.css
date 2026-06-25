@@ -200,6 +200,11 @@ button {
   border: none;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 input, select {
   font-family: inherit;
   outline: none;
