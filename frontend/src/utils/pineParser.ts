@@ -390,74 +390,47 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     if (!vars[alias] && vars[source]) vars[alias] = vars[source];
   }
 
-  // ── 1b. Pine Block: catch unrecognized variable assignments ─────────────────
-  // Any "varName = <expression>" that wasn't already captured as an indicator
-  const assignRx = /^(\w+)\s*=\s*(.+)$/mg;
-  const skipVarNames = new Set(['true', 'false', 'na', 'bar_index', 'last_bar_index', 'timenow', 'time']);
-  const skipPrefixes = ['indicator(', 'strategy(', 'plot(', 'plotshape(', 'plotchar(', 'bgcolor(', 'barcolor(', 'fill(', 'hline(', 'alertcondition(', 'alert(', 'strategy.entry(', 'strategy.close(', 'strategy.exit(', 'strategy.order('];
-
-  for (const m of src.matchAll(assignRx)) {
-    const [fullMatch, varName, expr] = m;
-    if (vars[varName]) continue;
-    if (skipVarNames.has(varName)) continue;
-    if (skipPrefixes.some(p => expr.trim().startsWith(p))) continue;
-    if (/^\s*input/.test(expr)) continue;
-    if (/^\d+(\.\d+)?$/.test(expr.trim())) continue;
-    if (/^["']/.test(expr.trim())) continue;
-    if (/^\w+$/.test(expr.trim()) && !vars[expr.trim()]) continue;
-
-    // Extract function name if it's a ta.* or other call
-    const funcMatch = expr.match(/(?:ta\.)?(\w+)\s*\(/);
-    const funcName = funcMatch ? funcMatch[1] : '';
-
-    const nodeId = uid(`pine_${varName}`);
-    nodes.push({
-      id: nodeId,
-      type: 'pine_block',
-      position: { x: 320, y: indY },
-      data: {
-        varName,
-        pineCode: fullMatch.trim(),
-        funcName,
-        needsManualReplace: true,
-      }
-    });
-    addEdge(inputId, nodeId, undefined, '#F59E0B');
-
-    // Resolve dependencies: if expr references known vars, connect them
-    for (const [knownVar, meta] of Object.entries(vars)) {
-      if (knownVar !== 'close' && knownVar !== 'open' && knownVar !== 'high' && knownVar !== 'low') {
-        if (expr.includes(knownVar)) {
-          addEdge(meta.nodeId, nodeId, undefined, '#F59E0B');
-        }
-      }
-    }
-
-    vars[varName] = { nodeId, indType: 'pine_block' };
-    indY += 110;
-  }
-
   // ── 2. Cross ─────────────────────────────────────────────────────────────────
 
-  const crossRx = /(\w+)\s*=\s*ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
-  const crossDirectRx = /(?<!\w=\s*)ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
+  const crossRx = /(\w+)\s*=\s*ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+(?:\.\d+)?)\s*\)/g;
+  const crossDirectRx = /(?<!\w=\s*)ta\.(crossover|crossunder|cross)\s*\(\s*(\w+)\s*,\s*(\w+(?:\.\d+)?)\s*\)/g;
 
   const crossMap: Record<string, SignalSource> = {};
 
   function buildCross(varName: string | null, crossType: string, leftVar: string, rightVar: string): string | null {
     const isLong = crossType === 'crossover';
     const leftId  = resolveSource(leftVar);
-    const rightId = resolveSource(rightVar);
-    if (!leftId || !rightId) return null;
+    const rightIsNum = !isNaN(parseFloat(rightVar));
+    const rightId = rightIsNum ? null : resolveSource(rightVar);
 
-    const nodeId = uid(`cross_${leftVar}_${rightVar}`);
-    nodes.push({ id: nodeId, type: 'cross', position: { x: 580, y: indY }, data: { direction: isLong ? 'above' : 'below' } });
-    addEdge(leftId, nodeId, 'a', '#6B5DD3');
-    addEdge(rightId, nodeId, 'b', '#6B5DD3');
-    indY += 130;
+    if (!leftId) return null;
 
-    if (varName) crossMap[varName] = { id: nodeId, type: isLong ? 'LONG' : 'SHORT' };
-    return nodeId;
+    if (rightId) {
+      // Cross between two variables → cross node
+      const nodeId = uid(`cross_${leftVar}_${rightVar}`);
+      nodes.push({ id: nodeId, type: 'cross', position: { x: 580, y: indY }, data: { direction: isLong ? 'above' : 'below' } });
+      addEdge(leftId, nodeId, 'a', '#6B5DD3');
+      addEdge(rightId, nodeId, 'b', '#6B5DD3');
+      indY += 130;
+
+      if (varName) crossMap[varName] = { id: nodeId, type: isLong ? 'LONG' : 'SHORT' };
+      return nodeId;
+    } else {
+      // Cross with a number (e.g. crossover(rsi, 30)) → comparison node
+      const op = isLong ? 'cross_above' : 'cross_below';
+      const nodeId = uid(`cmp_cross_${leftVar}`);
+      const data: Record<string, unknown> = { operator: op };
+      if (rightIsNum) data.value = parseFloat(rightVar);
+      nodes.push({ id: nodeId, type: 'comparison', position: { x: 580, y: indY }, data });
+      addEdge(leftId, nodeId);
+      indY += 130;
+
+      if (varName) {
+        crossMap[varName] = { id: nodeId, type: isLong ? 'LONG' : 'SHORT' };
+        vars[varName] = { nodeId, indType: 'comparison' };
+      }
+      return nodeId;
+    }
   }
 
   for (const m of src.matchAll(crossRx)) {
@@ -514,7 +487,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
   // ── 4. Logic: detect AND combinations ────────────────────────────────────────
   // e.g.: longCondition = rsiOk and emaOk and crossOk
   // This pattern: varName = cond1 and cond2 [and ...]
-  const logicRx = /(\w+)\s*=\s*((?:\w+\s+(?:and|or)\s+)+\w+)/gi;
+  const logicRx = /(\w+)\s*=\s*((?:[\w.]+(?:\s*[><=!]+\s*[\w.]+)?\s+(?:and|or)\s+)+[\w.]+(?:\s*[><=!]+\s*[\w.]+)?)/gi;
   const logicSources: Record<string, string> = {}; // logicVarName → andNodeId
 
   for (const m of src.matchAll(logicRx)) {
@@ -531,6 +504,27 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
       if (cmpNode) { resolved.push(cmpNode.nodeId); continue; }
       const varMeta = vars[part];
       if (varMeta) { resolved.push(varMeta.nodeId); continue; }
+
+      // Inline comparison: "ema9 > atrBand" or "rsi14 > 50"
+      const inlineCmp = part.match(/^(\w+)\s*(>|<|>=|<=|==)\s*(\w+(?:\.\w+)?)$/);
+      if (inlineCmp) {
+        const [, left, op, right] = inlineCmp;
+        const leftId = resolveSource(left);
+        if (leftId) {
+          const cmpId = uid(`cmp_inline_${left}`);
+          const numVal = parseFloat(right);
+          const isNum = !isNaN(numVal);
+          const cmpData: Record<string, unknown> = { operator: op };
+          if (isNum) cmpData.value = numVal;
+          nodes.push({ id: cmpId, type: 'comparison', position: { x: 700, y: cmpY }, data: cmpData });
+          addEdge(leftId, cmpId);
+          if (!isNum && vars[right]) addEdge(vars[right].nodeId, cmpId, 'b');
+          cmpNodes.push({ nodeId: cmpId, varName: left, op, val: isNum ? numVal : null, rightVar: !isNum ? right : undefined });
+          resolved.push(cmpId);
+          cmpY += 110;
+          continue;
+        }
+      }
     }
 
     if (resolved.length < 2) continue;
@@ -540,6 +534,51 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     for (const src2 of resolved) addEdge(src2, andId, undefined, '#2E7D32');
     logicSources[varName] = andId;
     cmpY += 120;
+  }
+
+  // ── 4b. Pine Block: catch remaining unrecognized variable assignments ───────
+  const assignRx = /^(\w+)\s*=\s*(.+)$/mg;
+  const skipVarNames = new Set(['true', 'false', 'na', 'bar_index', 'last_bar_index', 'timenow', 'time']);
+  const skipPrefixes = ['indicator(', 'strategy(', 'plot(', 'plotshape(', 'plotchar(', 'bgcolor(', 'barcolor(', 'fill(', 'hline(', 'alertcondition(', 'alert(', 'strategy.entry(', 'strategy.close(', 'strategy.exit(', 'strategy.order('];
+
+  for (const m of src.matchAll(assignRx)) {
+    const [fullMatch, varName, expr] = m;
+    if (vars[varName]) continue;
+    if (skipVarNames.has(varName)) continue;
+    if (skipPrefixes.some(p => expr.trim().startsWith(p))) continue;
+    if (/^\s*input/.test(expr)) continue;
+    if (/^\d+(\.\d+)?$/.test(expr.trim())) continue;
+    if (/^["']/.test(expr.trim())) continue;
+    if (/^\w+$/.test(expr.trim()) && !vars[expr.trim()]) continue;
+    if (logicSources[varName]) continue;
+
+    const funcMatch = expr.match(/(?:ta\.)?(\w+)\s*\(/);
+    const funcName = funcMatch ? funcMatch[1] : '';
+
+    const nodeId = uid(`pine_${varName}`);
+    nodes.push({
+      id: nodeId,
+      type: 'pine_block',
+      position: { x: 320, y: indY },
+      data: {
+        varName,
+        pineCode: fullMatch.trim(),
+        funcName,
+        needsManualReplace: true,
+      }
+    });
+    addEdge(inputId, nodeId, undefined, '#F59E0B');
+
+    for (const [knownVar, meta] of Object.entries(vars)) {
+      if (knownVar !== 'close' && knownVar !== 'open' && knownVar !== 'high' && knownVar !== 'low') {
+        if (expr.includes(knownVar)) {
+          addEdge(meta.nodeId, nodeId, undefined, '#F59E0B');
+        }
+      }
+    }
+
+    vars[varName] = { nodeId, indType: 'pine_block' };
+    indY += 110;
   }
 
   // ── 5. Detect signal conditions ──────────────────────────────────────────────
