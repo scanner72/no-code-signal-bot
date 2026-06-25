@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { signUp } from '../../lib/auth-client';
 import { toast } from '../../stores/notificationStore';
 
-const Signup = ({ onSignup, onSwitchToLogin }: { onSignup: () => void, onSwitchToLogin: () => void }) => {
+const Signup = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +21,7 @@ const Signup = ({ onSignup, onSwitchToLogin }: { onSignup: () => void, onSwitchT
         toast.error(error.message || 'Ошибка регистрации');
       } else {
         toast.success('Аккаунт создан!');
-        onSignup();
+        navigate('/dashboard');
       }
     } catch (err: any) {
       toast.error('Ошибка сети. Проверьте соединение.');
@@ -33,30 +35,30 @@ const Signup = ({ onSignup, onSwitchToLogin }: { onSignup: () => void, onSwitchT
         <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>Имя</label>
-            <input 
-              type="text" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
               required
               style={{ width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none' }}
             />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>Email</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               required
               style={{ width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none' }}
             />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>Пароль</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
               required
               style={{ width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none' }}
             />
@@ -66,7 +68,7 @@ const Signup = ({ onSignup, onSwitchToLogin }: { onSignup: () => void, onSwitchT
           </button>
         </form>
         <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Уже есть аккаунт? <button onClick={onSwitchToLogin} style={{ background: 'none', border: 'none', color: 'var(--accent-color)', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Войти</button>
+          Уже есть аккаунт? <button onClick={() => navigate('/login')} style={{ background: 'none', border: 'none', color: 'var(--accent-color)', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Войти</button>
         </div>
       </div>
     </div>

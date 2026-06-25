@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { dashboardApi, signalsApi as dashSignalsApi, systemApi, paperTradingApi } from '../api/dashboard';
 import { strategiesApi } from '../api/strategies';
 import { useSignalsWs } from '../hooks/useSignalsWs';
@@ -289,7 +290,9 @@ const SignalAiDetails = ({ s }: { s: any }) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabChange }) => {
+const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
+  const navigate = useNavigate();
+  const onTabChange = (tab: string) => navigate(`/${tab}`);
   const [stats, setStats] = useState<any>(null);
   const [screener, setScreener] = useState<any[]>([]);
   const [signals, setSignals] = useState<any[]>([]);

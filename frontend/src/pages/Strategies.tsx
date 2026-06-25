@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Power, Play, PencilRuler, ExternalLink, Trash2, X, BookOpen, Download, Bot, Code2 } from 'lucide-react';
 import axios from 'axios';
 import { toast, useNotificationStore } from '../stores/notificationStore';
@@ -27,7 +28,10 @@ const DEFAULT_FORM: BacktestParams & { feePercent: number; tpPercent: number; sl
   accurate: false,
 };
 
-const Strategies = ({ onOpenBuilder, onEditStrategy }: { onOpenBuilder?: () => void; onEditStrategy?: (strategy: any) => void }) => {
+const Strategies = ({ onOpenBuilder, onEditStrategy }: { onOpenBuilder?: () => void; onEditStrategy?: (strategy: any) => void } = {}) => {
+  const navigate = useNavigate();
+  if (!onOpenBuilder) onOpenBuilder = () => navigate('/builder');
+  if (!onEditStrategy) onEditStrategy = (s: any) => navigate('/builder', { state: { strategy: s } });
   const [strategies, setStrategies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

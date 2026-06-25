@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, PencilRuler, History, Settings, BarChart2, X, Globe, Zap, Brain, LineChart, Book, HelpCircle, Activity, Bell, Sun, Moon, Menu } from 'lucide-react';
 import { systemApi } from '../api/dashboard';
 import HelpDrawer from './HelpDrawer';
 import { OnboardingWizard } from './OnboardingWizard';
 import { useNotificationStore } from '../stores/notificationStore';
 
-const Layout = ({ children, activeTab, onTabChange }) => {
+const Layout = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeTab = location.pathname.replace('/', '') || 'dashboard';
+
   const [health, setHealth] = useState<any>({ binanceWs: 'wait', db: 'wait', redis: 'wait', telegram: 'wait' });
   const [showHealth, setShowHealth] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -15,11 +20,10 @@ const Layout = ({ children, activeTab, onTabChange }) => {
     return localStorage.getItem('has_completed_onboarding') !== 'true';
   });
 
-  // Close sidebar on tab change (mobile navigation)
   const handleTabChange = useCallback((tab: string) => {
-    onTabChange(tab);
+    navigate(`/${tab}`);
     setSidebarOpen(false);
-  }, [onTabChange]);
+  }, [navigate]);
 
   const { notifications, markAllAsRead, clearAllNotifications } = useNotificationStore();
   const unreadCount = notifications.filter(n => !n.read).length;
