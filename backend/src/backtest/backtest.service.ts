@@ -136,10 +136,15 @@ export class BacktestService {
     const trades: any[] = [];
     const step = Math.max(1, Math.ceil((n - 100) / 5));
 
+    const yieldEvery = Math.max(200, Math.floor((n - 100) / 20));
+
     for (let i = 100; i < n; i++) {
       if (strategy && strategy.id && (i - 100) % step === 0) {
         const percent = 45 + Math.round(((i - 100) / (n - 100)) * 40);
         this.signalsGateway.broadcastBacktestProgress(strategy.id, percent, '📊 Симуляция ордеров и SL/TP уровней...');
+      }
+      if ((i - 100) % yieldEvery === 0) {
+        await new Promise(r => setImmediate(r));
       }
       const currentCandles = reversedCandles.slice(n - 1 - i);
       const currentPrice = parseFloat(simCandles[i].close.toString());

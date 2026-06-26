@@ -9,7 +9,7 @@ export class BacktestProcessor {
 
   constructor(private readonly backtestService: BacktestService) {}
 
-  @Process({ concurrency: 3 })
+  @Process({ concurrency: 1 })
   async handleBacktest(job: Job<{ strategyId: number; options: any }>) {
     const { strategyId, options } = job.data;
     this.logger.log(`Processing backtest job ${job.id} for strategy ${strategyId}`);
