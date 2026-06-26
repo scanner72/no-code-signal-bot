@@ -7,12 +7,15 @@ import { IndicatorsService } from '../indicators/indicators.service';
 import { SignalsEngineService } from '../signals/signals-engine.service';
 import { forwardRef, Inject } from '@nestjs/common';
 import { trainRandomForest, predictForest, RFTrainResult } from './random-forest';
+import { trainGradientBoosting, predictGradientBoosting, GBTrainResult } from './gradient-boosting';
+import { trainLogisticRegression, predictLogisticRegression, LRTrainResult } from './logistic-regression';
+
+type TrainedModel = RFTrainResult | GBTrainResult | LRTrainResult;
 
 @Injectable()
 export class MLService {
   private readonly logger = new Logger(MLService.name);
-  // In-memory model store: modelId → trained forest
-  private trainedModels = new Map<number, RFTrainResult>();
+  private trainedModels = new Map<number, TrainedModel>();
 
   constructor(
     @InjectRepository(MLModel)
@@ -35,6 +38,15 @@ export class MLService {
   async deleteModel(id: number) {
     this.trainedModels.delete(id);
     return this.modelRepo.delete(id);
+  }
+
+  private predictWithModel(model: TrainedModel, features: number[]): number {
+    if ('type' in model) {
+      if (model.type === 'gradient_boosting') return predictGradientBoosting(model as GBTrainResult, features);
+      if (model.type === 'logistic_regression') return predictLogisticRegression(model as LRTrainResult, features);
+    }
+    if ('trees' in model) return predictForest((model as RFTrainResult).trees, features);
+    return 0.5;
   }
 
   /**
@@ -170,41 +182,39 @@ export class MLService {
       const testX = X.slice(splitIdx);
       const testY = y.slice(splitIdx);
 
-      this.logger.log(`Training Random Forest: ${trainX.length} train / ${testX.length} test samples`);
+      const modelType = model.modelType || 'random_forest';
+      this.logger.log(`Training ${modelType}: ${trainX.length} train / ${testX.length} test samples`);
 
-      const forest = trainRandomForest(trainX, trainY, featureNames, {
-        nTrees: 100,
-        maxDepth: 8,
-        minSamples: 5,
-      });
+      let trained: TrainedModel;
+      switch (modelType) {
+        case 'gradient_boosting':
+          trained = trainGradientBoosting(trainX, trainY, featureNames, { nTrees: 100, maxDepth: 4, learningRate: 0.1 });
+          break;
+        case 'logistic_regression':
+          trained = trainLogisticRegression(trainX, trainY, featureNames, { iterations: 1000, lr: 0.01, lambda: 0.01 });
+          break;
+        default:
+          trained = trainRandomForest(trainX, trainY, featureNames, { nTrees: 100, maxDepth: 8, minSamples: 5 });
+      }
 
-      // Evaluate on test set
       let correct = 0;
       for (let i = 0; i < testX.length; i++) {
-        const prob = predictForest(forest.trees, testX[i]);
+        const prob = this.predictWithModel(trained, testX[i]);
         if ((prob >= 0.5 ? 1 : 0) === testY[i]) correct++;
       }
       const testAccuracy = testX.length > 0 ? correct / testX.length : 0;
 
-      // Store in memory
-      this.trainedModels.set(modelId, forest);
+      this.trainedModels.set(modelId, trained);
 
-      // Serialize to DB (store tree structure as weights)
       model.features = featureNames;
-      model.weights = {
-        trees: forest.trees,
-        featureNames,
-        featureImportance: forest.featureImportance,
-        trainSamples: trainX.length,
-        testSamples: testX.length,
-      };
+      model.weights = { ...trained, trainSamples: trainX.length, testSamples: testX.length };
       model.accuracy = parseFloat(testAccuracy.toFixed(4));
       model.status = 'READY';
       await this.modelRepo.save(model);
 
       this.logger.log(
-        `Model #${modelId} trained: accuracy=${(testAccuracy * 100).toFixed(1)}%, ` +
-          `top_feature=${Object.entries(forest.featureImportance).sort((a, b) => b[1] - a[1])[0]?.[0]}`,
+        `Model #${modelId} [${modelType}] trained: accuracy=${(testAccuracy * 100).toFixed(1)}%, ` +
+          `top_feature=${Object.entries(trained.featureImportance).sort((a, b) => b[1] - a[1])[0]?.[0]}`,
       );
 
       return model;
@@ -222,20 +232,14 @@ export class MLService {
    */
   async predict(modelId: number, candles: any[]): Promise<number> {
     // Load from memory cache first
-    let forest = this.trainedModels.get(modelId);
+    let trained = this.trainedModels.get(modelId);
 
-    if (!forest) {
-      // Try to restore from DB
+    if (!trained) {
       const model = await this.modelRepo.findOne({ where: { id: modelId } });
-      if (!model || model.status !== 'READY' || !model.weights?.trees) return 0.5;
+      if (!model || model.status !== 'READY' || !model.weights) return 0.5;
 
-      forest = {
-        trees: model.weights.trees,
-        featureNames: model.weights.featureNames || model.features,
-        accuracy: model.accuracy,
-        featureImportance: model.weights.featureImportance || {},
-      };
-      this.trainedModels.set(modelId, forest);
+      trained = model.weights as TrainedModel;
+      this.trainedModels.set(modelId, trained);
     }
 
     try {
@@ -283,7 +287,7 @@ export class MLService {
         atrPct,
       ];
 
-      return predictForest(forest.trees, features);
+      return this.predictWithModel(trained, features);
     } catch (e) {
       this.logger.error(`Prediction failed for model #${modelId}: ${e.message}`);
       return 0.5;
@@ -307,12 +311,12 @@ export class MLService {
     confusionMatrix: { tp: number; tn: number; fp: number; fn: number };
   }> {
     const { X, y } = await this.buildDataset(modelId, 800);
-    const forest = this.trainedModels.get(modelId);
-    if (!forest) throw new Error('Model not trained or not in memory');
+    const trained = this.trainedModels.get(modelId);
+    if (!trained) throw new Error('Model not trained or not in memory');
 
     let tp = 0, tn = 0, fp = 0, fn = 0;
     for (let i = 0; i < X.length; i++) {
-      const prob = predictForest(forest.trees, X[i]);
+      const prob = this.predictWithModel(trained, X[i]);
       const pred = prob >= 0.5 ? 1 : 0;
       if (pred === 1 && y[i] === 1) tp++;
       else if (pred === 0 && y[i] === 0) tn++;

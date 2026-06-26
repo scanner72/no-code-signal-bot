@@ -27,6 +27,9 @@ export class MLModel {
   @Column('float', { default: 0 })
   accuracy: number;
 
+  @Column({ default: 'random_forest' })
+  modelType: string; // random_forest | gradient_boosting | logistic_regression
+
   @Column({ default: 'DRAFT' }) // DRAFT, TRAINING, READY, FAILED
   status: string;
 

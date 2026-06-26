@@ -18,6 +18,7 @@ const MLTrainer = () => {
     const [dataset, setDataset] = useState<any[]>([]);
     const [backtestResult, setBacktestResult] = useState<any>(null);
     const [featureImportance, setFeatureImportance] = useState<Record<string, number>>({});
+    const [modelType, setModelType] = useState('random_forest');
 
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -57,12 +58,14 @@ const MLTrainer = () => {
         setFeatureImportance({});
         try {
             // 1. Create Model entry
+            const prefix = modelType === 'gradient_boosting' ? 'GB' : modelType === 'logistic_regression' ? 'LR' : 'RF';
             const modelRes = await axios.post(`${apiBase}/ml/create`, {
-                name: `RF_${targetPair}_${targetTimeframe}_${Date.now()}`,
+                name: `${prefix}_${targetPair}_${targetTimeframe}_${Date.now()}`,
                 strategy: { id: Number(selectedStrategy) },
                 targetPair,
                 targetTimeframe,
-                features
+                features,
+                modelType,
             });
 
             // 2. Start Random Forest Training
@@ -169,6 +172,15 @@ const MLTrainer = () => {
                             </div>
 
                             <div>
+                                <label style={labelStyle}>{language === 'ru' ? 'Алгоритм' : 'Algorithm'}</label>
+                                <select value={modelType} onChange={e => setModelType(e.target.value)} style={inputStyle}>
+                                    <option value="random_forest">🌲 Random Forest — {language === 'ru' ? 'стабильный, базовый' : 'stable, baseline'}</option>
+                                    <option value="gradient_boosting">🚀 Gradient Boosting — {language === 'ru' ? 'точнее, ловит паттерны' : 'more accurate'}</option>
+                                    <option value="logistic_regression">📊 Logistic Regression — {language === 'ru' ? 'быстрый, интерпретируемый' : 'fast, interpretable'}</option>
+                                </select>
+                            </div>
+
+                            <div>
                                 <label style={labelStyle}>Features ({features.length})</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '120px', overflowY: 'auto', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     {features.map(f => (
@@ -210,7 +222,12 @@ const MLTrainer = () => {
                                 }}>
                                     <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>{m.name}</div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{m.targetPair} • {m.targetTimeframe}</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                            {m.targetPair} • {m.targetTimeframe}
+                                            <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: m.modelType === 'gradient_boosting' ? 'rgba(16,185,129,0.15)' : m.modelType === 'logistic_regression' ? 'rgba(99,102,241,0.15)' : 'rgba(245,158,11,0.15)', color: m.modelType === 'gradient_boosting' ? '#10b981' : m.modelType === 'logistic_regression' ? '#6366f1' : '#f59e0b' }}>
+                                                {m.modelType === 'gradient_boosting' ? 'GB' : m.modelType === 'logistic_regression' ? 'LR' : 'RF'}
+                                            </span>
+                                        </span>
                                         <span style={{ fontSize: '11px', fontWeight: 800, color: m.accuracy > 0.6 ? 'var(--success)' : 'var(--text-primary)' }}>
                                             {(m.accuracy * 100).toFixed(1)}%
                                         </span>
