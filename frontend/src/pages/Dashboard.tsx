@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { dashboardApi, signalsApi as dashSignalsApi, systemApi, paperTradingApi } from '../api/dashboard';
 import { strategiesApi } from '../api/strategies';
 import { useSignalsWs } from '../hooks/useSignalsWs';
@@ -298,6 +300,7 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
   const [signals, setSignals] = useState<any[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
+  const [showHealthPopup, setShowHealthPopup] = useState(false);
   const [activeChart, setActiveChart] = useState<'signals' | 'equity'>('signals');
   const [equityData, setEquityData] = useState<any[]>([]);
 
@@ -407,12 +410,19 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
             Панель мониторинга активности торговых стратегий и ИИ-сигналов
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '20px',
-              background: allHealthOk ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-              color: allHealthOk ? '#10b981' : '#ef4444',
-              border: `1px solid ${allHealthOk ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
-            }}>
+            <div
+              onClick={() => setShowHealthPopup(prev => !prev)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setShowHealthPopup(prev => !prev)}
+              style={{
+                fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '20px',
+                background: allHealthOk ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                color: allHealthOk ? '#10b981' : '#ef4444',
+                border: `1px solid ${allHealthOk ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                cursor: 'pointer',
+              }}
+            >
               {allHealthOk === null ? '◌ Загрузка...' : allHealthOk ? '● Все системы ОК' : '○ Есть проблемы'}
             </div>
             <span style={{ fontSize: '9px', background: 'rgba(124,58,237,0.2)', color: '#a78bfa', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>v3.2.0</span>
@@ -1027,6 +1037,56 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
           .dashboard-container { padding: 16px 12px 24px !important; }
         }
       `}</style>
+
+      {showHealthPopup && health && createPortal(
+        <div
+          onClick={() => setShowHealthPopup(false)}
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-xl)', padding: 24, width: 300,
+            boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Статус системы</span>
+              <X size={16} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={() => setShowHealthPopup(false)} />
+            </div>
+            {[
+              { label: 'Binance WS', key: 'binanceWs' },
+              { label: 'Database', key: 'db' },
+              { label: 'Redis Cache', key: 'redis' },
+              { label: 'Telegram Bot', key: 'telegram' },
+              { label: 'Discord', key: 'discord' },
+            ].map(item => (
+              <div key={item.key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
+              }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, color: health[item.key] === 'ok' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                    {health[item.key] === 'ok' ? 'OK' : health[item.key] === 'wait' ? '...' : 'Error'}
+                  </span>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: health[item.key] === 'ok' ? 'var(--success)' : (health[item.key] === 'wait' ? 'var(--warning)' : 'var(--danger)'),
+                    boxShadow: `0 0 6px ${health[item.key] === 'ok' ? 'var(--success)' : 'var(--danger)'}`,
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
