@@ -6,6 +6,7 @@ import { systemApi } from '../api/dashboard';
 import HelpDrawer from './HelpDrawer';
 import { OnboardingWizard } from './OnboardingWizard';
 import { useNotificationStore } from '../stores/notificationStore';
+import { useLanguageStore } from '../stores/useLanguageStore';
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const { notifications, markAllAsRead, clearAllNotifications } = useNotificationStore();
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const { language, setLanguage } = useLanguageStore();
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'dark';
@@ -250,7 +253,29 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           
           <div id="top-header-portal" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', marginRight: '20px' }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Language Toggle */}
+            <button
+              onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
+              aria-label={`Switch to ${language === 'ru' ? 'English' : 'Russian'}`}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-color)',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                padding: '4px 8px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                transition: 'var(--transition)',
+                letterSpacing: '0.05em',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+            >
+              {language === 'ru' ? 'EN' : 'RU'}
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
