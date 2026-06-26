@@ -58,6 +58,7 @@ export class BacktestService {
 
     await new Promise(r => setTimeout(r, 150));
     this.signalsGateway.broadcastBacktestProgress(strategyId, 10, '📥 Загрузка котировок с биржи...');
+    await new Promise(r => setImmediate(r));
 
     let targetPair = strategy.pair;
     if (targetPair.includes('_TOP')) {
@@ -75,6 +76,7 @@ export class BacktestService {
 
     if (strategy && strategy.id) {
       this.signalsGateway.broadcastBacktestProgress(strategy.id, 25, '🧬 Вычисление индикаторов и условий AST...');
+      await new Promise(r => setImmediate(r));
     }
 
     // Auto-detect ATR Stop Loss settings from strategy nodes
@@ -116,6 +118,7 @@ export class BacktestService {
         this.logger.log(`Fetching 1m candles for accurate resolution...`);
         if (strategy.id) {
           this.signalsGateway.broadcastBacktestProgress(strategy.id, 35, '📥 Загрузка 1м котировок для точного тестирования...');
+          await new Promise(r => setImmediate(r));
         }
         await this.candlesService.ensureHistoricalData(targetPair, '1m', options.start, options.end);
         subCandles = await this.candlesService.getCandlesForRange(targetPair, '1m', options.start, options.end);
@@ -123,6 +126,7 @@ export class BacktestService {
 
     if (strategy && strategy.id) {
       this.signalsGateway.broadcastBacktestProgress(strategy.id, 45, '📊 Симуляция ордеров и SL/TP уровней...');
+      await new Promise(r => setImmediate(r));
     }
 
     let balance = options.initialBalance;
@@ -137,8 +141,9 @@ export class BacktestService {
 
     for (let i = 100; i < n; i++) {
       if (strategy && strategy.id && (i - 100) % step === 0) {
-        const percent = 45 + Math.round(((i - 100) / (n - 100)) * 40); // 45% to 85%
+        const percent = 45 + Math.round(((i - 100) / (n - 100)) * 40);
         this.signalsGateway.broadcastBacktestProgress(strategy.id, percent, '📊 Симуляция ордеров и SL/TP уровней...');
+        await new Promise(r => setImmediate(r));
       }
       const currentCandles = reversedCandles.slice(n - 1 - i);
       const currentPrice = parseFloat(simCandles[i].close.toString());
@@ -505,6 +510,7 @@ export class BacktestService {
 
     if (strategy && strategy.id) {
       this.signalsGateway.broadcastBacktestProgress(strategy.id, 95, '📈 Расчет кривой доходности и метрик...');
+      await new Promise(r => setImmediate(r));
     }
 
     const recommendations = this.generateRecommendations({
@@ -514,6 +520,7 @@ export class BacktestService {
 
     if (strategy && strategy.id) {
       this.signalsGateway.broadcastBacktestProgress(strategy.id, 100, '✅ Тестирование успешно завершено!');
+      await new Promise(r => setImmediate(r));
     }
 
     return {
