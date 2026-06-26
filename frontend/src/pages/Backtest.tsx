@@ -341,7 +341,6 @@ const Backtest = () => {
     const strategyIdNum = Number(selectedStrategyId);
 
     try {
-      // Connect to WebSocket signals namespace for real-time progress updates
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const socketUrl = API_URL.replace('/api', '') + '/signals';
       socket = io(socketUrl, { transports: ['websocket'] });
@@ -359,7 +358,8 @@ const Backtest = () => {
         setTimeout(() => resolve(), 2000);
       });
 
-      const res = await strategiesApi.backtest(strategyIdNum, {
+      // Queue the backtest job (returns immediately with jobId)
+      const queueRes = await strategiesApi.backtest(strategyIdNum, {
         start: form.start,
         end: form.end,
         initialBalance: form.initialBalance,
@@ -376,24 +376,51 @@ const Backtest = () => {
         userLevels,
       });
 
-      setBacktestProgress(100);
-      setBacktestProgressStage(language === 'ru' ? '✅ Тестирование успешно завершено!' : '✅ Backtest completed successfully!');
+      const jobId = queueRes.data?.jobId;
+      if (!jobId) throw new Error('No jobId returned');
 
-      setTimeout(() => {
-        setResult(res.data);
-        setIsRunning(false);
-      }, 500);
+      // Poll job status until completed or failed
+      const pollInterval = 1500;
+      const maxWait = 600000;
+      const startTime = Date.now();
 
-      const sName = strategies.find(st => st.id.toString() === selectedStrategyId)?.name;
-      useNotificationStore.getState().addNotification(
-        language === 'ru' ? 'Бэктестинг' : 'Backtesting',
-        language === 'ru' ? `Проведен тест стратегии "${sName}". Доходность: ${res.data.totalReturn}%.` : `Tested strategy "${sName}". Return: ${res.data.totalReturn}%.`,
-        'success'
-      );
-    } catch (e) {
+      while (Date.now() - startTime < maxWait) {
+        await new Promise(r => setTimeout(r, pollInterval));
+        try {
+          const statusRes = await strategiesApi.backtestJobStatus(jobId);
+          const { status, result: jobResult, error: jobError } = statusRes.data;
+
+          if (status === 'completed' && jobResult) {
+            setBacktestProgress(100);
+            setBacktestProgressStage(language === 'ru' ? '✅ Тестирование успешно завершено!' : '✅ Backtest completed successfully!');
+
+            setTimeout(() => {
+              setResult(jobResult);
+              setIsRunning(false);
+            }, 500);
+
+            const sName = strategies.find(st => st.id.toString() === selectedStrategyId)?.name;
+            useNotificationStore.getState().addNotification(
+              language === 'ru' ? 'Бэктестинг' : 'Backtesting',
+              language === 'ru' ? `Проведен тест стратегии "${sName}". Доходность: ${jobResult.totalReturn}%.` : `Tested strategy "${sName}". Return: ${jobResult.totalReturn}%.`,
+              'success'
+            );
+            return;
+          }
+
+          if (status === 'failed') {
+            throw new Error(jobError || 'Backtest failed');
+          }
+        } catch (pollErr: any) {
+          if (pollErr.message === 'Backtest failed' || pollErr.response?.status === 404) throw pollErr;
+        }
+      }
+
+      throw new Error('Backtest timed out');
+    } catch (e: any) {
       setBacktestProgress(0);
       setIsRunning(false);
-      toast.error(language === 'ru' ? 'Ошибка при запуске бэктеста' : 'Failed to start backtest');
+      toast.error(e.message || (language === 'ru' ? 'Ошибка при запуске бэктеста' : 'Failed to start backtest'));
     } finally {
       if (socket) {
         socket.disconnect();

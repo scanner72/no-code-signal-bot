@@ -869,7 +869,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
         setTimeout(() => resolve(), 2000);
       });
 
-      const res = await strategiesApi.backtest(currentId as number, {
+      const queueRes = await strategiesApi.backtest(currentId as number, {
         start: backtestForm.start,
         end: backtestForm.end,
         initialBalance: backtestForm.initialBalance,
@@ -882,15 +882,27 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
         trailingActivation: backtestForm.trailingActivation / 100,
       });
 
-      setBacktestProgress(100);
-      setBacktestProgressStage(language === 'ru' ? '✅ Тестирование успешно завершено!' : '✅ Backtest completed successfully!');
-      
-      setTimeout(() => {
-        setBacktestReq({ status: 'success', result: res.data });
-      }, 500);
+      const jobId = queueRes.data?.jobId;
+      if (!jobId) throw new Error('No jobId');
+
+      while (true) {
+        await new Promise(r => setTimeout(r, 1500));
+        const statusRes = await strategiesApi.backtestJobStatus(jobId);
+        const { status, result: jobResult, error: jobError } = statusRes.data;
+
+        if (status === 'completed' && jobResult) {
+          setBacktestProgress(100);
+          setBacktestProgressStage(language === 'ru' ? '✅ Тестирование успешно завершено!' : '✅ Backtest completed successfully!');
+          setTimeout(() => {
+            setBacktestReq({ status: 'success', result: jobResult });
+          }, 500);
+          return;
+        }
+        if (status === 'failed') throw new Error(jobError || 'Backtest failed');
+      }
     } catch (e: any) {
       setBacktestProgress(0);
-      setBacktestReq({ status: 'error', error: e?.response?.data?.message || (language === 'ru' ? 'Ошибка запуска бэктеста' : 'Failed to start backtest') });
+      setBacktestReq({ status: 'error', error: e?.message || (language === 'ru' ? 'Ошибка запуска бэктеста' : 'Failed to start backtest') });
     } finally {
       if (socket) {
         socket.disconnect();

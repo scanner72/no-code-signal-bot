@@ -12,6 +12,7 @@ export const strategiesApi = {
   toggle: (id) => api.patch(`/strategies/${id}/toggle`),
   delete: (id: number) => api.delete(`/strategies/${id}`),
   backtest: (id: number, params: BacktestParams) => api.post(`/backtest/${id}`, params),
+  backtestJobStatus: (jobId: string) => api.get(`/backtest/job/${jobId}`),
   validate: (data: { nodes: any[]; edges: any[] }) => api.post('/strategies/validate', data),
 
   // Versioning
