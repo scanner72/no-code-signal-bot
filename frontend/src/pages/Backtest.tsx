@@ -379,61 +379,12 @@ const Backtest = () => {
       const jobId = queueRes.data?.jobId;
       if (!jobId) throw new Error('No jobId returned');
 
-      setBacktestProgress(5);
-      setBacktestProgressStage(language === 'ru' ? '📋 Задача в очереди...' : '📋 Queued...');
+      setIsRunning(false);
+      toast.success(language === 'ru' ? `Бэктест запущен (Job #${jobId})` : `Backtest queued (Job #${jobId})`);
 
-      const pollInterval = 2000;
-      const maxWait = 600000;
-      const startTime = Date.now();
-
-      while (Date.now() - startTime < maxWait) {
-        await new Promise(r => setTimeout(r, pollInterval));
-        try {
-          const statusRes = await strategiesApi.backtestJobStatus(jobId);
-          const { status, result: jobResult, error: jobError, progress: jobProgress } = statusRes.data;
-
-          if (status === 'active') {
-            const p = typeof jobProgress === 'number' ? jobProgress : 10;
-            if (p > backtestProgress) {
-              setBacktestProgress(p);
-            }
-            if (backtestProgress < 10) {
-              setBacktestProgressStage(language === 'ru' ? '⚙️ Обрабатывается...' : '⚙️ Processing...');
-            }
-          }
-          if (status === 'waiting' || status === 'delayed') {
-            setBacktestProgressStage(language === 'ru' ? '📋 В очереди...' : '📋 Waiting in queue...');
-          }
-
-          if (status === 'completed' && jobResult) {
-            setBacktestProgress(100);
-            setBacktestProgressStage(language === 'ru' ? '✅ Тестирование успешно завершено!' : '✅ Backtest completed successfully!');
-
-            setTimeout(() => {
-              setResult(jobResult);
-              setIsRunning(false);
-            }, 500);
-
-            const sName = strategies.find(st => st.id.toString() === selectedStrategyId)?.name;
-            useNotificationStore.getState().addNotification(
-              language === 'ru' ? 'Бэктестинг' : 'Backtesting',
-              language === 'ru' ? `Проведен тест стратегии "${sName}". Доходность: ${jobResult.totalReturn}%.` : `Tested strategy "${sName}". Return: ${jobResult.totalReturn}%.`,
-              'success'
-            );
-            return;
-          }
-
-          if (status === 'failed') {
-            throw new Error(jobError || 'Backtest failed');
-          }
-        } catch (pollErr: any) {
-          if (pollErr.message === 'Backtest failed' || pollErr.response?.status === 404) throw pollErr;
-        }
-      }
-
-      throw new Error('Backtest timed out');
+      // Open backtest progress in new window
+      window.open(`/backtest/job/${jobId}`, '_blank', 'width=900,height=700');
     } catch (e: any) {
-      setBacktestProgress(0);
       setIsRunning(false);
       toast.error(e.message || (language === 'ru' ? 'Ошибка при запуске бэктеста' : 'Failed to start backtest'));
     } finally {

@@ -15,6 +15,7 @@ import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import { useSession } from './lib/auth-client';
+import BacktestJob from './pages/BacktestJob';
 import ToastContainer from './components/ToastContainer';
 
 function PrivateRoutes() {
@@ -42,6 +43,7 @@ function PrivateRoutes() {
         <Route path="/signals" element={<SignalHistory />} />
         <Route path="/paper" element={<PaperTrading />} />
         <Route path="/backtest" element={<Backtest />} />
+        <Route path="/backtest/job/:jobId" element={<BacktestJob />} />
         <Route path="/fleet" element={<Fleet />} />
         <Route path="/ml" element={<MLTrainer />} />
         <Route path="/cross" element={<CrossExchange />} />

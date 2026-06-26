@@ -885,21 +885,9 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
       const jobId = queueRes.data?.jobId;
       if (!jobId) throw new Error('No jobId');
 
-      while (true) {
-        await new Promise(r => setTimeout(r, 1500));
-        const statusRes = await strategiesApi.backtestJobStatus(jobId);
-        const { status, result: jobResult, error: jobError } = statusRes.data;
-
-        if (status === 'completed' && jobResult) {
-          setBacktestProgress(100);
-          setBacktestProgressStage(language === 'ru' ? '✅ Тестирование успешно завершено!' : '✅ Backtest completed successfully!');
-          setTimeout(() => {
-            setBacktestReq({ status: 'success', result: jobResult });
-          }, 500);
-          return;
-        }
-        if (status === 'failed') throw new Error(jobError || 'Backtest failed');
-      }
+      setBacktestProgress(0);
+      toast.success(language === 'ru' ? `Бэктест запущен (Job #${jobId})` : `Backtest queued (Job #${jobId})`);
+      window.open(`/backtest/job/${jobId}`, '_blank', 'width=900,height=700');
     } catch (e: any) {
       setBacktestProgress(0);
       setBacktestReq({ status: 'error', error: e?.message || (language === 'ru' ? 'Ошибка запуска бэктеста' : 'Failed to start backtest') });
