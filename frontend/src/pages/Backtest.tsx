@@ -379,8 +379,10 @@ const Backtest = () => {
       const jobId = queueRes.data?.jobId;
       if (!jobId) throw new Error('No jobId returned');
 
-      // Poll job status until completed or failed
-      const pollInterval = 1500;
+      setBacktestProgress(5);
+      setBacktestProgressStage(language === 'ru' ? '📋 Задача в очереди...' : '📋 Queued...');
+
+      const pollInterval = 2000;
       const maxWait = 600000;
       const startTime = Date.now();
 
@@ -388,7 +390,20 @@ const Backtest = () => {
         await new Promise(r => setTimeout(r, pollInterval));
         try {
           const statusRes = await strategiesApi.backtestJobStatus(jobId);
-          const { status, result: jobResult, error: jobError } = statusRes.data;
+          const { status, result: jobResult, error: jobError, progress: jobProgress } = statusRes.data;
+
+          if (status === 'active') {
+            const p = typeof jobProgress === 'number' ? jobProgress : 10;
+            if (p > backtestProgress) {
+              setBacktestProgress(p);
+            }
+            if (backtestProgress < 10) {
+              setBacktestProgressStage(language === 'ru' ? '⚙️ Обрабатывается...' : '⚙️ Processing...');
+            }
+          }
+          if (status === 'waiting' || status === 'delayed') {
+            setBacktestProgressStage(language === 'ru' ? '📋 В очереди...' : '📋 Waiting in queue...');
+          }
 
           if (status === 'completed' && jobResult) {
             setBacktestProgress(100);

@@ -15,7 +15,9 @@ export class BacktestProcessor {
     this.logger.log(`Processing backtest job ${job.id} for strategy ${strategyId}`);
 
     try {
-      const result = await this.backtestService.run(strategyId, options);
+      const result = await this.backtestService.run(strategyId, options, async (progress: number) => {
+        await job.progress(progress);
+      });
       return result;
     } catch (err) {
       this.logger.error(`Backtest job ${job.id} failed: ${err.message}`);

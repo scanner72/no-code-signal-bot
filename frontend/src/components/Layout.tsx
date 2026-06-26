@@ -192,28 +192,23 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </button>
 
         {/* Health Indicator */}
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px', marginBottom: 8, cursor: 'pointer' }}
+        <button
+          className="nav-btn"
           onClick={() => setShowHealth(!showHealth)}
-          role="button"
-          tabIndex={0}
           aria-label={`System health: ${allOk ? 'healthy' : 'degraded'}`}
           aria-pressed={showHealth}
-          onKeyDown={(e) => e.key === 'Enter' && setShowHealth(!showHealth)}
+          style={{ gap: 10, fontSize: 12 }}
         >
           <div
-            className="nav-dot"
-            title={allOk ? 'Все системы работают' : 'Есть проблемы'}
             aria-hidden="true"
             style={{
+              width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
               background: allOk ? 'var(--success)' : 'var(--danger)',
               boxShadow: `0 0 8px ${allOk ? 'var(--success)' : 'var(--danger)'}`,
             }}
           />
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
-            {allOk ? 'System Healthy' : 'System Degraded'}
-          </span>
-        </div>
+          <span>{allOk ? 'System Healthy' : 'Есть проблемы'}</span>
+        </button>
 
         <button
           className={`nav-btn ${activeTab === 'docs' ? 'active' : ''}`}
