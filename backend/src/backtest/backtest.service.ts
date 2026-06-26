@@ -56,6 +56,7 @@ export class BacktestService {
     options.start = new Date(options.start);
     options.end   = new Date(options.end);
 
+    await new Promise(r => setTimeout(r, 150));
     this.signalsGateway.broadcastBacktestProgress(strategyId, 10, '📥 Загрузка котировок с биржи...');
 
     let targetPair = strategy.pair;

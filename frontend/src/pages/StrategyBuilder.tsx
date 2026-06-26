@@ -856,15 +856,17 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
       const socketUrl = API_URL.replace('/api', '') + '/signals';
       socket = io(socketUrl, { transports: ['websocket'] });
 
-      socket.on('connect', () => {
-        console.log('Connected to signals namespace for backtest progress');
-      });
-
       socket.on('BACKTEST_PROGRESS', (data: { strategyId: number; progress: number; stage: string }) => {
         if (data.strategyId === currentId) {
           setBacktestProgress(data.progress);
           setBacktestProgressStage(data.stage);
         }
+      });
+
+      await new Promise<void>((resolve) => {
+        if (socket.connected) return resolve();
+        socket.on('connect', () => resolve());
+        setTimeout(() => resolve(), 2000);
       });
 
       const res = await strategiesApi.backtest(currentId as number, {
