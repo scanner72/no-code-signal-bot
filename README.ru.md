@@ -73,6 +73,7 @@ docker compose up -d
 | Веб-приложение   | http://localhost             |
 | Backend API      | http://localhost:3000/api    |
 | Kronos AI        | http://localhost:8070        |
+| FreeLLMAPI       | http://localhost:3456        |
 
 > 💡 Начни с **бумажной торговли** и встроенных шаблонов стратегий — чтобы
 > исследовать конструктор и бэктестер, ключи API не нужны.
@@ -85,7 +86,8 @@ docker compose up -d
                                   ├─ PostgreSQL  (стратегии, сигналы, свечи)
                                   ├─ Redis + Bull (кэш, очереди, pub/sub)
                                   ├─ Kronos        — прогноз временных рядов (GPU)
-                                  ├─ Hermes        — LLM-фильтр риска (Ollama)
+                                  ├─ Hermes        — LLM-фильтр риска (OpenAI-совместимый)
+                                  ├─ FreeLLMAPI    — агрегатор бесплатных LLM (опционально)
                                   └─ LDR + SearXNG — фундаментальное исследование
 ```
 
@@ -103,24 +105,52 @@ docker compose up -d
 - [x] React Router навигация (прямые ссылки, браузерные back/forward)
 - [x] Поиск и фильтрация по 140+ блокам в палитре нод
 - [x] ARIA accessibility и клавиатурная навигация
+- [x] Динамический сканер Топ-50 по относительному объёму (адаптивный к фазе рынка)
+- [x] Песочница, прогоняющая сгенерированных Python-ботов перед скачиванием
 - [ ] Маркетплейс стратегий — делись стратегиями, зарабатывай рейтинг, получай скидки
-- [ ] Динамический сканер Топ-50 по относительному объёму (адаптивный к фазе рынка)
-- [ ] Песочница, прогоняющая сгенерированных Python-ботов перед скачиванием
 - [ ] Облачная версия (в один клик, без установки)
 
 ## 🙏 Благодарности (сторонние компоненты)
 
-В проекте используются сторонние опенсорс-компоненты:
+В проекте используются сторонние опенсорс-компоненты и сервисы:
 
+### AI и исследования
 - **[Kronos](https://huggingface.co/NeoQuasar)** от NeoQuasar — модель прогноза временных
   рядов. Код архитектуры включён с указанием авторства (см. [`kronos/NOTICE.md`](kronos/NOTICE.md));
   веса скачиваются при запуске с Hugging Face.
 - **Hermes AI-фильтр риска** — встроенная LLM-нода фильтрации рисков. Поддерживает любой
   OpenAI-совместимый API (LM Studio, DeepSeek, Ollama и др.) через переменные окружения.
-  Отдельный сервис не нужен — настрой `HERMES_PROVIDER`, `HERMES_API_URL`, `HERMES_MODEL`
-  в `.env`.
-- **[Local Deep Research](https://github.com/LearningCircuit/local-deep-research)** и
-  **SearXNG** — используются (как внешние Docker-образы) для ноды фундаментального исследования.
+  Настрой `HERMES_PROVIDER`, `HERMES_API_URL`, `HERMES_MODEL` в `.env`.
+- **[FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi)** — агрегатор бесплатных
+  LLM-провайдеров. Объединяет 16+ провайдеров (Gemini, Groq, Mistral и др.) за одним
+  OpenAI-совместимым эндпоинтом. Включён как опциональный Docker-сервис (порт 3456).
+- **[Local Deep Research](https://github.com/LearningCircuit/local-deep-research)** —
+  AI-агент фундаментального исследования. Используется как Docker-образ для LDR-ноды.
+- **[SearXNG](https://github.com/searxng/searxng)** — приватный метапоисковик.
+  Обеспечивает веб-поиск внутри LDR-пайплайнов.
+
+### Биржи и рыночные данные
+- **[CCXT](https://github.com/ccxt/ccxt)** — унифицированная библиотека API криптобирж.
+  Подключает 100+ бирж (Binance, Bybit, OKX, MEXC, Kraken и др.) для данных и исполнения
+  ордеров.
+- **[Polymarket](https://polymarket.com)** — рынок предсказаний. Используется для
+  отслеживания китов и событийных сигналов через Polymarket-ноду.
+- **[Finviz](https://finviz.com)** — скринер акций США. Обеспечивает данные по акциям
+  и новостное обогащение через Finviz-ноду.
+- **[Deribit](https://www.deribit.com)** — криптодеривативная биржа. Используется для
+  данных Put/Call ratio в нодах order-flow.
+
+### Фронтенд
+- **[React Flow](https://reactflow.dev)** — библиотека node-based канваса для визуального
+  конструктора стратегий.
+- **[Lightweight Charts](https://github.com/nickolay-grechkin/lightweight-charts)** от TradingView —
+  библиотека финансовых графиков в стиле TradingView.
+
+### Инфраструктура
+- **[PostgreSQL](https://www.postgresql.org)** — основная БД для стратегий, сигналов,
+  свечей и пользовательских данных.
+- **[Redis](https://redis.io)** + **[Bull](https://github.com/OptimalBits/bull)** — кэширование,
+  очереди сообщений и pub/sub для real-time обновлений и обработки бэктестов.
 
 ## 📄 Лицензия
 

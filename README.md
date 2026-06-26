@@ -66,6 +66,7 @@ Then open:
 | Web app          | http://localhost             |
 | Backend API      | http://localhost:3000/api    |
 | Kronos AI        | http://localhost:8070        |
+| FreeLLMAPI       | http://localhost:3456        |
 
 > 💡 Start with **paper trading** and the built-in strategy templates — no API keys needed
 > to explore the builder and backtester.
@@ -78,7 +79,8 @@ React + ReactFlow canvas  ─►  NestJS API (CCXT, signals engine, backtest, op
                                   ├─ PostgreSQL  (strategies, signals, candles)
                                   ├─ Redis + Bull (cache, queues, pub/sub)
                                   ├─ Kronos        — time-series forecasting (GPU)
-                                  ├─ Hermes        — LLM risk filter (Ollama)
+                                  ├─ Hermes        — LLM risk filter (OpenAI-compatible)
+                                  ├─ FreeLLMAPI    — free-tier LLM aggregator (optional)
                                   └─ LDR + SearXNG — fundamental deep research
 ```
 
@@ -96,24 +98,52 @@ React + ReactFlow canvas  ─►  NestJS API (CCXT, signals engine, backtest, op
 - [x] React Router navigation (shareable URLs, browser back/forward)
 - [x] Searchable node palette with category filtering (140+ blocks)
 - [x] ARIA accessibility & keyboard navigation
+- [x] Dynamic Top-50 relative-volume scanner (adaptive to market regime)
+- [x] Sandbox that test-runs generated Python bots before download
 - [ ] Strategy marketplace — share strategies, earn rating, get subscription discounts
-- [ ] Dynamic Top-50 relative-volume scanner (adaptive to market regime)
-- [ ] Sandbox that test-runs generated Python bots before download
 - [ ] Hosted cloud version (one-click, no setup)
 
 ## 🙏 Acknowledgements
 
-This project integrates third-party open-source components:
+This project integrates third-party open-source components and services:
 
+### AI & Research
 - **[Kronos](https://huggingface.co/NeoQuasar)** by NeoQuasar — time-series forecasting
   model. Architecture code is included with attribution (see [`kronos/NOTICE.md`](kronos/NOTICE.md));
   weights are downloaded at runtime from Hugging Face.
 - **Hermes AI risk filter** — built-in LLM-based risk filter node. Supports any
   OpenAI-compatible API (LM Studio, DeepSeek, Ollama, etc.) via environment variables.
-  No separate service needed — configure `HERMES_PROVIDER`, `HERMES_API_URL`, `HERMES_MODEL`
-  in `.env`.
-- **[Local Deep Research](https://github.com/LearningCircuit/local-deep-research)** and
-  **SearXNG** — used (as external Docker images) for the fundamental-research node.
+  Configure `HERMES_PROVIDER`, `HERMES_API_URL`, `HERMES_MODEL` in `.env`.
+- **[FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi)** — free-tier LLM aggregator
+  proxy. Combines 16+ providers (Gemini, Groq, Mistral, etc.) behind one OpenAI-compatible
+  endpoint. Included as an optional Docker service (port 3456).
+- **[Local Deep Research](https://github.com/LearningCircuit/local-deep-research)** —
+  AI-powered fundamental research agent. Used as an external Docker image for the LDR node.
+- **[SearXNG](https://github.com/searxng/searxng)** — privacy-first metasearch engine.
+  Powers web search inside LDR research pipelines.
+
+### Exchange & Market Data
+- **[CCXT](https://github.com/ccxt/ccxt)** — unified crypto exchange API library.
+  Connects to 100+ exchanges (Binance, Bybit, OKX, MEXC, Kraken, etc.) for market data
+  and order execution.
+- **[Polymarket](https://polymarket.com)** — prediction market. Used for whale-tracking
+  and event-driven signals via the Polymarket node.
+- **[Finviz](https://finviz.com)** — US stock screener. Powers the Finviz scanner node
+  for equities data and news enrichment.
+- **[Deribit](https://www.deribit.com)** — crypto derivatives exchange. Used for
+  Put/Call ratio data in order-flow nodes.
+
+### Frontend
+- **[React Flow](https://reactflow.dev)** — node-based canvas library for the visual
+  strategy builder.
+- **[Lightweight Charts](https://github.com/nickolay-grechkin/lightweight-charts)** by TradingView —
+  financial charting library for TradingView-style price charts.
+
+### Infrastructure
+- **[PostgreSQL](https://www.postgresql.org)** — primary database for strategies, signals,
+  candles, and user data.
+- **[Redis](https://redis.io)** + **[Bull](https://github.com/OptimalBits/bull)** — caching,
+  message queues, and pub/sub for real-time updates and backtest job processing.
 
 ## 📄 License
 

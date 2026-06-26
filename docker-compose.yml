@@ -218,7 +218,29 @@ services:
       retries: 5
       start_period: 180s
 
+  # ─────────────────────────────────────────────────────
+  # 🔀 FreeLLMAPI — free-tier LLM aggregator proxy
+  # Aggregates 16+ LLM providers behind one OpenAI-compatible endpoint.
+  # Dashboard: http://localhost:3456  API: http://freellmapi:3000/v1
+  # ─────────────────────────────────────────────────────
+  freellmapi:
+    image: tashfeenahmed/freellmapi:latest
+    container_name: freellmapi
+    restart: unless-stopped
+    ports:
+      - "3456:3000"
+    volumes:
+      - freellmapi_data:/app/data
+    environment:
+      - ENCRYPTION_KEY=${FREELLMAPI_ENCRYPTION_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:
   kronos_cache:
   ldr_data:
+  freellmapi_data:

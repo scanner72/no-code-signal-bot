@@ -5,7 +5,7 @@ import { DiscordService } from '../telegram/discord.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { HeymMcpService } from '../hermes/heym-mcp.service';
 
-type HermesProvider = 'hermes' | 'ollama' | 'openai';
+type HermesProvider = 'hermes' | 'ollama' | 'openai' | 'freellmapi';
 
 
 @Controller('settings')
@@ -219,13 +219,13 @@ export class SettingsController {
           { model, prompt: testPrompt, stream: false },
           { timeout: 30_000 },
         );
-      } else if (provider === 'openai') {
-        if (!apiKey) return { success: false, message: 'API Key обязателен для OpenAI-совместимых провайдеров' };
+      } else if (provider === 'openai' || provider === 'freellmapi') {
+        if (provider === 'openai' && !apiKey) return { success: false, message: 'API Key обязателен для OpenAI-совместимых провайдеров' };
         const base = url.replace(/\/v1\/?$/, '');
         await axiosLib.post(
           `${base}/v1/chat/completions`,
           { model, messages: [{ role: 'user', content: testPrompt }], max_tokens: 10 },
-          { timeout: 20_000, headers: { Authorization: `Bearer ${apiKey}` } },
+          { timeout: 20_000, headers: { Authorization: `Bearer ${apiKey || 'freellmapi'}` } },
         );
       }
 

@@ -45,7 +45,7 @@ const Settings = () => {
     const [heymTestStatus, setHeymTestStatus] = useState<{ ok: boolean; msg: string } | null>(null);
     const [heymTesting, setHeymTesting] = useState(false);
     // Hermes AI Agent
-    const [hermesProvider, setHermesProvider] = useState<'hermes' | 'ollama' | 'openai'>('hermes');
+    const [hermesProvider, setHermesProvider] = useState<'hermes' | 'ollama' | 'openai' | 'freellmapi'>('hermes');
     const [hermesUrl, setHermesUrl] = useState('');
     const [hermesModel, setHermesModel] = useState('');
     const [hermesApiKey, setHermesApiKey] = useState('');
@@ -777,6 +777,7 @@ const Settings = () => {
                                             { value: 'hermes', label: 'Hermes Agent', sub: '/run endpoint', icon: '🤖' },
                                             { value: 'ollama', label: 'Ollama', sub: 'Local LLM', icon: '🦙' },
                                             { value: 'openai', label: 'OpenAI / Compatible', sub: 'Groq, Together, LM Studio…', icon: '✨' },
+                                            { value: 'freellmapi', label: 'FreeLLMAPI', sub: '16+ free-tier providers', icon: '🔀' },
                                         ] as const
                                     ).map(p => (
                                         <div
@@ -784,14 +785,16 @@ const Settings = () => {
                                             onClick={() => {
                                                 setHermesProvider(p.value);
                                                 // Set sensible default URLs
-                                                if (!hermesUrl) {
+                                                if (!hermesUrl || hermesUrl === 'http://localhost:11434' || hermesUrl === 'https://api.openai.com' || hermesUrl === 'http://hermes:7700' || hermesUrl === 'http://freellmapi:3000') {
                                                     if (p.value === 'ollama') setHermesUrl('http://localhost:11434');
                                                     else if (p.value === 'openai') setHermesUrl('https://api.openai.com');
+                                                    else if (p.value === 'freellmapi') setHermesUrl('http://freellmapi:3000');
                                                     else if (p.value === 'hermes') setHermesUrl('http://hermes:7700');
                                                 }
-                                                if (!hermesModel) {
+                                                if (!hermesModel || hermesModel === 'llama3.2' || hermesModel === 'gpt-4o-mini' || hermesModel === 'nous-hermes-3') {
                                                     if (p.value === 'ollama') setHermesModel('llama3.2');
                                                     else if (p.value === 'openai') setHermesModel('gpt-4o-mini');
+                                                    else if (p.value === 'freellmapi') setHermesModel('auto');
                                                     else setHermesModel('nous-hermes-3');
                                                 }
                                             }}
@@ -820,6 +823,7 @@ const Settings = () => {
                                         placeholder={
                                             hermesProvider === 'ollama' ? 'http://localhost:11434' :
                                             hermesProvider === 'openai' ? 'https://api.openai.com' :
+                                            hermesProvider === 'freellmapi' ? 'http://freellmapi:3000' :
                                             'http://hermes:7700'
                                         }
                                         value={hermesUrl}
@@ -836,6 +840,7 @@ const Settings = () => {
                                         placeholder={
                                             hermesProvider === 'ollama' ? 'llama3.2 / qwen2.5-coder / mistral' :
                                             hermesProvider === 'openai' ? 'gpt-4o-mini / gpt-4o / llama-3.3-70b' :
+                                            hermesProvider === 'freellmapi' ? 'auto (smart routing)' :
                                             'nous-hermes-3'
                                         }
                                         value={hermesModel}
@@ -844,7 +849,7 @@ const Settings = () => {
                                     />
                                 </div>
 
-                                {hermesProvider === 'openai' && (
+                                {(hermesProvider === 'openai' || hermesProvider === 'freellmapi') && (
                                     <div>
                                         <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>API Key</div>
                                         <input

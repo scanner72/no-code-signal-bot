@@ -6,7 +6,7 @@ import { LdrService } from '../ldr/ldr.service';
 import axios from 'axios';
 import * as crypto from 'crypto';
 
-export type HermesProvider = 'hermes' | 'ollama' | 'openai';
+export type HermesProvider = 'hermes' | 'ollama' | 'openai' | 'freellmapi';
 
 interface HermesNodeParams {
   mode: 'filter' | 'score';
@@ -215,6 +215,7 @@ export class HermesService {
         return this.callOllama(prompt, model, apiUrl);
 
       case 'openai':
+      case 'freellmapi':
         return this.callOpenAI(prompt, model, apiUrl, apiKey);
 
       default:
