@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, PencilRuler, History, Settings, BarChart2, X, Globe, Zap, Brain, LineChart, Book, HelpCircle, Activity, Bell, Sun, Moon, Menu } from 'lucide-react';
 import { systemApi } from '../api/dashboard';
@@ -420,13 +421,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </main>
 
-      {/* ── Health Popup ── */}
-      {showHealth && (
+      {/* ── Health Popup (rendered via Portal to avoid z-index/overflow issues) ── */}
+      {showHealth && createPortal(
         <div
           onClick={() => setShowHealth(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="health-modal-title"
           style={{
-            position: 'fixed', inset: 0, zIndex: 2000,
-            background: 'rgba(0,0,0,0.4)',
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.5)',
             backdropFilter: 'blur(4px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
@@ -438,13 +442,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-xl)',
               padding: 24,
-              width: 280,
+              width: 300,
               boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
-              animation: 'fadeIn 0.2s ease-out',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Статус системы</span>
+              <span id="health-modal-title" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Статус системы</span>
               <X size={16} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={() => setShowHealth(false)} />
             </div>
 
@@ -462,14 +465,22 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item.label}</span>
                 <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: health[item.key] === 'ok' ? 'var(--success)' : (health[item.key] === 'wait' ? 'var(--warning)' : 'var(--danger)'),
-                  boxShadow: `0 0 6px ${health[item.key] === 'ok' ? 'var(--success)' : 'var(--danger)'}`,
-                }} />
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ fontSize: 11, color: health[item.key] === 'ok' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                    {health[item.key] === 'ok' ? 'OK' : health[item.key] === 'wait' ? '...' : 'Error'}
+                  </span>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: health[item.key] === 'ok' ? 'var(--success)' : (health[item.key] === 'wait' ? 'var(--warning)' : 'var(--danger)'),
+                    boxShadow: `0 0 6px ${health[item.key] === 'ok' ? 'var(--success)' : 'var(--danger)'}`,
+                  }} />
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <OnboardingWizard isOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
