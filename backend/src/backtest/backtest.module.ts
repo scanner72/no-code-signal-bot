@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { BacktestService } from './backtest.service';
-import { BacktestProcessor } from './backtest.processor';
+import { BacktestProgressService } from './backtest-progress.service';
 import { OptimizerService } from './optimizer.service';
 import { BacktestController } from './backtest.controller';
 import { OptimizerController } from './optimizer.controller';
@@ -19,8 +19,8 @@ import { IndicatorsModule } from '../indicators/indicators.module';
     SignalsModule,
     IndicatorsModule,
   ],
-  providers: [BacktestService, BacktestProcessor, OptimizerService],
+  providers: [BacktestService, BacktestProgressService, OptimizerService],
   controllers: [BacktestController, OptimizerController],
-  exports: [BacktestService, OptimizerService],
+  exports: [BacktestService, BacktestProgressService, OptimizerService],
 })
 export class BacktestModule {}

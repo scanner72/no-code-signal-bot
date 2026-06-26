@@ -1,12 +1,10 @@
-import { Controller, Post, Get, Body, Param, ParseIntPipe, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, ParseIntPipe, NotFoundException, HttpException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { BacktestService } from './backtest.service';
 
 @Controller('backtest')
 export class BacktestController {
   constructor(
-    private readonly backtestService: BacktestService,
     @InjectQueue('backtest') private readonly backtestQueue: Queue,
   ) {}
 
@@ -15,6 +13,12 @@ export class BacktestController {
     @Param('strategyId', ParseIntPipe) strategyId: number,
     @Body() body: any,
   ) {
+    const activeCount = await this.backtestQueue.getActiveCount();
+    const waitingCount = await this.backtestQueue.getWaitingCount();
+    if (activeCount + waitingCount >= 3) {
+      throw new HttpException('Too many backtests in queue. Please wait.', 429);
+    }
+
     const job = await this.backtestQueue.add(
       { strategyId, options: body },
       { removeOnComplete: 50, removeOnFail: 20 },

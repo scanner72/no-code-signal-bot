@@ -5,7 +5,7 @@ import { Strategy } from '../strategies/strategy.entity';
 import { IndicatorsService } from '../indicators/indicators.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SignalsGateway } from '../signals/signals.gateway';
+import { BacktestProgressService } from './backtest-progress.service';
 
 export interface BacktestOptions {
   start: Date;
@@ -45,7 +45,7 @@ export class BacktestService {
     private candlesService: CandlesService,
     private signalsEngine: SignalsEngineService,
     private indicatorsService: IndicatorsService,
-    private signalsGateway: SignalsGateway,
+    private progressService: BacktestProgressService,
   ) {}
 
   async run(strategyId: number, options: BacktestOptions) {
@@ -57,7 +57,7 @@ export class BacktestService {
     options.end   = new Date(options.end);
 
     await new Promise(r => setTimeout(r, 200));
-    this.signalsGateway.broadcastBacktestProgress(strategyId, 10, '📥 Загрузка котировок с биржи...');
+    this.progressService.broadcastProgress(strategyId, 10, '📥 Загрузка котировок с биржи...');
 
     let targetPair = strategy.pair;
     if (targetPair.includes('_TOP')) {
@@ -74,7 +74,7 @@ export class BacktestService {
     const { tp, sl, positionSize, fee } = options;
 
     if (strategy && strategy.id) {
-      this.signalsGateway.broadcastBacktestProgress(strategy.id, 25, '🧬 Вычисление индикаторов и условий AST...');
+      this.progressService.broadcastProgress(strategy.id, 25, '🧬 Вычисление индикаторов и условий AST...');
     }
 
     // Auto-detect ATR Stop Loss settings from strategy nodes
@@ -115,14 +115,14 @@ export class BacktestService {
     if (options.accurate && strategy.timeframe !== '1m') {
         this.logger.log(`Fetching 1m candles for accurate resolution...`);
         if (strategy.id) {
-          this.signalsGateway.broadcastBacktestProgress(strategy.id, 35, '📥 Загрузка 1м котировок для точного тестирования...');
+          this.progressService.broadcastProgress(strategy.id, 35, '📥 Загрузка 1м котировок для точного тестирования...');
         }
         await this.candlesService.ensureHistoricalData(targetPair, '1m', options.start, options.end);
         subCandles = await this.candlesService.getCandlesForRange(targetPair, '1m', options.start, options.end);
     }
 
     if (strategy && strategy.id) {
-      this.signalsGateway.broadcastBacktestProgress(strategy.id, 45, '📊 Симуляция ордеров и SL/TP уровней...');
+      this.progressService.broadcastProgress(strategy.id, 45, '📊 Симуляция ордеров и SL/TP уровней...');
       await new Promise(r => setImmediate(r));
     }
 
@@ -141,7 +141,7 @@ export class BacktestService {
     for (let i = 100; i < n; i++) {
       if (strategy && strategy.id && (i - 100) % step === 0) {
         const percent = 45 + Math.round(((i - 100) / (n - 100)) * 40);
-        this.signalsGateway.broadcastBacktestProgress(strategy.id, percent, '📊 Симуляция ордеров и SL/TP уровней...');
+        this.progressService.broadcastProgress(strategy.id, percent, '📊 Симуляция ордеров и SL/TP уровней...');
       }
       if ((i - 100) % yieldEvery === 0) {
         await new Promise(r => setImmediate(r));
@@ -510,7 +510,7 @@ export class BacktestService {
     const shortWins = shortTrades.filter(t => t.pnl > 0);
 
     if (strategy && strategy.id) {
-      this.signalsGateway.broadcastBacktestProgress(strategy.id, 95, '📈 Расчет кривой доходности и метрик...');
+      this.progressService.broadcastProgress(strategy.id, 95, '📈 Расчет кривой доходности и метрик...');
       await new Promise(r => setImmediate(r));
     }
 
@@ -520,7 +520,7 @@ export class BacktestService {
     });
 
     if (strategy && strategy.id) {
-      this.signalsGateway.broadcastBacktestProgress(strategy.id, 100, '✅ Тестирование успешно завершено!');
+      this.progressService.broadcastProgress(strategy.id, 100, '✅ Тестирование успешно завершено!');
       await new Promise(r => setImmediate(r));
     }
 

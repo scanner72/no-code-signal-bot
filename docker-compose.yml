@@ -77,6 +77,34 @@ services:
       timeout: 10s
       retries: 3
 
+  # ─────────────────────────────────────────────────────
+  # Backtest Worker — runs backtests in a separate process
+  # Scale with: docker compose up --scale backtest-worker=3
+  # ─────────────────────────────────────────────────────
+  backtest-worker:
+    build: ./backend
+    command: ["node", "dist/worker.js"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: user
+      DB_PASS: password
+      DB_NAME: signals_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      TRADING_PAIRS: ${TRADING_PAIRS:-BTCUSDT,ETHUSDT,SOLUSDT}
+      KRONOS_URL: http://kronos:8070
+      HERMES_PROVIDER: ${HERMES_PROVIDER:-}
+      HERMES_API_URL: ${HERMES_API_URL:-}
+      HERMES_MODEL: ${HERMES_MODEL:-}
+      HERMES_API_KEY: ${HERMES_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   kronos:
     build: ./kronos
     environment:
