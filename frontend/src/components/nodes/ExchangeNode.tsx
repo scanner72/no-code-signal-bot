@@ -40,7 +40,7 @@ const ExchangeNode = ({ data, selected, type }: any) => {
     <div style={{
       background: 'var(--bg-secondary)',
       border: selected ? `2px solid ${meta.color}` : `1px solid ${meta.color}40`,
-      borderRadius: '12px',
+      borderRadius: '14px',
       minWidth: '260px',
       maxWidth: '320px',
       color: 'var(--text-primary)',

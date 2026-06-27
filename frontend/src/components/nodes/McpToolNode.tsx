@@ -15,7 +15,7 @@ export const McpToolNode = memo(({ data = {}, selected }: any) => {
         background: 'linear-gradient(90deg, #8b5cf6, #a855f7)',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         display: 'flex', alignItems: 'center', gap: 8,
-        borderTopLeftRadius: '10px', borderTopRightRadius: '10px',
+        borderTopLeftRadius: '14px', borderTopRightRadius: '14px',
       }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>

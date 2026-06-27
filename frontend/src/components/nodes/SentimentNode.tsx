@@ -23,6 +23,7 @@ const SentimentNode = ({ data, selected, id }: any) => {
   return (
     <div className={`cyber-node ${selected ? 'selected' : ''}`} style={{
       minWidth: '190px',
+      borderRadius: '14px',
       background: 'rgba(15, 23, 42, 0.9)',
       border: `1px solid ${selected ? 'var(--accent-color)' : 'var(--border-color)'}`,
       boxShadow: selected ? '0 0 20px rgba(99, 102, 241, 0.3)' : 'var(--card-shadow)',

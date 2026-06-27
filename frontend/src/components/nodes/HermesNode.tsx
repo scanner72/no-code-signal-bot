@@ -16,7 +16,7 @@ export const HermesNode = memo(({ data, selected, id }: any) => {
         background: 'linear-gradient(90deg, #db2777, #ec4899)',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         display: 'flex', alignItems: 'center', gap: 8,
-        borderTopLeftRadius: '10px', borderTopRightRadius: '10px',
+        borderTopLeftRadius: '14px', borderTopRightRadius: '14px',
       }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2a8 8 0 0 0-8 8c0 5.4 5.6 9.6 7.3 10.8a1 1 0 0 0 1.4 0C14.4 19.6 20 15.4 20 10a8 8 0 0 0-8-8z"/>

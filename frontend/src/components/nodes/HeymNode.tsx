@@ -15,7 +15,7 @@ export const HeymNode = memo(({ data = {}, selected }: any) => {
         background: 'linear-gradient(90deg, #4f46e5, #6366f1)',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         display: 'flex', alignItems: 'center', gap: 8,
-        borderTopLeftRadius: '10px', borderTopRightRadius: '10px',
+        borderTopLeftRadius: '14px', borderTopRightRadius: '14px',
       }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>

@@ -8,7 +8,7 @@ const OrderbookNode = ({ data, selected, id }: any) => {
     <div style={{
       background: 'var(--bg-secondary)',
       border: `1px solid ${selected ? 'var(--accent-color)' : 'var(--border-color)'}`,
-      borderRadius: '12px',
+      borderRadius: '14px',
       padding: '12px',
       minWidth: '190px',
       color: 'var(--text-primary)',
