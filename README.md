@@ -91,6 +91,44 @@ React + ReactFlow canvas  ─►  NestJS API (CCXT, signals engine, backtest, op
 - **AI:** Kronos (time-series forecasting), Hermes (LLM risk filter — supports OpenAI-compatible
   APIs: LM Studio, DeepSeek, Ollama), Local Deep Research, sentiment & ML filters.
 
+## 🧭 Sitemap
+
+Full navigation map: pages, modals, user flow — see [`SITEMAP.md`](SITEMAP.md).
+
+```
+Login / Signup
+    │
+    ▼
+Dashboard ─────────────────────────────────┐
+    │                                       │
+    ▼                                       ▼
+Builder (create strategy)          Strategies (browse / import)
+    │                                  │
+    ├─ Templates modal                 ├─ Edit → Builder
+    ├─ Backtest modal                  ├─ Codegen → ZIP bot
+    ├─ Optimizer (genetic)             └─ Backtest
+    └─ Codegen (Python bot)
+           │
+           ▼
+     Fleet (deploy & monitor)
+           │
+           ▼
+     Paper Trading (forward-test)
+           │
+           ▼
+     Signal History (journal)
+```
+
+**14 pages** · **5 sidebar groups** · **12 modals** · Real-time via WebSocket + polling
+
+| Group | Pages |
+|-------|-------|
+| Trading Hub | Dashboard · Cross-Exchange · Paper Trading · Signal History |
+| Strategy Studio | Builder · Strategies · Backtest · Backtest Job |
+| Intelligence Lab | ML Trainer |
+| Fleet | Bot Fleet (Panic Stop) |
+| Utilities | Documentation · Settings |
+
 ## 🗺 Roadmap
 
 - [x] AST logic validation (Z3 SMT solver catches impossible conditions like `RSI > 70 AND RSI < 30`)

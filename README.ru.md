@@ -98,6 +98,44 @@ docker compose up -d
 - **AI:** Kronos (прогноз временных рядов), Hermes (LLM-фильтр риска — поддерживает любой
   OpenAI-совместимый API: LM Studio, DeepSeek, Ollama), Local Deep Research, фильтры сентимента и ML.
 
+## 🧭 Карта сайта
+
+Полная карта навигации: страницы, модалки, user flow — см. [`SITEMAP.md`](SITEMAP.md).
+
+```
+Login / Signup
+    │
+    ▼
+Dashboard ─────────────────────────────────┐
+    │                                       │
+    ▼                                       ▼
+Конструктор (создать стратегию)    Стратегии (выбрать / импорт)
+    │                                  │
+    ├─ Шаблоны (модалка)               ├─ Редактировать → Конструктор
+    ├─ Бэктест (модалка)               ├─ Codegen → ZIP бот
+    ├─ Оптимизатор (генетический)      └─ Бэктест
+    └─ Codegen (Python бот)
+           │
+           ▼
+     Ферма ботов (деплой и мониторинг)
+           │
+           ▼
+     Paper Trading (forward-тест)
+           │
+           ▼
+     Журнал сигналов
+```
+
+**14 страниц** · **5 групп sidebar** · **12 модалок** · Real-time через WebSocket + polling
+
+| Группа | Страницы |
+|--------|----------|
+| Trading Hub | Dashboard · Кросс-Биржа · Paper Trading · Журнал сигналов |
+| Strategy Studio | Конструктор · Стратегии · Бэктест · Backtest Job |
+| Intelligence Lab | ML Trainer |
+| Fleet | Ферма ботов (Panic Stop) |
+| Utilities | Документация · Настройки |
+
 ## 🗺 Планы
 
 - [x] Валидация логики AST (Z3 SMT solver ловит невозможные условия вроде `RSI > 70 AND RSI < 30`)
