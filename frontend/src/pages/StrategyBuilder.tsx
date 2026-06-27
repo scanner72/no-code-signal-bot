@@ -915,7 +915,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
 
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: 'var(--bg-primary)', overflow: 'hidden', gap: 'var(--bento-gap)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', background: 'var(--bg-primary)', overflow: 'hidden', gap: 'var(--bento-gap)' }}>
 
       {/* Mobile info banner */}
       <div className="mobile-desktop-banner">
