@@ -658,10 +658,13 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
 
   return (
     <aside style={{
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
       width: selectedNode ? '320px' : '0px',
-      minWidth: selectedNode ? '320px' : '0px',
       opacity: selectedNode ? 1 : 0,
-      background: 'rgba(22, 24, 30, 0.85)',
+      background: 'rgba(22, 24, 30, 0.95)',
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
       borderLeft: selectedNode ? '1px solid rgba(124, 58, 237, 0.25)' : 'none',
@@ -669,7 +672,8 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
       display: 'flex', flexDirection: 'column',
       zIndex: 100,
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      pointerEvents: selectedNode ? 'auto' : 'none',
     }}>
       {/* Header */}
       <div style={{

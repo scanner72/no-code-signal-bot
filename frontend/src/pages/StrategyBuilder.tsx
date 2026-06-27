@@ -112,8 +112,8 @@ const today = new Date().toISOString().slice(0, 10);
 const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; initialStrategy?: any }) => {
-  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarPinned, setIsSidebarPinned] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { userLevels, setUserLevels } = useStrategyStore();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
@@ -138,10 +138,12 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
   const { t, language } = useLanguageStore();
 
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     const el = document.getElementById('top-header-portal');
-    setPortalTarget(el || document.body);
+    setPortalTarget(el || null);
+    setIsStandalone(!el);
   }, []);
 
   useEffect(() => {
@@ -514,6 +516,18 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        onSave();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+        e.preventDefault();
+        onLayout();
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         const selectedNodes = nodes.filter(n => n.selected);
@@ -913,8 +927,8 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
           <div style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-muted)' }}>{t('mobile_warning')}</div>
         </div>
       </div>
-      {/* BUILDER NAVIGATION PORTAL */}
-      {createPortal(
+      {/* BUILDER NAVIGATION BAR */}
+      {(isStandalone ? (x: React.ReactNode) => x : (x: React.ReactNode) => createPortal(x, portalTarget || document.body))(
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -923,31 +937,50 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
           width: '100%',
           justifyContent: 'space-between',
           overflow: 'visible',
+          ...(isStandalone ? {
+            position: 'fixed' as const,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'rgba(10, 12, 18, 0.95)',
+            backdropFilter: 'blur(12px)',
+            borderTop: '1px solid var(--border-color)',
+            padding: '8px 16px',
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.4)',
+          } : {}),
           flexWrap: 'nowrap'
         }}>
           {/* LEFT GROUP: Back button & Unified Asset Popover */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
-            {onBack && (
-              <button 
-                onClick={onBack} 
-                title={t('back') || 'Назад'}
-                style={{ 
-                  background: 'rgba(255,255,255,0.02)', 
-                  border: '1px solid rgba(255,255,255,0.06)', 
-                  cursor: 'pointer', 
-                  color: 'var(--text-secondary)', 
-                  padding: '7px', 
-                  borderRadius: '10px',
-                  display: 'flex', 
-                  alignItems: 'center',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-accent)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-              </button>
-            )}
+
+            {/* Toggle Sidebar */}
+            <button
+              onClick={() => {
+                if (isSidebarPinned) {
+                  setIsSidebarPinned(false);
+                  setIsSidebarOpen(false);
+                } else {
+                  setIsSidebarPinned(true);
+                  setIsSidebarOpen(true);
+                }
+              }}
+              title={isSidebarPinned ? (t('unpin_panel') || 'Скрыть библиотеку') : (t('node_library') || 'Библиотека нод')}
+              style={{
+                background: isSidebarPinned ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isSidebarPinned ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.06)'}`,
+                cursor: 'pointer',
+                color: isSidebarPinned ? 'var(--accent-color)' : 'var(--text-secondary)',
+                padding: '7px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = isSidebarPinned ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-accent)'}
+              onMouseLeave={e => e.currentTarget.style.background = isSidebarPinned ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.02)'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><line x1="14" y1="6" x2="21" y2="6"/><line x1="14" y1="12" x2="21" y2="12"/><line x1="14" y1="18" x2="21" y2="18"/></svg>
+            </button>
 
             {/* UNIFIED ASSET SHIELD (POPOVER) */}
             <div ref={assetMenuRef} style={{ position: 'relative' }}>
@@ -1001,10 +1034,12 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
               {/* ASSET CONFIG POPOVER CARD */}
               {assetMenuOpen && (
                 <div style={{
-                  position: 'absolute', top: '100%', left: 0, zIndex: 99999,
+                  position: 'absolute',
+                  ...(isStandalone ? { bottom: '100%', marginBottom: '8px' } : { top: '100%', marginTop: '8px' }),
+                  left: 0, zIndex: 99999,
                   background: 'rgba(10, 15, 30, 0.98)', border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: '14px', boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
-                  padding: '16px', width: '280px', marginTop: '8px',
+                  padding: '16px', width: '280px',
                   backdropFilter: 'blur(25px)',
                   display: 'flex', flexDirection: 'column', gap: '12px'
                 }}>
@@ -1211,110 +1246,78 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-4.418 0-8-3.582-8-8V9h16v3c0 4.418-3.582 8-8 8Z"/><path d="M5 12H2"/><path d="M22 12h-3"/></svg>
             </button>
 
-            {/* Tools Menu Dropdown */}
-            <div 
+            {/* Optimize */}
+            <button
+              onClick={onStartOptimize}
+              title={t('optimize_strategy') || t('optimize')}
+              style={{
+                ...iconBtnStyle,
+                padding: '8px',
+                borderColor: 'rgba(255,255,255,0.06)',
+                background: 'rgba(255,255,255,0.02)',
+                color: 'var(--accent-color)',
+                borderRadius: '10px'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2.5 3.19-2.5 5.5h20c0-2.31-1-4.24-2.5-5.5"/><path d="M12 2v10"/><path d="m9 9 3 3 3-3"/></svg>
+            </button>
+
+            {/* Auto Layout */}
+            <button
+              onClick={onLayout}
+              title={t('auto_layout')}
+              style={{
+                ...iconBtnStyle,
+                padding: '8px',
+                borderColor: 'rgba(255,255,255,0.06)',
+                background: 'rgba(255,255,255,0.02)',
+                color: 'var(--text-secondary)',
+                borderRadius: '10px'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-accent)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 3 10 3 10 10 3 10 3 3"/><polygon points="14 3 21 3 21 10 14 10 14 3"/><polygon points="14 14 21 14 21 21 14 21 14 14"/><polygon points="3 14 10 14 10 21 3 21 3 14"/></svg>
+            </button>
+
+            {/* Overflow menu: Versions + Settings */}
+            <div
               ref={toolsMenuRef}
               style={{ position: 'relative' }}
             >
-              <button 
-                onClick={() => setToolsMenuOpen(!toolsMenuOpen)} 
-                style={{ 
-                  ...iconBtnStyle, 
+              <button
+                onClick={() => setToolsMenuOpen(!toolsMenuOpen)}
+                title={t('tools')}
+                style={{
+                  ...iconBtnStyle,
+                  padding: '8px 10px',
                   borderColor: 'rgba(255,255,255,0.06)',
                   background: toolsMenuOpen ? 'var(--bg-input)' : 'rgba(255,255,255,0.02)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  padding: '7px 12px',
-                  borderRadius: '10px'
+                  color: 'var(--text-secondary)',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  letterSpacing: '2px',
                 }}
                 onMouseEnter={e => { if (!toolsMenuOpen) e.currentTarget.style.background = 'var(--bg-accent)'; }}
                 onMouseLeave={e => { if (!toolsMenuOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                <span style={{ marginLeft: '6px' }}>{t('tools')}</span>
-                <span style={{ fontSize: '9px', opacity: 0.6, marginLeft: '4px' }}>{toolsMenuOpen ? '▲' : '▼'}</span>
+                ⋯
               </button>
               {toolsMenuOpen && (
                 <div style={{
-                  position: 'absolute', top: '100%', right: 0, zIndex: 99999,
+                  position: 'absolute',
+                  ...(isStandalone ? { bottom: '100%', marginBottom: '6px' } : { top: '100%', marginTop: '6px' }),
+                  right: 0, zIndex: 99999,
                   background: 'rgba(10, 15, 30, 0.98)', border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: '12px', boxShadow: '0 16px 40px rgba(0,0,0,0.7)',
-                  padding: '8px', minWidth: '195px', marginTop: '6px',
+                  padding: '8px', minWidth: '180px',
                   backdropFilter: 'blur(20px)',
                   display: 'flex', flexDirection: 'column', gap: '2px'
                 }}>
-                  {/* Optimizer moved inside Tools menu! */}
-                  <button 
-                    onClick={() => { setToolsMenuOpen(false); onStartOptimize(); }}
-                    style={{
-                      background: 'none', border: 'none', color: 'var(--accent-color)',
-                      padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
-                      fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px',
-                      transition: 'all 0.15s ease', width: '100%'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2.5 3.19-2.5 5.5h20c0-2.31-1-4.24-2.5-5.5"/><path d="M12 2v10"/><path d="m9 9 3 3 3-3"/></svg>
-                    {t('optimize_strategy') || 'Оптимизация параметров'}
-                  </button>
-
-                  <button 
-                    onClick={() => { setToolsMenuOpen(false); setPineModalOpen(true); }}
-                    style={{
-                      background: 'none', border: 'none', color: 'var(--text-secondary)',
-                      padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
-                      fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px',
-                      transition: 'all 0.15s ease', width: '100%'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-accent)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                    {t('import_pine')}
-                  </button>
-                  <button 
-                    onClick={() => { setToolsMenuOpen(false); setTemplatesOpen(true); }}
-                    style={{
-                      background: 'none', border: 'none', color: 'var(--text-secondary)',
-                      padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
-                      fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px',
-                      transition: 'all 0.15s ease', width: '100%'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-accent)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                  >
-                    <BookOpen size={14} /> {t('templates')}
-                  </button>
-                  <button 
-                    onClick={() => { setToolsMenuOpen(false); openCodegen(); }}
-                    style={{
-                      background: 'none', border: 'none', color: 'var(--text-secondary)',
-                      padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
-                      fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px',
-                      transition: 'all 0.15s ease', width: '100%'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-accent)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                  >
-                    <Bot size={14} /> {t('bot_generator')}
-                  </button>
-                  <button 
-                    onClick={() => { setToolsMenuOpen(false); onLayout(); }}
-                    style={{
-                      background: 'none', border: 'none', color: 'var(--text-secondary)',
-                      padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
-                      fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px',
-                      transition: 'all 0.15s ease', width: '100%'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-accent)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 3 10 3 10 10 3 10 3 3"/><polygon points="14 3 21 3 21 10 14 10 14 3"/><polygon points="14 14 21 14 21 21 14 21 14 14"/><polygon points="3 14 10 14 10 21 3 21 3 14"/></svg>
-                    {t('auto_layout')}
-                  </button>
                   {savedStrategyId && (
-                    <button 
+                    <button
                       onClick={() => { setToolsMenuOpen(false); setVersionsOpen(true); }}
                       style={{
                         background: 'none', border: 'none', color: 'var(--text-secondary)',
@@ -1329,7 +1332,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
                       {t('version_history')}
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={() => { setToolsMenuOpen(false); setSettingsOpen(true); }}
                     style={{
                       background: 'none', border: 'none', color: 'var(--text-secondary)',
@@ -1346,6 +1349,21 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
                 </div>
               )}
             </div>
+
+            {/* Generate Bot — primary action */}
+            <button
+              onClick={openCodegen}
+              style={{
+                ...primaryBtnStyle,
+                padding: '7px 14px',
+                fontSize: '12px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                display: 'flex', alignItems: 'center', gap: '6px',
+              }}
+            >
+              <Bot size={14} /> {t('generate_bot')}
+            </button>
 
             {/* Save strategy */}
             <button onClick={onSave} style={{ ...primaryBtnStyle, padding: '7px 14px', fontSize: '12px', borderRadius: '10px' }}>{t('save')}</button>
@@ -1365,8 +1383,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
               {isActive ? t('deactivate') : t('activate')}
             </button>
           </div>
-        </div>,
-        portalTarget || document.body
+        </div>
       )}
 
       {validationResult && !validationResult.valid && (
@@ -1386,42 +1403,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--bento-gap)', position: 'relative' }}>
         <ReactFlowProvider>
-          {!isSidebarPinned && (
-            <div 
-              onMouseEnter={() => setIsSidebarOpen(true)}
-              style={{
-                position: 'absolute',
-                left: 0, top: 0, bottom: 0,
-                width: '18px',
-                zIndex: 999,
-                cursor: 'pointer',
-                background: 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <div style={{
-                width: '12px',
-                height: '80px',
-                background: 'rgba(30, 41, 59, 0.85)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderLeft: 'none',
-                borderRadius: '0 8px 8px 0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                backdropFilter: 'blur(8px)',
-                color: 'var(--accent-color)',
-                opacity: isSidebarOpen ? 0 : 0.8,
-                transition: 'all 0.2s ease',
-              }}>
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </div>
-            </div>
-          )}
+          {/* Sidebar toggle removed — use toolbar button */}
           <Sidebar 
             isOpen={isSidebarOpen} 
             isPinned={isSidebarPinned} 

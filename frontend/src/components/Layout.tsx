@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, PencilRuler, History, Settings, BarChart2, X, Globe, Zap, Brain, LineChart, Book, HelpCircle, Activity, Bell, Sun, Moon, Menu } from 'lucide-react';
+import { LayoutDashboard, PencilRuler, History, Settings, BarChart2, X, Globe, Zap, Brain, LineChart, Book, HelpCircle, Activity, Bell, Sun, Moon, Menu, Plus, FileCode } from 'lucide-react';
 import { systemApi } from '../api/dashboard';
 import HelpDrawer from './HelpDrawer';
 import { OnboardingWizard } from './OnboardingWizard';
+import CommandPalette from './CommandPalette';
+import NewStrategyModal from './NewStrategyModal';
+import Breadcrumbs from './Breadcrumbs';
+import ShortcutsHelp from './ShortcutsHelp';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useLanguageStore } from '../stores/useLanguageStore';
+import { useUiStore } from '../stores/uiStore';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
@@ -18,19 +24,31 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [newStrategyOpen, setNewStrategyOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(() => {
     return localStorage.getItem('has_completed_onboarding') !== 'true';
   });
 
+  const { setPineModalOpen } = useUiStore();
+
   const handleTabChange = useCallback((tab: string) => {
-    navigate(`/${tab}`);
+    if (tab === 'builder') {
+      window.open('/builder', '_blank');
+    } else if (tab === 'pine_import') {
+      setPineModalOpen(true);
+      window.open('/builder', '_blank');
+    } else {
+      navigate(`/${tab}`);
+    }
     setSidebarOpen(false);
-  }, [navigate]);
+  }, [navigate, setPineModalOpen]);
 
   const { notifications, markAllAsRead, clearAllNotifications } = useNotificationStore();
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const { language, setLanguage } = useLanguageStore();
+  const { language, setLanguage, t } = useLanguageStore();
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'dark';
@@ -65,16 +83,57 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const menuItems = [
-    { id: 'dashboard',  icon: <LayoutDashboard size={18} />, label: 'Control Center' },
-    { id: 'builder',    icon: <PencilRuler size={18} />,     label: 'Конструктор' },
-    { id: 'strategies', icon: <BarChart2 size={18} />,       label: 'Стратегии' },
-    { id: 'signals',    icon: <History size={18} />,         label: 'История' },
-    { id: 'paper',      icon: <Activity size={18} />,        label: 'Форвард-тест' },
-    { id: 'backtest',   icon: <LineChart size={18} />,       label: 'Бэктест' },
-    { id: 'fleet',      icon: <Zap size={18} />,             label: 'Флот' },
-    { id: 'ml',         icon: <Brain size={18} />,           label: 'AI Обучение' },
-    { id: 'cross',      icon: <Globe size={18} />,           label: 'Кросс-Биржа' },
+  const shortcuts = useMemo(() => [
+    { key: 'k', ctrl: true, action: () => setCmdPaletteOpen(true) },
+    { key: 'n', ctrl: true, shift: true, action: () => setNewStrategyOpen(true) },
+  ], []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  useKeyboardShortcuts(shortcuts);
+
+  const navGroups = [
+    {
+      title: t('nav_build'),
+      items: [
+        { id: 'builder',    icon: <PencilRuler size={18} />, label: t('cmd_canvas') },
+        { id: 'strategies', icon: <BarChart2 size={18} />,   label: t('cmd_my_strategies') },
+        { id: 'pine_import', icon: <FileCode size={18} />,   label: t('import_pine') },
+      ],
+    },
+    {
+      title: t('nav_test'),
+      items: [
+        { id: 'backtest', icon: <LineChart size={18} />, label: t('backtest') },
+        { id: 'paper',    icon: <Activity size={18} />,  label: t('paper_trading') },
+      ],
+    },
+    {
+      title: t('nav_deploy'),
+      items: [
+        { id: 'fleet',   icon: <Zap size={18} />,     label: t('bot_farm') },
+        { id: 'signals', icon: <History size={18} />,  label: t('signals_log') },
+      ],
+    },
+    {
+      title: t('nav_analyze'),
+      items: [
+        { id: 'dashboard', icon: <LayoutDashboard size={18} />, label: t('control_center') },
+        { id: 'cross',     icon: <Globe size={18} />,           label: t('cross_exchange') },
+        { id: 'ml',        icon: <Brain size={18} />,           label: t('ml_trainer') },
+      ],
+    },
   ];
 
   const allOk = Object.values(health).every(v => v === 'ok');
@@ -92,127 +151,65 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* ── BENTO NAV (Wide Sidebar / Drawer on mobile) ── */}
       <nav className={`bento-nav ${sidebarOpen ? 'open' : ''}`}>
-        <div
-          className="nav-logo-wrapper"
-          onClick={() => handleTabChange('dashboard')}
-          role="button"
-          tabIndex={0}
-          aria-label="Signal Bot home"
-          onKeyDown={(e) => e.key === 'Enter' && handleTabChange('dashboard')}
-        >
-          <div className="nav-logo" title="SignalBot" />
-          <span className="nav-logo-title">SignalBot</span>
-        </div>
-
-        <div className="nav-group-title">Trading Hub</div>
-        <button
-          className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => handleTabChange('dashboard')}
-          aria-label="Navigate to Control Center"
-          aria-current={activeTab === 'dashboard' ? 'page' : undefined}
-        >
-          <LayoutDashboard size={18} /> <span>Control Center</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'cross' ? 'active' : ''}`}
-          onClick={() => handleTabChange('cross')}
-          aria-label="Navigate to Cross-Exchange"
-          aria-current={activeTab === 'cross' ? 'page' : undefined}
-        >
-          <Globe size={18} /> <span>Кросс-Биржа (Спреды)</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'paper' ? 'active' : ''}`}
-          onClick={() => handleTabChange('paper')}
-          aria-label="Navigate to Paper Trading"
-          aria-current={activeTab === 'paper' ? 'page' : undefined}
-        >
-          <Activity size={18} /> <span>Paper Trading</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'signals' ? 'active' : ''}`}
-          onClick={() => handleTabChange('signals')}
-          aria-label="Navigate to Signal History"
-          aria-current={activeTab === 'signals' ? 'page' : undefined}
-        >
-          <History size={18} /> <span>Журнал сигналов</span>
-        </button>
-
-        <div className="nav-group-title">Strategy Studio</div>
-        <button
-          className={`nav-btn ${activeTab === 'builder' ? 'active' : ''}`}
-          onClick={() => handleTabChange('builder')}
-          aria-label="Navigate to Strategy Builder"
-          aria-current={activeTab === 'builder' ? 'page' : undefined}
-        >
-          <PencilRuler size={18} /> <span>Конструктор (Канвас)</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'strategies' ? 'active' : ''}`}
-          onClick={() => handleTabChange('strategies')}
-          aria-label="Navigate to Strategy Templates"
-          aria-current={activeTab === 'strategies' ? 'page' : undefined}
-        >
-          <BarChart2 size={18} /> <span>Шаблоны стратегий</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'backtest' ? 'active' : ''}`}
-          onClick={() => handleTabChange('backtest')}
-          aria-label="Navigate to Backtest"
-          aria-current={activeTab === 'backtest' ? 'page' : undefined}
-        >
-          <LineChart size={18} /> <span>Бэктест</span>
-        </button>
-
-        <div className="nav-group-title">Intelligence Lab</div>
-        <button
-          className={`nav-btn ${activeTab === 'ml' ? 'active' : ''}`}
-          onClick={() => handleTabChange('ml')}
-          aria-label="Navigate to ML Trainer"
-          aria-current={activeTab === 'ml' ? 'page' : undefined}
-        >
-          <Brain size={18} /> <span>ML Trainer (AI)</span>
-        </button>
-
-        <div className="nav-group-title">Fleet Management</div>
-        <button
-          className={`nav-btn ${activeTab === 'fleet' ? 'active' : ''}`}
-          onClick={() => handleTabChange('fleet')}
-          aria-label="Navigate to Bot Fleet"
-          aria-current={activeTab === 'fleet' ? 'page' : undefined}
-        >
-          <Zap size={18} /> <span>Ферма ботов</span>
-        </button>
-
-        <div className="nav-spacer" />
-
-        <button
-          className="nav-btn"
-          onClick={() => setOnboardingOpen(true)}
-          style={{ marginBottom: 12 }}
-          aria-label="Open onboarding guide"
-        >
-          <HelpCircle size={18} /> <span>Обучение (Гид)</span>
-        </button>
-
-        {/* Health Indicator */}
-        <button
-          className="nav-btn"
-          onClick={() => setShowHealth(!showHealth)}
-          aria-label={`System health: ${allOk ? 'healthy' : 'degraded'}`}
-          aria-pressed={showHealth}
-          style={{ gap: 10, fontSize: 12 }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <div
-            aria-hidden="true"
+            className="nav-logo-wrapper"
+            onClick={() => handleTabChange('dashboard')}
+            role="button"
+            tabIndex={0}
+            aria-label="Signal Bot home"
+            onKeyDown={(e) => e.key === 'Enter' && handleTabChange('dashboard')}
+            style={{ flex: 1 }}
+          >
+            <div className="nav-logo" title="SignalBot" />
+            <span className="nav-logo-title">SignalBot</span>
+          </div>
+          <div
+            title={allOk ? t('system_healthy') : t('system_degraded')}
+            onClick={() => setShowHealth(!showHealth)}
             style={{
-              width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+              width: 8, height: 8, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
               background: allOk ? 'var(--success)' : 'var(--danger)',
               boxShadow: `0 0 8px ${allOk ? 'var(--success)' : 'var(--danger)'}`,
             }}
           />
-          <span>{allOk ? 'System Healthy' : 'Есть проблемы'}</span>
+        </div>
+
+        {/* CTA: New Strategy */}
+        <button
+          onClick={() => setNewStrategyOpen(true)}
+          style={{
+            width: '100%', padding: '10px 0', marginBottom: 16,
+            background: 'var(--accent-color)', color: '#fff',
+            border: 'none', borderRadius: 10, cursor: 'pointer',
+            fontSize: 13, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <Plus size={16} /> {t('cmd_new_strategy')}
         </button>
+
+        {navGroups.map(group => (
+          <React.Fragment key={group.title}>
+            <div className="nav-group-title">{group.title}</div>
+            {group.items.map(item => (
+              <button
+                key={item.id}
+                className={`nav-btn ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => handleTabChange(item.id)}
+                aria-label={`Navigate to ${item.label}`}
+                aria-current={activeTab === item.id ? 'page' : undefined}
+              >
+                {item.icon} <span>{item.label}</span>
+              </button>
+            ))}
+          </React.Fragment>
+        ))}
+
+        <div className="nav-spacer" />
 
         <button
           className={`nav-btn ${activeTab === 'docs' ? 'active' : ''}`}
@@ -220,7 +217,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           aria-label="Navigate to Documentation"
           aria-current={activeTab === 'docs' ? 'page' : undefined}
         >
-          <Book size={18} /> <span>Документация</span>
+          <Book size={18} /> <span>{t('documentation')}</span>
         </button>
 
         <button
@@ -229,7 +226,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           aria-label="Navigate to API Settings"
           aria-current={activeTab === 'settings' ? 'page' : undefined}
         >
-          <Settings size={18} /> <span>Настройки API</span>
+          <Settings size={18} /> <span>{t('api_settings')}</span>
         </button>
       </nav>
 
@@ -246,14 +243,34 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               <Menu size={22} />
             </button>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
-              {menuItems.find(item => item.id === activeTab)?.label || activeTab}
-            </div>
+            <Breadcrumbs />
           </div>
-          
+
           <div id="top-header-portal" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', marginRight: '20px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Cmd+K hint */}
+            <button
+              onClick={() => setCmdPaletteOpen(true)}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-color)',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 6,
+                transition: 'var(--transition)',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
+              title="Command Palette (Ctrl+K)"
+            >
+              ⌘K
+            </button>
+
             {/* Language Toggle */}
             <button
               onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
@@ -340,7 +357,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   />
                 )}
               </button>
-              
+
               {/* Notification Center Dropdown */}
               {notifOpen && (
                 <div
@@ -363,18 +380,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                    <span id="notification-title" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>Уведомления</span>
+                    <span id="notification-title" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('notifications')}</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={markAllAsRead} style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Прочитать все</button>
+                      <button onClick={markAllAsRead} style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t('mark_all_read')}</button>
                       <span style={{ color: 'var(--border-color)' }}>|</span>
-                      <button onClick={clearAllNotifications} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Очистить</button>
+                      <button onClick={clearAllNotifications} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t('clear_all')}</button>
                     </div>
                   </div>
-                  
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
                     {notifications.length === 0 ? (
                       <div style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '24px 0' }}>
-                        Нет новых уведомлений
+                        {t('no_notifications')}
                       </div>
                     ) : (
                       notifications.map(n => (
@@ -403,7 +420,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {/* Content Area */}
         <div style={{ flex: 1, overflow: 'auto', position: 'relative', display: 'flex', flexDirection: 'column' }}>
           {/* Context Help Trigger */}
-          <button 
+          <button
             onClick={() => setHelpOpen(true)}
             style={{
               position: 'absolute',
@@ -438,10 +455,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
           {children}
 
-          <HelpDrawer 
-            isOpen={helpOpen} 
-            onClose={() => setHelpOpen(false)} 
-            sectionKey={activeTab} 
+          <HelpDrawer
+            isOpen={helpOpen}
+            onClose={() => setHelpOpen(false)}
+            sectionKey={activeTab}
           />
         </div>
       </main>
@@ -472,7 +489,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span id="health-modal-title" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Статус системы</span>
+              <span id="health-modal-title" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('system_status')}</span>
               <X size={16} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={() => setShowHealth(false)} />
             </div>
 
@@ -509,6 +526,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       )}
 
       <OnboardingWizard isOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
+      <CommandPalette
+        isOpen={cmdPaletteOpen}
+        onClose={() => setCmdPaletteOpen(false)}
+        onNewStrategy={() => setNewStrategyOpen(true)}
+        theme={theme}
+        setTheme={setTheme}
+      />
+      <NewStrategyModal isOpen={newStrategyOpen} onClose={() => setNewStrategyOpen(false)} />
+      <ShortcutsHelp isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 };

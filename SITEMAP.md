@@ -14,16 +14,16 @@
 | Route | Компонент | Группа | Описание |
 |-------|-----------|--------|----------|
 | `/` | — | — | Редирект → `/dashboard` |
-| `/dashboard` | `Dashboard.tsx` | Trading Hub | Контроль-центр: хелс, сигналы, быстрые ссылки |
-| `/cross` | `CrossExchange.tsx` | Trading Hub | Кросс-биржевые спреды (Binance vs Kraken/Deribit) |
-| `/paper` | `PaperTrading.tsx` | Trading Hub | Paper Trading: открытые/закрытые сделки, P&L |
-| `/signals` | `SignalHistory.tsx` | Trading Hub | Журнал сигналов (WebSocket, фильтры) |
-| `/builder` | `StrategyBuilder.tsx` | Strategy Studio | Визуальный конструктор стратегий (канвас) |
-| `/strategies` | `Strategies.tsx` | Strategy Studio | Список стратегий, импорт/экспорт |
-| `/backtest` | `Backtest.tsx` | Strategy Studio | Бэктестер + оптимизатор |
-| `/backtest/job/:jobId` | `BacktestJob.tsx` | Strategy Studio | Статус/результаты конкретного бэктеста |
-| `/ml` | `MLTrainer.tsx` | Intelligence Lab | ML Trainer (RF / GBM / LogReg) |
-| `/fleet` | `Fleet.tsx` | Fleet Management | Ферма ботов, Panic Stop |
+| `/builder` | `StrategyBuilder.tsx` | Build | Визуальный конструктор стратегий (канвас) |
+| `/strategies` | `Strategies.tsx` | Build | Мои стратегии, импорт/экспорт |
+| `/backtest` | `Backtest.tsx` | Test | Бэктестер + оптимизатор |
+| `/backtest/job/:jobId` | `BacktestJob.tsx` | Test | Статус/результаты конкретного бэктеста |
+| `/paper` | `PaperTrading.tsx` | Test | Paper Trading: открытые/закрытые сделки, P&L |
+| `/fleet` | `Fleet.tsx` | Deploy | Ферма ботов, Panic Stop |
+| `/signals` | `SignalHistory.tsx` | Deploy | Журнал сигналов (WebSocket, фильтры) |
+| `/dashboard` | `Dashboard.tsx` | Analyze | Контроль-центр: хелс, сигналы, быстрые ссылки |
+| `/cross` | `CrossExchange.tsx` | Analyze | Кросс-биржевые спреды (Binance vs Kraken/Deribit) |
+| `/ml` | `MLTrainer.tsx` | Analyze | ML Trainer (RF / GBM / LogReg) |
 | `/docs` | `Documentation.tsx` | Utilities | Документация (локальная навигация) |
 | `/settings` | `Settings.tsx` | Utilities | Настройки интеграций |
 | `/*` | — | — | Fallback → `/dashboard` |
@@ -32,27 +32,33 @@
 
 ## 🧭 Sidebar навигация (Layout.tsx)
 
-### Trading Hub
-- **Control Center** → `/dashboard`
-- **Кросс-Биржа (Спреды)** → `/cross`
-- **Paper Trading** → `/paper`
-- **Журнал сигналов** → `/signals`
+```
+[Logo + 🟢 Health dot]
 
-### Strategy Studio
-- **Конструктор (Канвас)** → `/builder`
-- **Шаблоны стратегий** → `/strategies`
-- **Бэктест** → `/backtest`
+[+ Новая стратегия]  ← CTA, открывает NewStrategyModal
+                       (С нуля / Из шаблона / Из PineScript)
 
-### Intelligence Lab
-- **ML Trainer (AI)** → `/ml`
+── BUILD ──
+  Конструктор         /builder
+  Мои стратегии       /strategies
 
-### Fleet Management
-- **Ферма ботов** → `/fleet`
+── TEST ──
+  Бэктест             /backtest
+  Paper Trading       /paper
 
-### System
-- **Обучение (Гид)** → открывает OnboardingWizard (модалка)
-- **Документация** → `/docs`
-- **Настройки API** → `/settings`
+── DEPLOY ──
+  Ферма ботов         /fleet
+  Журнал сигналов     /signals
+
+── ANALYZE ──
+  Dashboard           /dashboard
+  Кросс-Биржа         /cross
+  ML Trainer          /ml
+
+── (bottom) ──
+  Документация        /docs
+  Настройки           /settings
+```
 
 ---
 
@@ -60,73 +66,99 @@
 
 | Элемент | Действие |
 |---------|----------|
+| Breadcrumbs | Навигационный путь (Home > Strategies > BTC Scalper > Canvas) |
 | Hamburger (mobile) | Тоглит sidebar |
+| ⌘K | Открывает Command Palette |
 | Language toggle | RU ↔ EN |
 | Theme toggle | Dark ↔ Light |
 | 🔔 Notification Bell | Открывает Notification Center (dropdown) |
-| 🟢 Health badge | Открывает Health popup |
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+### Глобальные
+| Комбинация | Действие |
+|---|---|
+| `Ctrl+K` / `⌘K` | Command Palette |
+| `Ctrl+Shift+N` | Новая стратегия |
+| `?` | Справка по горячим клавишам |
+
+### Builder
+| Комбинация | Действие |
+|---|---|
+| `Ctrl+S` | Сохранить стратегию |
+| `Ctrl+L` | Auto Layout |
+| `Ctrl+C` | Копировать ноды |
+| `Ctrl+V` | Вставить ноды |
+| `Ctrl+G` | Группировать ноды |
+| `Del` | Удалить ноду |
 
 ---
 
 ## 📦 Модалки и попапы
 
+### Глобальные (Layout)
+| Модалка | Триггер | Описание |
+|---------|---------|----------|
+| Command Palette | `Ctrl+K` или кнопка ⌘K в header | Быстрая навигация и действия |
+| New Strategy | `Ctrl+Shift+N` или CTA в sidebar | 3 варианта: С нуля / Из шаблона / Из PineScript |
+| Shortcuts Help | `?` | Справка по горячим клавишам |
+| Notification Center | 🔔 в header | Список уведомлений |
+| Help Drawer | кнопка "Help" внизу справа | Контекстная справка по текущей странице |
+| Onboarding Wizard | Автоматически при первом визите | Пошаговый гид |
+| Health Popup | клик на Health dot | Статус сервисов |
+
 ### Из StrategyBuilder (`/builder`)
 | Модалка | Триггер | Описание |
 |---------|---------|----------|
-| Codegen | кнопка "Bot Code" | Генерация Python-бота, предпросмотр, скачивание ZIP |
-| Backtest Runner | кнопка "▶ Run Backtest" | Запуск бэктеста с параметрами |
-| Genetic Optimizer | кнопка "⚡ Optimize" | Генетическая оптимизация параметров |
-| Strategy Templates | кнопка "Templates" | Выбор шаблона стратегии |
-| Save / Version | кнопка "Save" | Сохранение стратегии |
+| Generate Bot | кнопка "Создать бота" (primary) | Генерация Python-бота, скачивание ZIP |
+| Backtest Runner | кнопка ▶ | Запуск бэктеста с параметрами |
+| Genetic Optimizer | кнопка ⚡ | Генетическая оптимизация параметров |
+| Version History | меню ⋯ | История версий стратегии |
+| Settings | меню ⋯ | Настройки запуска |
+
+### Builder Toolbar
+```
+[← Back] [Pair/TF] [Canvas | TA]  ...  [▶ Backtest] [🐛 Debug] [⚡ Optimize] [📐 Layout] [⋯] | [📦 Создать бота] [💾 Save] [Activate]
+```
 
 ### Из Strategies (`/strategies`)
 | Модалка | Триггер | Описание |
 |---------|---------|----------|
 | Delete Confirm | 🗑 иконка | Подтверждение удаления стратегии |
-| Codegen | кнопка "Bot" | Генерация бота для выбранной стратегии |
-| Backtest | кнопка запуска теста | Бэктест с переходом в `/backtest/job/:id` |
-| Templates | кнопка загрузки | Загрузка шаблона |
-
-### Глобальные (Layout)
-| Модалка | Триггер | Описание |
-|---------|---------|----------|
-| Notification Center | 🔔 в header | Список уведомлений, "Прочитать все", "Очистить" |
-| Help Drawer | кнопка "?" внизу справа | Контекстная справка по текущей странице |
-| Onboarding Wizard | "Обучение" в sidebar | Пошаговый гид по приложению |
-| Health Popup | клик на Health badge | Статус сервисов (backend, Kronos, Redis и т.д.) |
+| Codegen | кнопка "Bot" | Генерация бота |
+| Backtest | кнопка запуска теста | Бэктест → `/backtest/job/:id` |
 
 ---
 
 ## 🚀 User Flow (типичный путь)
 
 ```
-Login/Signup
+Login / Signup
     │
     ▼
-Dashboard ──────────────────────────────────────────┐
-    │                                                │
-    ▼                                                ▼
-Builder (создать стратегию)              Strategies (выбрать готовую)
-    │                                        │
-    ├─ Templates (загрузить шаблон)           ├─ Edit → Builder
-    │                                        ├─ Codegen → ZIP бота
-    ▼                                        │
-Backtest (проверить)                         ▼
-    │                                   Backtest
-    ▼
-Optimize (⚡ генетический)
-    │
-    ▼
-Codegen (📦 Python-бот)
-    │
-    ▼
-Fleet (🚀 деплой и мониторинг)
-    │
-    ▼
-Paper Trading (📊 forward-тест)
-    │
-    ▼
-Signal History (📋 журнал)
+[+ Новая стратегия]
+    ├─ С нуля ──────────┐
+    ├─ Из шаблона ──────┤
+    └─ Из PineScript ───┘
+                        │
+                        ▼
+              Builder (канвас)
+                        │
+              ┌─────────┼─────────┐
+              ▼         ▼         ▼
+          Backtest   Optimize   Generate Bot
+              │                    │
+              ▼                    ▼
+        Paper Trading         Fleet (деплой)
+              │                    │
+              └────────┬───────────┘
+                       ▼
+               Signal History
+                       │
+                       ▼
+                   Dashboard
 ```
 
 ---
@@ -151,7 +183,6 @@ Signal History (📋 журнал)
 - Все роуты кроме `/login` и `/signup` обёрнуты в `PrivateRoutes`
 - `useSession()` → нет сессии → редирект на `/login`
 - Ролевого разграничения нет — все пользователи видят все страницы
-- Risk-контроли применяются на уровне API (не UI)
 
 ---
 

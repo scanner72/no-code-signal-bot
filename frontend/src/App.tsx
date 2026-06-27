@@ -34,24 +34,28 @@ function PrivateRoutes() {
   }
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/builder" element={<BuilderPage />} />
-        <Route path="/strategies" element={<StrategiesPage />} />
-        <Route path="/signals" element={<SignalHistory />} />
-        <Route path="/paper" element={<PaperTrading />} />
-        <Route path="/backtest" element={<Backtest />} />
-        <Route path="/backtest/job/:jobId" element={<BacktestJob />} />
-        <Route path="/fleet" element={<Fleet />} />
-        <Route path="/ml" element={<MLTrainer />} />
-        <Route path="/cross" element={<CrossExchange />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/docs" element={<Documentation />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      <Route path="/builder" element={<BuilderPage />} />
+      <Route path="/*" element={
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/strategies" element={<StrategiesPage />} />
+            <Route path="/signals" element={<SignalHistory />} />
+            <Route path="/paper" element={<PaperTrading />} />
+            <Route path="/backtest" element={<Backtest />} />
+            <Route path="/backtest/job/:jobId" element={<BacktestJob />} />
+            <Route path="/fleet" element={<Fleet />} />
+            <Route path="/ml" element={<MLTrainer />} />
+            <Route path="/cross" element={<CrossExchange />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/docs" element={<Documentation />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Layout>
+      } />
+    </Routes>
   );
 }
 

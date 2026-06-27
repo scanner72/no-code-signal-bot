@@ -15,6 +15,9 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
   const [isLocalDragging, setIsLocalDragging] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = React.useState<string | null>(null);
+  const categoryScrollRef = React.useRef<HTMLDivElement>(null);
+  const sectionListRef = React.useRef<HTMLDivElement>(null);
 
   const onDragStart = (e: React.DragEvent, type: string, data: object) => {
     setIsLocalDragging(true);
@@ -93,13 +96,20 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <div style={{
-          fontSize: 10, fontWeight: 800,
-          color: 'var(--text-muted)',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase' as const,
-        }}>
-          {t('node_library')}
+        <div
+          onClick={() => { setExpandedCategory(null); setSelectedCategory(null); sectionListRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          style={{
+            fontSize: 10, fontWeight: 800,
+            color: expandedCategory ? 'var(--accent-color)' : 'var(--text-muted)',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase' as const,
+            cursor: 'pointer',
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color)'}
+          onMouseLeave={e => e.currentTarget.style.color = expandedCategory ? 'var(--accent-color)' : 'var(--text-muted)'}
+        >
+          {expandedCategory ? `← ${t('node_library')}` : t('node_library')}
         </div>
         {onTogglePin && (
           <button
@@ -155,46 +165,53 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
 
       {/* Category Tabs */}
       {groupedBlocks.length > 1 && (
-        <div style={{
-          padding: '4px 8px 8px',
-          display: 'flex',
-          gap: 'var(--space-2)',
-          overflowX: 'auto',
-          marginBottom: '8px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          <button
-            onClick={() => setSelectedCategory(null)}
-            style={{
-              padding: 'var(--space-1) var(--space-2)',
-              border: selectedCategory === null ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
-              background: selectedCategory === null ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              color: 'var(--text-primary)',
-              fontSize: 'var(--font-size-xs)',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap' as const,
-              transition: 'all 0.2s',
-              fontWeight: 500,
-            }}
-          >
-            All ({filteredBlocks.length})
-          </button>
-          {groupedBlocks.map(group => (
+        <div
+          ref={categoryScrollRef}
+          style={{
+            padding: '4px 8px 8px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '4px',
+            marginBottom: '8px',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {selectedCategory && (
             <button
-              key={group.category}
-              onClick={() => setSelectedCategory(group.category)}
+              onClick={() => setSelectedCategory(null)}
               style={{
                 padding: 'var(--space-1) var(--space-2)',
-                border: selectedCategory === group.category ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
-                background: selectedCategory === group.category ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-                color: 'var(--text-primary)',
+                border: '1px solid var(--accent-color)',
+                background: 'rgba(124, 58, 237, 0.15)',
+                color: 'var(--accent-color)',
                 fontSize: 'var(--font-size-xs)',
                 borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap' as const,
                 transition: 'all 0.2s',
-                fontWeight: 500,
+                fontWeight: 700,
+              }}
+            >
+              ← All ({filteredBlocks.length})
+            </button>
+          )}
+          {groupedBlocks.map(group => (
+            <button
+              key={group.category}
+              onClick={() => setSelectedCategory(
+                selectedCategory === group.category ? null : group.category
+              )}
+              style={{
+                padding: 'var(--space-1) var(--space-2)',
+                border: selectedCategory === group.category ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
+                background: selectedCategory === group.category ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+                color: selectedCategory === group.category ? 'var(--accent-color)' : 'var(--text-primary)',
+                fontSize: 'var(--font-size-xs)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap' as const,
+                transition: 'all 0.2s',
+                fontWeight: selectedCategory === group.category ? 700 : 500,
               }}
             >
               {t(group.category)} ({group.blocks.length})
@@ -204,7 +221,7 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
       )}
 
       {/* Sections */}
-      <div style={{ padding: '8px 8px', flex: 1, overflowY: 'auto' }}>
+      <div ref={sectionListRef} style={{ padding: '8px 8px', flex: 1, overflowY: 'auto' }}>
         {filteredBlocks.length === 0 ? (
           <div style={{
             textAlign: 'center',
@@ -215,19 +232,36 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
             No blocks found
           </div>
         ) : (
-          groupedBlocks.map((group) => (
-            <div key={group.category} style={{ marginBottom: 12 }}>
-              <div style={{
-                fontSize: 'var(--font-size-xs)',
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.06em',
-                padding: '4px 10px 6px',
-                textTransform: 'uppercase' as const,
-                fontWeight: 800,
-              }}>
-                {t(group.category)} ({group.blocks.length})
+          groupedBlocks.map((group) => {
+            const isExpanded = expandedCategory === null || expandedCategory === group.category;
+            return (
+            <div key={group.category} style={{ marginBottom: isExpanded ? 12 : 4 }}>
+              <div
+                onClick={() => {
+                  setExpandedCategory(expandedCategory === group.category ? null : group.category);
+                  sectionListRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{
+                  fontSize: 'var(--font-size-xs)',
+                  color: expandedCategory === group.category ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  letterSpacing: '0.06em',
+                  padding: '6px 10px',
+                  textTransform: 'uppercase' as const,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-accent)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <span>{t(group.category)} ({group.blocks.length})</span>
+                <span style={{ fontSize: 10, opacity: 0.5 }}>{isExpanded ? '▼' : '▶'}</span>
               </div>
-              {group.blocks.map((item) => (
+              {isExpanded && group.blocks.map((item) => (
                 <div
                   key={item.id}
                   className="node-chip"
@@ -277,7 +311,7 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
                 </div>
               ))}
             </div>
-          ))
+          );})
         )}
       </div>
     </aside>
