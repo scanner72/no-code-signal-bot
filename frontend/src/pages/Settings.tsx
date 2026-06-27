@@ -22,10 +22,7 @@ const Settings = () => {
     const [deduplication, setDeduplication] = useState(4);
     const [isTesting, setIsTesting] = useState(false);
     const [testStatus, setTestStatus] = useState<string | null>(null);
-    const [binanceKey, setBinanceKey] = useState('');
-    const [binanceSecret, setBinanceSecret] = useState('');
     const [discordWebhook, setDiscordWebhook] = useState('');
-    const [tradingPairs, setTradingPairs] = useState('');
     const [logs, setLogs] = useState<any[]>([]);
     const [saveStatus, setSaveStatus] = useState<string | null>(null);
     const [discordStatus, setDiscordStatus] = useState<string | null>(null);
@@ -70,10 +67,7 @@ const Settings = () => {
                 setIsConnected(true);
             }
             if (data.deduplication_interval) setDeduplication(parseInt(data.deduplication_interval));
-            if (data.binance_api_key) setBinanceKey(data.binance_api_key);
-            if (data.binance_secret) setBinanceSecret(data.binance_secret);
             if (data.discord_webhook_url) setDiscordWebhook(data.discord_webhook_url);
-            if (data.trading_pairs) setTradingPairs(data.trading_pairs);
             if (data.global_pause) setGlobalPause(data.global_pause === 'true');
             if (data.btc_drop_threshold) setBtcThreshold(parseFloat(data.btc_drop_threshold));
             if (data.eth_drop_threshold) setEthThreshold(parseFloat(data.eth_drop_threshold));
@@ -192,21 +186,6 @@ const Settings = () => {
         settingsApi.updateDeduplication(val).catch(() => {});
     };
 
-    const saveGeneral = async () => {
-        setSaveStatus('Сохранение...');
-        try {
-            await Promise.all([
-                settingsApi.update('binance_api_key', binanceKey),
-                settingsApi.update('binance_secret', binanceSecret),
-                settingsApi.update('trading_pairs', tradingPairs)
-            ]);
-            setSaveStatus('✓ Сохранено');
-        } catch {
-            setSaveStatus('✕ Ошибка');
-        } finally {
-            setTimeout(() => setSaveStatus(null), 3000);
-        }
-    };
 
     const testDiscord = async () => {
         if (!discordWebhook) return;
@@ -330,29 +309,12 @@ const Settings = () => {
             <div style={{ padding: '32px 40px', overflowY: 'auto' }}>
                 {activeSection === 'general' && (
                     <div style={{ maxWidth: '640px' }}>
-                        <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px', color: 'var(--text-primary)' }}>{language === 'ru' ? 'Биржа и пары' : 'Exchange and Pairs'}</div>
-                        
-                        <div style={{ marginBottom: '32px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Binance Futures API</div>
-                            <input type="text" placeholder="API Key" value={binanceKey} onChange={(e) => setBinanceKey(e.target.value)} style={inputStyle} />
-                            <div style={{ height: '12px' }} />
-                            <input type="password" placeholder="API Secret" value={binanceSecret} onChange={(e) => setBinanceSecret(e.target.value)} style={inputStyle} />
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '10px' }}>{language === 'ru' ? 'Нужны права только на чтение (Read-Only) для мониторинга цен.' : 'Only Read-Only permission is required for price monitoring.'}</div>
+                        <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-primary)' }}>{language === 'ru' ? 'Общие настройки' : 'General Settings'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
+                            {language === 'ru'
+                                ? 'API-ключи бирж и торговые пары настраиваются в нодах Exchange Connector на канвасе стратегии.'
+                                : 'Exchange API keys and trading pairs are configured in Exchange Connector nodes on the strategy canvas.'}
                         </div>
-
-                        <div style={{ marginBottom: '32px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{language === 'ru' ? 'Отслеживаемые пары' : 'Monitored Pairs'}</div>
-                            <textarea 
-                                placeholder="BTCUSDT, ETHUSDT, SOLUSDT..." 
-                                value={tradingPairs} onChange={(e) => setTradingPairs(e.target.value)}
-                                style={{ ...inputStyle, height: '100px', resize: 'vertical', lineHeight: 1.5 }} 
-                            />
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>{language === 'ru' ? 'Разделяйте через запятую. Только USDT пары (напр. BTCUSDT).' : 'Separate with commas. Only USDT pairs (e.g. BTCUSDT).'}</div>
-                        </div>
-
-                        <button onClick={saveGeneral} style={primaryBtnStyle}>
-                            {saveStatus ? (saveStatus.includes('Сохранено') ? (language === 'ru' ? '✓ Сохранено' : '✓ Saved') : saveStatus.includes('Сохранение') ? (language === 'ru' ? 'Сохранение...' : 'Saving...') : (language === 'ru' ? '✕ Ошибка' : '✕ Error')) : (language === 'ru' ? 'Сохранить настройки' : 'Save Settings')}
-                        </button>
                     </div>
                 )}
 
