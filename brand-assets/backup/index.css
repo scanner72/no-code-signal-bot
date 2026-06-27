@@ -18,9 +18,9 @@
   --border-hover: rgba(255,255,255,0.12);
 
   /* Accents */
-  --accent-color: #2962ff;
-  --accent-hover: #1e54e0;
-  --accent-soft: rgba(41,98,255,0.15);
+  --accent-color: #6366F1;
+  --accent-hover: #5558E6;
+  --accent-soft: rgba(99,102,241,0.15);
   --success: #10B981;
   --success-soft: rgba(16,185,129,0.12);
   --danger: #EF4444;
@@ -55,9 +55,9 @@
   --bg-accent: #1C1F26;
   --bg-input: #121418;
   
-  /* Brand Colors - Electric Blue */
-  --accent-color: #2962ff;
-  --accent-glow: rgba(41, 98, 255, 0.4);
+  /* Brand Colors - Cyber Violet & Emerald */
+  --accent-color: #7C3AED;
+  --accent-glow: rgba(124, 58, 237, 0.4);
   --success: #10B981;
   --danger: #EF4444;
   --warning: #F59E0B;
@@ -124,9 +124,9 @@
   --bg-accent: #E5E7EB;
   --bg-input: #F9FAFB;
   
-  /* Brand Colors - Electric Blue */
-  --accent-color: #2962ff;
-  --accent-glow: rgba(41, 98, 255, 0.2);
+  /* Brand Colors - Premium Violet & Green */
+  --accent-color: #6D28D9;
+  --accent-glow: rgba(109, 40, 217, 0.2);
   --success: #059669;
   --danger: #DC2626;
   --warning: #D97706;
@@ -185,7 +185,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -263,6 +263,16 @@ select:focus {
   box-shadow: var(--card-shadow);
 }
 
+.nav-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--accent-color), var(--success));
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+}
 .nav-logo-wrapper {
   display: flex;
   align-items: center;
@@ -270,6 +280,19 @@ select:focus {
   margin-bottom: 24px;
   padding: 0 8px;
   cursor: pointer;
+}
+.nav-logo-title {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, #fff, #94A3B8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.nav-logo::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2));
 }
 
 .nav-group-title {

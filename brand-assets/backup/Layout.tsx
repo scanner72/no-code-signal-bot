@@ -8,7 +8,6 @@ import { OnboardingWizard } from './OnboardingWizard';
 import CommandPalette from './CommandPalette';
 import NewStrategyModal from './NewStrategyModal';
 import Breadcrumbs from './Breadcrumbs';
-import { CyberQuantLogo } from './CyberQuantLogo';
 import ShortcutsHelp from './ShortcutsHelp';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useLanguageStore } from '../stores/useLanguageStore';
@@ -162,7 +161,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             onKeyDown={(e) => e.key === 'Enter' && handleTabChange('dashboard')}
             style={{ flex: 1 }}
           >
-            <CyberQuantLogo size={26} accent="var(--accent-color)" />
+            <div className="nav-logo" title="SignalBot" />
+            <span className="nav-logo-title">SignalBot</span>
           </div>
           <div
             title={allOk ? t('system_healthy') : t('system_degraded')}
