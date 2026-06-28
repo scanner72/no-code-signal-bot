@@ -141,10 +141,20 @@ export class AstEvaluatorService {
         return getHistory ? [true] : true;
 
       case 'finviz_scanner':
-        return getHistory ? [true] : true;
+      case 'order_flow':
+      case 'orderbook':
+      case 'exchange_scanner':
+      case 'pump_dump':
+      case 'fvg':
+      case 'order_block':
+      case 'eqh_eql':
+      case 'custom_code':
+      case 'webhook':
+      case 'polymarket':
+      case 'deribit_pcr':
+        return getHistory ? [0] : 0;
 
       default:
-        this.logger.debug(`AstEvaluator standalone: unknown node type '${node.type}', returning default`);
         return getHistory ? [0] : 0;
     }
   }
