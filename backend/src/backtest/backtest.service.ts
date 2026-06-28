@@ -119,6 +119,40 @@ export class BacktestService {
 
     const reversedCandles = [...simCandles].reverse();
     const n = simCandles.length;
+    const BACKTEST_WINDOW = 300; // newest-first lookback window for non-precomputed nodes
+
+    // ── Precompute all indicator series ONCE over the full chronological set ──
+    // Converts O(n²) per-candle indicator recalculation into O(n) precompute + O(1) lookup.
+    // Series are right-aligned to candle index: value(i) = series[i - (n - series.length)].
+    const indicatorCache = new Map<string, { series: number[]; offset: number }>();
+    {
+      const closesChrono = simCandles.map((c: any) => parseFloat(c.close));
+      const highsChrono  = simCandles.map((c: any) => parseFloat(c.high));
+      const lowsChrono   = simCandles.map((c: any) => parseFloat(c.low));
+      const srcArr = (s: string) => (s === 'high' ? highsChrono : s === 'low' ? lowsChrono : closesChrono);
+      const collect = (node: any) => {
+        if (!node || typeof node !== 'object') return;
+        if (node.type === 'indicator') {
+          const period = node.period || 14;
+          const source = node.source || 'close';
+          const key = `${node.indicator}:${period}:${source}`;
+          if (!indicatorCache.has(key)) {
+            let series: number[];
+            switch (node.indicator) {
+              case 'RSI': series = this.indicatorsService.calculateRSI(srcArr(source), period); break;
+              case 'SMA': series = this.indicatorsService.calculateSMA(srcArr(source), period); break;
+              case 'EMA': series = this.indicatorsService.calculateEMA(srcArr(source), period); break;
+              case 'ATR': series = this.indicatorsService.calculateATR(highsChrono, lowsChrono, closesChrono, period); break;
+              default:    series = this.indicatorsService.calculateSMA(srcArr(source), period);
+            }
+            indicatorCache.set(key, { series, offset: n - series.length });
+          }
+        }
+        for (const k of ['condition', 'left', 'right', 'a', 'b']) collect(node[k]);
+        if (Array.isArray(node.operands)) node.operands.forEach((op: any) => collect(op.ast || op));
+      };
+      collect(ast);
+    }
 
     // In accurate mode, we fetch 1m candles for sub-candle resolution
     let subCandles: any[] = [];
@@ -156,16 +190,22 @@ export class BacktestService {
       if ((i - 100) % yieldEvery === 0) {
         await new Promise(r => setImmediate(r));
       }
-      const currentCandles = reversedCandles.slice(n - 1 - i);
+      // Bounded newest-first window (indicators are precomputed; only short
+      // lookback/current price is read from candles). Keeps the slice O(WINDOW)
+      // instead of O(i), eliminating the O(n²) growth.
+      const start = n - 1 - i;
+      const currentCandles = reversedCandles.slice(start, start + BACKTEST_WINDOW);
       const currentPrice = parseFloat(simCandles[i].close.toString());
       const candleTime = simCandles[i].time.getTime();
 
-      const context = { 
-        pair: targetPair, 
-        timeframe: strategy.timeframe, 
+      const context: any = {
+        pair: targetPair,
+        timeframe: strategy.timeframe,
         cache: new Map(),
         sentiment: { score: 0.2, label: 'BULLISH' }, // Simulated sentiment for backtest
-        isBacktest: true
+        isBacktest: true,
+        indicatorCache,   // precomputed indicator series (O(1) lookup)
+        candleIndex: i,   // current chronological candle index
       };
       context.cache.set(strategy.timeframe, currentCandles);
 

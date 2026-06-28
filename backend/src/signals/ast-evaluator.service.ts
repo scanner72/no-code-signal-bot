@@ -35,7 +35,11 @@ export class AstEvaluatorService {
 
     if (!candles || candles.length === 0) return getHistory ? [null] : null;
 
-    const closes = candles.map(c => parseFloat(c.close)).reverse();
+    // Lazy: only materialize the full chronological close series when a node
+    // actually needs history. Avoids O(n²) map/reverse on every recursive call.
+    let _closes: number[] | null = null;
+    const closesHistory = () => (_closes ??= candles.map(c => parseFloat(c.close)).reverse());
+    const lastClose = () => (candles.length ? parseFloat(candles[0].close) : 0);
 
     switch (node.type) {
       case 'signal':
@@ -91,6 +95,20 @@ export class AstEvaluatorService {
       case 'indicator': {
         const period = node.period || 14;
         const source = node.source || 'close';
+
+        // Fast path: precomputed series from backtest (O(1) lookup instead of O(n) recompute)
+        if (context?.indicatorCache && typeof context.candleIndex === 'number') {
+          const cached = context.indicatorCache.get(`${node.indicator}:${period}:${source}`);
+          if (cached) {
+            const pos = context.candleIndex - cached.offset;
+            if (getHistory) {
+              if (pos < 1) return pos < 0 ? [0] : [cached.series[0]];
+              return [cached.series[pos - 1], cached.series[pos]];
+            }
+            return pos >= 0 && pos < cached.series.length ? cached.series[pos] : 0;
+          }
+        }
+
         const values = candles.map(c => parseFloat(c[source] || c.close)).reverse();
         let result: number[];
 
@@ -111,7 +129,7 @@ export class AstEvaluatorService {
       }
 
       case 'input':
-        return getHistory ? closes : closes[closes.length - 1];
+        return getHistory ? closesHistory() : lastClose();
 
       case 'constant':
         return getHistory ? [node.value] : node.value;
@@ -119,7 +137,7 @@ export class AstEvaluatorService {
       case 'scanner':
       case 'exchange_data':
       case 'exchange_scanner':
-        return getHistory ? [closes[closes.length - 1]] : closes[closes.length - 1];
+        return getHistory ? [lastClose()] : lastClose();
 
       // ── AI/External nodes → defaults in standalone mode ──
       case 'hermes':
