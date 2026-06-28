@@ -12,7 +12,6 @@ import { CyberQuantLogo } from './CyberQuantLogo';
 import ShortcutsHelp from './ShortcutsHelp';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useLanguageStore } from '../stores/useLanguageStore';
-import { useUiStore } from '../stores/uiStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -32,19 +31,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return localStorage.getItem('has_completed_onboarding') !== 'true';
   });
 
-  const { setPineModalOpen } = useUiStore();
-
   const handleTabChange = useCallback((tab: string) => {
     if (tab === 'builder') {
       window.open('/builder', '_blank');
     } else if (tab === 'pine_import') {
-      setPineModalOpen(true);
-      window.open('/builder', '_blank');
+      navigate('/pine-import');
     } else {
       navigate(`/${tab}`);
     }
     setSidebarOpen(false);
-  }, [navigate, setPineModalOpen]);
+  }, [navigate]);
 
   const { notifications, markAllAsRead, clearAllNotifications } = useNotificationStore();
   const unreadCount = notifications.filter(n => !n.read).length;

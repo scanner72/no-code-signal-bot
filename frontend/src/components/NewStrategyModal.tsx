@@ -13,7 +13,7 @@ interface Props {
 const NewStrategyModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { t } = useLanguageStore();
-  const { setTemplatesOpen, setPineModalOpen } = useUiStore();
+  const { setTemplatesOpen } = useUiStore();
 
   if (!isOpen) return null;
 
@@ -40,7 +40,7 @@ const NewStrategyModal: React.FC<Props> = ({ isOpen, onClose }) => {
       title: t('ns_from_pine'),
       desc: t('ns_pine_desc'),
       gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)',
-      action: () => { onClose(); setPineModalOpen(true); window.open('/builder', '_blank'); },
+      action: () => { onClose(); navigate('/pine-import'); },
     },
   ];
 

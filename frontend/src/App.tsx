@@ -11,6 +11,7 @@ import MLTrainer from './pages/MLTrainer';
 import CrossExchange from './pages/CrossExchange';
 import Documentation from './pages/Documentation';
 import PaperTrading from './pages/PaperTrading';
+import PineImport from './pages/PineImport';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
@@ -42,6 +43,7 @@ function PrivateRoutes() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/strategies" element={<StrategiesPage />} />
+            <Route path="/pine-import" element={<PineImport />} />
             <Route path="/signals" element={<SignalHistory />} />
             <Route path="/paper" element={<PaperTrading />} />
             <Route path="/backtest" element={<Backtest />} />
