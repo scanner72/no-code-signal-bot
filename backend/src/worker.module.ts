@@ -48,6 +48,8 @@ import { AstEvaluatorModule } from './signals/ast-evaluator.module';
       settings: {
         stalledInterval: 300000,
         maxStalledCount: 10,
+        lockDuration: 600000,
+        lockRenewTime: 15000,
       },
     }),
     BullModule.registerQueue({ name: 'backtest' }),
