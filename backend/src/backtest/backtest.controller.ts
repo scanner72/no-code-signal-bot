@@ -21,7 +21,13 @@ export class BacktestController {
 
     const job = await this.backtestQueue.add(
       { strategyId, options: body },
-      { removeOnComplete: 50, removeOnFail: 20 },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 3000 },
+        timeout: 3600000,
+        removeOnComplete: 50,
+        removeOnFail: 20,
+      },
     );
     return { jobId: job.id, status: 'queued' };
   }

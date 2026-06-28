@@ -1,4 +1,4 @@
-import { Process, Processor } from '@nestjs/bull';
+import { Process, Processor, OnQueueStalled, OnQueueFailed, OnQueueError } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { BacktestService } from './backtest.service';
@@ -23,5 +23,20 @@ export class BacktestProcessor {
       this.logger.error(`Backtest job ${job.id} failed: ${err.message}`);
       throw err;
     }
+  }
+
+  @OnQueueStalled()
+  onStalled(job: Job) {
+    this.logger.warn(`Backtest job ${job.id} stalled (attempt ${job.attemptsMade}/${job.opts.attempts})`);
+  }
+
+  @OnQueueFailed()
+  onFailed(job: Job, err: Error) {
+    this.logger.error(`Backtest job ${job.id} failed permanently: ${err.message}`, err.stack);
+  }
+
+  @OnQueueError()
+  onError(err: Error) {
+    this.logger.error(`Backtest queue error: ${err.message}`);
   }
 }

@@ -10,6 +10,10 @@ export class BacktestProgressService {
     this.publisher = new Redis({
       host: process.env.REDIS_HOST || 'redis',
       port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => Math.min(times * 500, 5000),
+      enableReadyCheck: true,
+      lazyConnect: false,
     });
   }
 

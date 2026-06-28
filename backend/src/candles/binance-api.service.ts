@@ -16,29 +16,33 @@ export class BinanceApiService implements OnModuleInit {
   }
 
   async fetchCandles(pair: string, timeframe: string, since?: number, limit?: number) {
-    try {
-      this.logger.debug(`Fetching candles for ${pair} ${timeframe} via REST...`);
-      const symbol = pair.replace('/', '').toUpperCase();
-      const raw = await this.client.fapiPublicGetKlines({
-        symbol,
-        interval: timeframe,
-        startTime: since,
-        limit: limit || 1000
-      });
-      
-      return raw.map((c: any) => ({
-        time: new Date(parseInt(c[0])),
-        open: parseFloat(c[1]),
-        high: parseFloat(c[2]),
-        low: parseFloat(c[3]),
-        close: parseFloat(c[4]),
-        volume: parseFloat(c[5]),
-        taker_buy_volume: parseFloat(c[9]), // Taker buy base asset volume
-      }));
-    } catch (error) {
-      this.logger.error(`Error fetching candles from Binance REST: ${error.message}`);
-      return [];
+    const symbol = pair.replace('/', '').toUpperCase();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        this.logger.debug(`Fetching candles for ${pair} ${timeframe} via REST...`);
+        const raw = await this.client.fapiPublicGetKlines({
+          symbol,
+          interval: timeframe,
+          startTime: since,
+          limit: limit || 1000
+        });
+
+        return raw.map((c: any) => ({
+          time: new Date(parseInt(c[0])),
+          open: parseFloat(c[1]),
+          high: parseFloat(c[2]),
+          low: parseFloat(c[3]),
+          close: parseFloat(c[4]),
+          volume: parseFloat(c[5]),
+          taker_buy_volume: parseFloat(c[9]),
+        }));
+      } catch (error) {
+        this.logger.warn(`Binance REST attempt ${attempt + 1}/3 failed for ${pair} ${timeframe}: ${error.message}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
     }
+    this.logger.error(`Binance REST: all 3 attempts failed for ${pair} ${timeframe}`);
+    return [];
   }
 
   async fetchTicker(pair: string) {

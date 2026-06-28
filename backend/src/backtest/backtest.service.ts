@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CandlesService } from '../candles/candles.service';
-import { SignalsEngineService } from '../signals/signals-engine.service';
+import { AstEvaluatorService } from '../signals/ast-evaluator.service';
 import { Strategy } from '../strategies/strategy.entity';
 import { IndicatorsService } from '../indicators/indicators.service';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -27,6 +27,8 @@ export interface BacktestOptions {
   partialTPs?: Array<{ target: number; closePercent: number }>;
   /** Move SL to break-even price after first partial TP hit */
   moveSLtoBE?: boolean;
+  /** Call AI nodes (Hermes, Kronos, LDR) during backtest — default false (PASS) */
+  useAiNodes?: boolean;
   /** Use ATR-based stop loss instead of fixed % */
   useAtrSl?: boolean;
   /** Multiplier for ATR-based SL (default: 2) */
@@ -51,7 +53,7 @@ export class BacktestService {
     @InjectRepository(Strategy)
     private strategyRepository: Repository<Strategy>,
     private candlesService: CandlesService,
-    private signalsEngine: SignalsEngineService,
+    private astEvaluator: AstEvaluatorService,
     private indicatorsService: IndicatorsService,
     private progressService: BacktestProgressService,
   ) {}
@@ -167,7 +169,7 @@ export class BacktestService {
       };
       context.cache.set(strategy.timeframe, currentCandles);
 
-      const isTriggered = await (this.signalsEngine as any).evaluateNode(ast, currentCandles, false, context);
+      const isTriggered = await this.astEvaluator.evaluateNode(ast, currentCandles, false, context, { backtestMode: !options.useAiNodes });
 
       if (isTriggered && !position) {
         const notional = balance * positionSize;

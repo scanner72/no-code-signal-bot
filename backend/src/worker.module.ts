@@ -4,34 +4,20 @@ import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ScheduleModule } from '@nestjs/schedule';
 import { Candle } from './candles/candle.entity';
 import { Strategy } from './strategies/strategy.entity';
 import { StrategyVersion } from './strategies/strategy-version.entity';
 import { Signal } from './signals/signal.entity';
 import { Setting } from './settings/setting.entity';
-import { BotInstance } from './fleet/bot-instance.entity';
-import { MLModel } from './ml/ml-model.entity';
 import { CandlesModule } from './candles/candles.module';
 import { IndicatorsModule } from './indicators/indicators.module';
-import { SignalsModule } from './signals/signals.module';
 import { SettingsModule } from './settings/settings.module';
-import { HermesModule } from './hermes/hermes.module';
-import { LdrModule } from './ldr/ldr.module';
-import { SentimentModule } from './sentiment/sentiment.module';
-import { KronosModule } from './kronos/kronos.module';
-import { MLModule } from './ml/ml.module';
-import { OrdersModule } from './orders/orders.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { PaperTradingModule } from './paper-trading/paper-trading.module';
-import { FleetModule } from './fleet/fleet.module';
-import { OrderbookModule } from './orderbook/orderbook.module';
 import { BacktestService } from './backtest/backtest.service';
 import { BacktestProcessor } from './backtest/backtest.processor';
 import { BacktestProgressService } from './backtest/backtest-progress.service';
 import { OptimizerService } from './backtest/optimizer.service';
 import { StrategiesModule } from './strategies/strategies.module';
-import { CrossExchangeModule } from './cross-exchange/cross-exchange.module';
+import { AstEvaluatorModule } from './signals/ast-evaluator.module';
 
 @Module({
   imports: [
@@ -42,14 +28,26 @@ import { CrossExchangeModule } from './cross-exchange/cross-exchange.module';
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASS || 'postgres',
       database: process.env.DB_NAME || 'signals_db',
-      entities: [Candle, Strategy, StrategyVersion, Signal, Setting, BotInstance, MLModel],
+      entities: [Candle, Strategy, StrategyVersion, Signal, Setting],
       autoLoadEntities: true,
       synchronize: true,
+      retryAttempts: 5,
+      retryDelay: 3000,
+      extra: {
+        max: 10,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        keepAlive: true,
+      },
     }),
     BullModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+      },
+      settings: {
+        stalledInterval: 30000,
+        maxStalledCount: 3,
       },
     }),
     BullModule.registerQueue({ name: 'backtest' }),
@@ -66,24 +64,12 @@ import { CrossExchangeModule } from './cross-exchange/cross-exchange.module';
       }),
     }),
     EventEmitterModule.forRoot(),
-    ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([Strategy]),
     CandlesModule,
     IndicatorsModule,
-    SignalsModule,
     StrategiesModule,
     SettingsModule,
-    HermesModule,
-    LdrModule,
-    SentimentModule,
-    KronosModule,
-    MLModule,
-    OrdersModule,
-    TelegramModule,
-    PaperTradingModule,
-    FleetModule,
-    OrderbookModule,
-    CrossExchangeModule,
+    AstEvaluatorModule,
   ],
   providers: [BacktestService, BacktestProcessor, BacktestProgressService, OptimizerService],
 })

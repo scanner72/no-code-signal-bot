@@ -48,6 +48,14 @@ import { OrdersModule } from './orders/orders.module';
       entities: [Candle, Strategy, StrategyVersion, Signal, Setting, BotInstance, MLModel],
       autoLoadEntities: true,
       synchronize: true,
+      retryAttempts: 5,
+      retryDelay: 3000,
+      extra: {
+        max: 20,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        keepAlive: true,
+      },
     }),
     BullModule.forRoot({
       redis: {
