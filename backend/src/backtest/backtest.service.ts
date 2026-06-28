@@ -144,7 +144,7 @@ export class BacktestService {
       stopPrice: number; peakPrice: number; activatedTrailing: boolean 
     } | null = null;
     const trades: any[] = [];
-    const step = Math.max(1, Math.ceil((n - 100) / 5));
+    const step = Math.max(1, Math.ceil((n - 100) / 50));
 
     const yieldEvery = Math.max(200, Math.floor((n - 100) / 20));
 
