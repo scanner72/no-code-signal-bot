@@ -32,8 +32,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   });
 
   const handleTabChange = useCallback((tab: string) => {
-    if (tab === 'builder') {
-      window.open('/builder', '_blank');
+    if (tab === 'builder' || tab === 'backtest') {
+      window.open(`/${tab}`, '_blank');
     } else if (tab === 'pine_import') {
       navigate('/pine-import');
     } else {
