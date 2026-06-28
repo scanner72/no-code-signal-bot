@@ -46,8 +46,8 @@ import { AstEvaluatorModule } from './signals/ast-evaluator.module';
         port: parseInt(process.env.REDIS_PORT, 10) || 6379,
       },
       settings: {
-        stalledInterval: 30000,
-        maxStalledCount: 3,
+        stalledInterval: 120000,
+        maxStalledCount: 5,
       },
     }),
     BullModule.registerQueue({ name: 'backtest' }),
