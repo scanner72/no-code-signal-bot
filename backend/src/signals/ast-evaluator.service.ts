@@ -158,15 +158,103 @@ export class AstEvaluatorService {
       case 'ml_filter':
         return getHistory ? [true] : true;
 
+      // ── Order flow (computable from candle data) ──
+      case 'order_flow': {
+        const metric = node.metric || 'delta';
+        if (metric === 'cvd') {
+          const cvd = this.indicatorsService.calculateCVD(candles);
+          return getHistory ? cvd : cvd[cvd.length - 1];
+        }
+        if (metric === 'delta') {
+          const c0 = candles[0];
+          const v = parseFloat(c0.volume);
+          let delta = 0;
+          if (c0.taker_buy_volume !== undefined && c0.taker_buy_volume !== null) {
+            const buyVol = parseFloat(c0.taker_buy_volume);
+            delta = buyVol - (v - buyVol);
+          } else {
+            const h = parseFloat(c0.high), l = parseFloat(c0.low), cl = parseFloat(c0.close);
+            if (h !== l) delta = v * (2 * (cl - l) / (h - l) - 1);
+          }
+          return getHistory ? [delta] : delta;
+        }
+        // Liquidations need live WS data — unavailable in backtest
+        return node.threshold !== undefined ? false : 0;
+      }
+
+      // ── Orderbook: mock values in backtest (matches SignalsEngine backtest behavior) ──
+      case 'orderbook': {
+        const metric = node.params?.metric || 'imbalance';
+        if (metric === 'imbalance') return getHistory ? [52.5] : 52.5;
+        if (metric === 'spread') return getHistory ? [0.05] : 0.05;
+        if (metric === 'wall_distance') return getHistory ? [0.8] : 0.8;
+        return 0;
+      }
+
+      // ── Smart Money Concepts (pure candle computation) ──
+      case 'pump_dump': {
+        const prices = candles.map(c => parseFloat(c.close)).reverse();
+        const vols = candles.map(c => parseFloat(c.volume)).reverse();
+        const r = this.indicatorsService.detectPumpDump(prices, vols, node.params);
+        return r.isPump || r.isDump;
+      }
+
+      case 'fvg': {
+        const gaps = this.indicatorsService.detectFVG(candles, node.params?.lookback, node.params?.onlyUnmitigated);
+        const p = parseFloat(candles[0].close);
+        return gaps.some((g: any) => p <= g.top && p >= g.bottom);
+      }
+
+      case 'eqh_eql': {
+        const pools = this.indicatorsService.detectEQHEQL(candles, node.params?.lookback, node.params?.thresholdPct);
+        return pools.length > 0;
+      }
+
+      case 'order_block': {
+        const obs = this.indicatorsService.detectOrderBlocks(candles, node.params?.lookback);
+        const p = parseFloat(candles[0].close);
+        return obs.some((ob: any) => ob.type === node.params?.obType && p <= ob.top && p >= ob.bottom);
+      }
+
+      case 'market_structure': {
+        const s = this.indicatorsService.detectMarketStructure(candles, node.params?.lookback);
+        return node.property ? (s as any)[node.property] : s.trend;
+      }
+
+      case 'liquidity_sweep': {
+        const sweeps = this.indicatorsService.detectLiquiditySweeps(candles, node.params?.lookback);
+        if (node.params?.sweepType === 'ANY') return sweeps.length > 0;
+        return sweeps.some((sw: any) => sw.type === node.params?.sweepType);
+      }
+
+      case 'time_filter': {
+        const t = new Date(candles[0].time);
+        const cur = t.getUTCHours() * 60 + t.getUTCMinutes();
+        const [sh, sm] = (node.params?.from || '00:00').split(':').map(Number);
+        const [eh, em] = (node.params?.to || '23:59').split(':').map(Number);
+        const startM = sh * 60 + sm, endM = eh * 60 + em;
+        return startM <= endM ? (cur >= startM && cur <= endM) : (cur >= startM || cur <= endM);
+      }
+
+      // ── Custom JS code (TradingView-style: index 0 = current candle) ──
+      case 'custom_code': {
+        try {
+          const closesC = candles.map(c => parseFloat(c.close)).reverse();
+          const highsC = candles.map(c => parseFloat(c.high)).reverse();
+          const lowsC = candles.map(c => parseFloat(c.low)).reverse();
+          const volsC = candles.map(c => parseFloat(c.volume)).reverse();
+          const fn = new Function('close', 'high', 'low', 'volume',
+            node.code || '');
+          const r = fn([...closesC].reverse(), [...highsC].reverse(), [...lowsC].reverse(), [...volsC].reverse());
+          return getHistory ? [r] : r;
+        } catch (e: any) {
+          this.logger.warn(`custom_code error in node ${node.id}: ${e.message}`);
+          return getHistory ? [false] : false;
+        }
+      }
+
+      // ── Truly external (no data in worker) → defaults ──
       case 'finviz_scanner':
-      case 'order_flow':
-      case 'orderbook':
-      case 'exchange_scanner':
-      case 'pump_dump':
-      case 'fvg':
-      case 'order_block':
-      case 'eqh_eql':
-      case 'custom_code':
       case 'webhook':
       case 'polymarket':
       case 'deribit_pcr':
