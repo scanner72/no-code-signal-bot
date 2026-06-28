@@ -146,7 +146,7 @@ export class BacktestService {
     const trades: any[] = [];
     const step = Math.max(1, Math.ceil((n - 100) / 50));
 
-    const yieldEvery = Math.max(200, Math.floor((n - 100) / 20));
+    const yieldEvery = Math.max(50, Math.floor((n - 100) / 200));
 
     for (let i = 100; i < n; i++) {
       if (strategy && strategy.id && (i - 100) % step === 0) {
