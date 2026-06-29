@@ -43,6 +43,13 @@ import PortfolioRiskSizerNode from '../components/nodes/PortfolioRiskSizerNode';
 import HeymNode from '../components/nodes/HeymNode';
 import McpToolNode from '../components/nodes/McpToolNode';
 import PineBlockNode from '../components/nodes/PineBlockNode';
+import { ConditionalForkNode } from '../components/nodes/ConditionalForkNode';
+import { AccumulatorNode } from '../components/nodes/AccumulatorNode';
+import { InputParamNode } from '../components/nodes/InputParamNode';
+import { LookbackWindowNode } from '../components/nodes/LookbackWindowNode';
+import { VolumeFilterNode } from '../components/nodes/VolumeFilterNode';
+import { ExitConditionNode } from '../components/nodes/ExitConditionNode';
+import { PositionSizingNode } from '../components/nodes/PositionSizingNode';
 import { strategiesApi } from '../api/strategies';
 import axios from 'axios';
 import { PythonPreview } from '../components/PythonPreview';
@@ -95,6 +102,13 @@ const nodeTypes = {
   heym_mcp: HeymNode,
   mcp_tool: McpToolNode,
   pine_block: PineBlockNode,
+  conditional_fork: ConditionalForkNode,
+  accumulator: AccumulatorNode,
+  input_param: InputParamNode,
+  lookback_window: LookbackWindowNode,
+  volume_filter: VolumeFilterNode,
+  exit_condition: ExitConditionNode,
+  position_sizing: PositionSizingNode,
 };
 
 
