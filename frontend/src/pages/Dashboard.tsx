@@ -408,31 +408,44 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
           </div>
         </div>
 
-        {/* ── Live Market Strip (Top 20 by volume, updates every 15s) ── */}
+        {/* ── Live Market Ticker (scrolling marquee, top 20 by volume) ── */}
         <div style={{
           background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px',
-          padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '20px', overflowX: 'auto',
-          marginBottom: '20px',
+          padding: '10px 0', overflow: 'hidden', marginBottom: '20px', position: 'relative',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <Activity size={14} color="#10b981" />
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LIVE</span>
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: '60px',
+            background: 'linear-gradient(90deg, var(--bg-secondary), transparent)', zIndex: 2,
+            display: 'flex', alignItems: 'center', paddingLeft: '14px',
+          }}>
+            <Activity size={13} color="#10b981" style={{ animation: 'pulse 2s infinite' }} />
           </div>
-          {screener.length === 0 && <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Загрузка топ-20...</span>}
-          {screener.map((s: any) => (
-            <div key={s.pair} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{s.pair.replace('USDT', '')}</span>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>${Number(s.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-              <span style={{
-                fontSize: '10px', fontWeight: 700, fontFamily: 'monospace',
-                color: s.change24h >= 0 ? '#10b981' : '#ef4444',
-                padding: '1px 5px', borderRadius: '4px',
-                background: s.change24h >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-              }}>
-                {s.change24h >= 0 ? '+' : ''}{Number(s.change24h).toFixed(1)}%
-              </span>
+          <div style={{
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: '40px',
+            background: 'linear-gradient(270deg, var(--bg-secondary), transparent)', zIndex: 2,
+          }} />
+          {screener.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', padding: '2px 0' }}>Загрузка топ-20...</div>
+          ) : (
+            <div className="market-ticker-track" style={{
+              display: 'flex', gap: '32px', whiteSpace: 'nowrap',
+              animation: `tickerScroll ${Math.max(20, screener.length * 3)}s linear infinite`,
+              paddingLeft: '60px',
+            }}>
+              {[...screener, ...screener].map((s: any, i: number) => (
+                <div key={`${s.pair}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{s.pair.replace('USDT', '')}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>${Number(s.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  <span style={{
+                    fontSize: '10px', fontWeight: 700, fontFamily: 'monospace',
+                    color: s.change24h >= 0 ? '#10b981' : '#ef4444',
+                  }}>
+                    {s.change24h >= 0 ? '▲' : '▼'}{Math.abs(Number(s.change24h)).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {/* ── KPI Row ── */}
@@ -886,11 +899,17 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
 
       </div>
 
-      {/* Pulse animation for live dot */}
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
+        }
+        @keyframes tickerScroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .market-ticker-track:hover {
+          animation-play-state: paused !important;
         }
         @media (max-width: 1024px) {
           .dashboard-container { padding: 20px 16px 32px !important; }
