@@ -176,6 +176,31 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
     }
   }, [location.state, setNodes, setEdges, setStrategyName]);
 
+  // Detect Exchange→Input connection: hide pair selector, update Input node
+  const exchangeConnectedToInput = React.useMemo(() => {
+    const inputNode = nodes.find(n => n.type === 'input' && n.data?.showInputConnector);
+    if (!inputNode) return false;
+    const incomingEdge = edges.find(e => e.target === inputNode.id);
+    if (!incomingEdge) return false;
+    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
+    return sourceNode?.type?.includes('exchange') || sourceNode?.type === 'scanner' || false;
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    const inputNode = nodes.find(n => n.type === 'input' && n.data?.showInputConnector);
+    if (!inputNode) return;
+    const incomingEdge = edges.find(e => e.target === inputNode.id);
+    const sourceNode = incomingEdge ? nodes.find(n => n.id === incomingEdge.source) : null;
+    const isExchange = sourceNode?.type?.includes('exchange') || sourceNode?.type === 'scanner';
+    const exchangePair = isExchange ? (sourceNode?.data?.pair || sourceNode?.data?.symbol || '') : '';
+    if (!!inputNode.data.exchangeConnected !== !!isExchange || inputNode.data.exchangePair !== exchangePair) {
+      setNodes(nds => nds.map(n => n.id === inputNode.id
+        ? { ...n, data: { ...n.data, exchangeConnected: !!isExchange, exchangePair } }
+        : n
+      ));
+    }
+  }, [edges, nodes, setNodes]);
+
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const reactFlowInstanceRef = useRef<any>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -1093,8 +1118,8 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
                     />
                   </div>
 
-                  {/* Pair Search Row */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
+                  {/* Pair Search Row — hidden when Exchange node connected to Input */}
+                  <div style={{ display: exchangeConnectedToInput ? 'none' : 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
                     <label style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 700 }}>
                       {t('search_pair') || 'Торговая пара'}
                     </label>

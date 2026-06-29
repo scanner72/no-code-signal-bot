@@ -118,7 +118,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
 
   // Input node
   const inputId = uid('input');
-  nodes.push({ id: inputId, type: 'input', position: { x: 50, y: 220 }, data: { source: 'Mark Price' } });
+  nodes.push({ id: inputId, type: 'input', position: { x: 50, y: 220 }, data: { source: 'Mark Price', showInputConnector: true } });
 
   // variable map: varName → VarMeta
   const vars: Record<string, VarMeta> = {};
