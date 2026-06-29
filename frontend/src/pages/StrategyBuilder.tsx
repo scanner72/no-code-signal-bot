@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { io } from 'socket.io-client';
+import { useLocation } from 'react-router-dom';
 import { useLanguageStore } from '../stores/useLanguageStore';
 import ReactFlow, {
   ReactFlowProvider,
@@ -126,6 +127,7 @@ const today = new Date().toISOString().slice(0, 10);
 const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; initialStrategy?: any }) => {
+  const location = useLocation();
   const [isSidebarPinned, setIsSidebarPinned] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { userLevels, setUserLevels } = useStrategyStore();
@@ -163,6 +165,16 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
   useEffect(() => {
     reset(initialStrategy);
   }, [initialStrategy, reset]);
+
+  useEffect(() => {
+    const state = location.state as { strategy?: { name?: string; nodes?: any[]; edges?: any[] } } | null;
+    if (state?.strategy?.nodes?.length) {
+      setNodes(state.strategy.nodes);
+      setEdges(state.strategy.edges || []);
+      if (state.strategy.name) setStrategyName(state.strategy.name);
+      window.history.replaceState({}, '');
+    }
+  }, [location.state, setNodes, setEdges, setStrategyName]);
 
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const reactFlowInstanceRef = useRef<any>(null);
