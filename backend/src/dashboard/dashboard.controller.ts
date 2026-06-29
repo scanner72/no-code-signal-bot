@@ -18,4 +18,28 @@ export class DashboardController {
   getScreener() {
     return this.dashboardService.getScreener();
   }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('dashboard_funding')
+  @CacheTTL(60)
+  @Get('funding')
+  getFunding() {
+    return this.dashboardService.getFundingRates();
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('dashboard_oi')
+  @CacheTTL(60)
+  @Get('open-interest')
+  getOpenInterest() {
+    return this.dashboardService.getOpenInterest();
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('dashboard_liquidations')
+  @CacheTTL(60)
+  @Get('liquidations')
+  getLiquidations() {
+    return this.dashboardService.getLiquidations();
+  }
 }

@@ -307,46 +307,25 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
   // ─── Collapsible Signals & Multi-Asset States ───────────────────────────────
   const [expandedSignalId, setExpandedSignalId] = useState<string | null>(null);
 
-  // ─── Finviz State & Fetches ────────────────────────────────────────────────
-  const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'ai_intel' | 'equity_intel'>('signals');
-  const [equityIntelTab, setEquityIntelTab] = useState<'screener' | 'insiders'>('screener');
-  const [equitySignal, setEquitySignal] = useState<string>('top_gainers');
-  const [finvizScreener, setFinvizScreener] = useState<any[]>([]);
-  const [finvizInsiders, setFinvizInsiders] = useState<any[]>([]);
-  const [loadingFinviz, setLoadingFinviz] = useState<boolean>(false);
-  const [selectedStockChart, setSelectedStockChart] = useState<string | null>(null);
-
-  const fetchFinvizScreener = useCallback((sig: string) => {
-    setLoadingFinviz(true);
-    fetch(`/api/kronos/finviz/screener?signal=${sig}`)
-      .then(res => res.json())
-      .then(res => {
-        setFinvizScreener(res.data || []);
-        setLoadingFinviz(false);
-      })
-      .catch(() => setLoadingFinviz(false));
-  }, []);
-
-  const fetchFinvizInsiders = useCallback(() => {
-    setLoadingFinviz(true);
-    fetch('/api/kronos/finviz/insider')
-      .then(res => res.json())
-      .then(res => {
-        setFinvizInsiders(res.data || []);
-        setLoadingFinviz(false);
-      })
-      .catch(() => setLoadingFinviz(false));
-  }, []);
+  // ─── Crypto Market Data State ──────────────────────────────────────────────
+  const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'ai_intel' | 'funding' | 'oi' | 'liquidations'>('signals');
+  const [fundingData, setFundingData] = useState<any[]>([]);
+  const [oiData, setOiData] = useState<any[]>([]);
+  const [liqData, setLiqData] = useState<any[]>([]);
+  const [loadingMarket, setLoadingMarket] = useState<boolean>(false);
 
   useEffect(() => {
-    if (activeBottomTab === 'equity_intel') {
-      if (equityIntelTab === 'screener') {
-        fetchFinvizScreener(equitySignal);
-      } else {
-        fetchFinvizInsiders();
-      }
+    if (activeBottomTab === 'funding') {
+      setLoadingMarket(true);
+      dashboardApi.getFunding().then(res => { setFundingData(res.data || []); setLoadingMarket(false); }).catch(() => setLoadingMarket(false));
+    } else if (activeBottomTab === 'oi') {
+      setLoadingMarket(true);
+      dashboardApi.getOpenInterest().then(res => { setOiData(res.data || []); setLoadingMarket(false); }).catch(() => setLoadingMarket(false));
+    } else if (activeBottomTab === 'liquidations') {
+      setLoadingMarket(true);
+      dashboardApi.getLiquidations().then(res => { setLiqData(res.data || []); setLoadingMarket(false); }).catch(() => setLoadingMarket(false));
     }
-  }, [activeBottomTab, equityIntelTab, equitySignal, fetchFinvizScreener, fetchFinvizInsiders]);
+  }, [activeBottomTab]);
 
 
   // WebSocket — add new signals to the live feed
@@ -572,11 +551,11 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
                   🧠 AI Cognitive Audit
                 </button>
                 <button
-                  onClick={() => setActiveBottomTab('equity_intel')}
+                  onClick={() => setActiveBottomTab('funding')}
                   style={{
-                    background: activeBottomTab === 'equity_intel' ? 'rgba(0, 255, 187, 0.1)' : 'none',
+                    background: activeBottomTab === 'funding' ? 'rgba(245, 158, 11, 0.1)' : 'none',
                     border: 'none',
-                    color: activeBottomTab === 'equity_intel' ? '#00ffbb' : 'var(--text-secondary)',
+                    color: activeBottomTab === 'funding' ? '#f59e0b' : 'var(--text-secondary)',
                     fontSize: '14px',
                     fontWeight: 700,
                     padding: '4px 10px',
@@ -584,7 +563,37 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
                     cursor: 'pointer',
                   }}
                 >
-                  Equity Intel (Finviz)
+                  💰 Funding
+                </button>
+                <button
+                  onClick={() => setActiveBottomTab('oi')}
+                  style={{
+                    background: activeBottomTab === 'oi' ? 'rgba(59, 130, 246, 0.1)' : 'none',
+                    border: 'none',
+                    color: activeBottomTab === 'oi' ? '#3b82f6' : 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  📊 Open Interest
+                </button>
+                <button
+                  onClick={() => setActiveBottomTab('liquidations')}
+                  style={{
+                    background: activeBottomTab === 'liquidations' ? 'rgba(239, 68, 68, 0.1)' : 'none',
+                    border: 'none',
+                    color: activeBottomTab === 'liquidations' ? '#ef4444' : 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🔥 Ликвидации
                 </button>
               </div>
               {activeBottomTab === 'signals' && (
@@ -680,190 +689,131 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
                   ))
                 )}
               </div>
-            ) : (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {/* Sub-tabs header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => setEquityIntelTab('screener')}
-                      style={{
-                        background: equityIntelTab === 'screener' ? 'rgba(0,255,187,0.1)' : 'none',
-                        border: 'none',
-                        color: equityIntelTab === 'screener' ? '#00ffbb' : 'var(--text-secondary)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Скринер акций
-                    </button>
-                    <button
-                      onClick={() => setEquityIntelTab('insiders')}
-                      style={{
-                        background: equityIntelTab === 'insiders' ? 'rgba(0,255,187,0.1)' : 'none',
-                        border: 'none',
-                        color: equityIntelTab === 'insiders' ? '#00ffbb' : 'var(--text-secondary)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Инсайдерские сделки
-                    </button>
-                  </div>
-
-                  {equityIntelTab === 'screener' && (
-                    <select
-                      value={equitySignal}
-                      onChange={(e) => setEquitySignal(e.target.value)}
-                      style={{
-                        background: 'var(--bg-accent)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        color: 'var(--text-primary)',
-                        fontSize: '11px',
-                        padding: '4px 8px',
-                        fontWeight: 600,
-                        outline: 'none',
-                      }}
-                    >
-                      <option value="top_gainers">📈 Лидеры роста</option>
-                      <option value="top_losers">📉 Лидеры падения</option>
-                      <option value="new_high">🚀 Новые хаи</option>
-                      <option value="new_low">🩸 Новые лои</option>
-                      <option value="most_active">🔥 Самые активные</option>
-                    </select>
-                  )}
-                </div>
-
-                {/* Table area */}
-                {loadingFinviz ? (
-                  <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>
-                    ◌ Загрузка данных Finviz...
-                  </div>
-                ) : equityIntelTab === 'screener' ? (
-                  <div style={{ overflowX: 'auto', maxHeight: '250px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                          <th style={{ padding: '8px' }}>Тикер</th>
-                          <th style={{ padding: '8px' }}>Компания</th>
-                          <th style={{ padding: '8px' }}>Сектор</th>
-                          <th style={{ padding: '8px', textAlign: 'right' }}>Цена</th>
-                          <th style={{ padding: '8px', textAlign: 'right' }}>Изм. %</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {finvizScreener.length === 0 && (
-                          <tr>
-                            <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Нет доступных акций</td>
-                          </tr>
-                        )}
-                        {finvizScreener.map((item, idx) => {
-                          const changeStr = String(item.change || item.change_val || item['change_val_%'] || '');
-                          const isPositive = changeStr.includes('+') || parseFloat(changeStr) > 0;
-                          return (
-                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', hover: { background: 'rgba(255,255,255,0.02)' } }}>
-                              <td style={{ padding: '8px' }}>
-                                <span
-                                  onClick={() => setSelectedStockChart(item.ticker || item.ticker_val)}
-                                  style={{
-                                    fontWeight: 800,
-                                    color: '#00ffbb',
-                                    cursor: 'pointer',
-                                    textDecoration: 'underline',
-                                  }}
-                                >
-                                  {item.ticker || item.ticker_val}
-                                </span>
-                              </td>
-                              <td style={{ padding: '8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
-                                {item.company || item.company_name || '—'}
-                              </td>
-                              <td style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '11px' }}>{item.sector || '—'}</td>
-                              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, fontFamily: 'monospace' }}>
-                                ${item.price ? parseFloat(String(item.price)).toFixed(2) : '—'}
-                              </td>
-                              <td style={{
-                                padding: '8px',
-                                textAlign: 'right',
-                                fontWeight: 700,
-                                color: isPositive ? '#10b981' : '#ef4444',
-                                fontFamily: 'monospace'
-                              }}>
-                                {changeStr || '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+            ) : activeBottomTab === 'funding' ? (
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px' }}>
+                {loadingMarket ? (
+                  <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>◌ Загрузка Funding Rate...</div>
+                ) : fundingData.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>Нет данных</div>
                 ) : (
-                  <div style={{ overflowX: 'auto', maxHeight: '250px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                          <th style={{ padding: '8px' }}>Тикер</th>
-                          <th style={{ padding: '8px' }}>Владелец</th>
-                          <th style={{ padding: '8px' }}>Должность</th>
-                          <th style={{ padding: '8px' }}>Тип</th>
-                          <th style={{ padding: '8px', textAlign: 'right' }}>Сумма</th>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Пара</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Rate %</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Annual %</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Сторона</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fundingData.map((f: any) => (
+                        <tr key={f.pair} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '8px', fontWeight: 700, color: 'var(--text-primary)' }}>{f.pair.replace('USDT', '')}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: f.rate > 0 ? '#10b981' : f.rate < 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                            {f.rate > 0 ? '+' : ''}{f.ratePercent}%
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                            {f.annualized > 0 ? '+' : ''}{f.annualized}%
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: f.side === 'LONG_PAY' ? 'rgba(16,185,129,0.12)' : f.side === 'SHORT_PAY' ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.12)', color: f.side === 'LONG_PAY' ? '#10b981' : f.side === 'SHORT_PAY' ? '#ef4444' : '#64748b' }}>
+                              {f.side === 'LONG_PAY' ? 'Лонги платят' : f.side === 'SHORT_PAY' ? 'Шорты платят' : 'Нейтрально'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            {f.anomaly && <span style={{ fontSize: '10px', fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 4 }}>⚠ АНОМАЛИЯ</span>}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {finvizInsiders.length === 0 && (
-                          <tr>
-                            <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Нет инсайдерских сделок</td>
-                          </tr>
-                        )}
-                        {finvizInsiders.map((item, idx) => {
-                          const isBuy = String(item.transaction || '').toLowerCase().includes('buy') || String(item.transaction || '').toLowerCase().includes('option');
-                          const rawVal = String(item['value_($)'] || item.value || '');
-                          return (
-                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                              <td style={{ padding: '8px' }}>
-                                <span
-                                  onClick={() => setSelectedStockChart(item.ticker)}
-                                  style={{
-                                    fontWeight: 800,
-                                    color: '#00ffbb',
-                                    cursor: 'pointer',
-                                    textDecoration: 'underline',
-                                  }}
-                                >
-                                  {item.ticker}
-                                </span>
-                              </td>
-                              <td style={{ padding: '8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>
-                                {item.owner || item.insider_trader || '—'}
-                              </td>
-                              <td style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '10px' }}>{item.relationship || '—'}</td>
-                              <td style={{
-                                padding: '8px',
-                                fontWeight: 700,
-                                color: isBuy ? '#10b981' : '#f59e0b',
-                                fontSize: '11px'
-                              }}>
-                                {item.transaction || '—'}
-                              </td>
-                              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: isBuy ? '#10b981' : 'var(--text-primary)' }}>
-                                ${rawVal || '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
-            )}
+            ) : activeBottomTab === 'oi' ? (
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px' }}>
+                {loadingMarket ? (
+                  <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>◌ Загрузка Open Interest...</div>
+                ) : oiData.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>Нет данных</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Пара</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>OI (USD)</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Цена</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Δ1h</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Сигнал</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {oiData.map((o: any) => (
+                        <tr key={o.pair} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '8px', fontWeight: 700, color: 'var(--text-primary)' }}>{o.pair.replace('USDT', '')}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                            ${o.oiValueUsd >= 1e9 ? (o.oiValueUsd / 1e9).toFixed(1) + 'B' : o.oiValueUsd >= 1e6 ? (o.oiValueUsd / 1e6).toFixed(1) + 'M' : o.oiValueUsd.toLocaleString()}
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>${o.price.toLocaleString()}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: o.priceChange1h >= 0 ? '#10b981' : '#ef4444' }}>
+                            {o.priceChange1h >= 0 ? '+' : ''}{o.priceChange1h}%
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: o.interpretation === 'TREND_CONFIRM' ? 'rgba(16,185,129,0.12)' : o.interpretation === 'SELL_PRESSURE' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)', color: o.interpretation === 'TREND_CONFIRM' ? '#10b981' : o.interpretation === 'SELL_PRESSURE' ? '#ef4444' : '#3b82f6' }}>
+                              {o.interpretation === 'TREND_CONFIRM' ? '📈 Тренд' : o.interpretation === 'SELL_PRESSURE' ? '📉 Давление' : '📊 Накопление'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ) : activeBottomTab === 'liquidations' ? (
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px' }}>
+                {loadingMarket ? (
+                  <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>◌ Загрузка ликвидаций...</div>
+                ) : liqData.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)', fontSize: '12px' }}>Нет данных</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Пара</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Цена</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Vol Spike</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Long Liq ↓</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Short Liq ↑</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Риск</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {liqData.map((l: any) => (
+                        <tr key={l.pair} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '8px', fontWeight: 700, color: 'var(--text-primary)' }}>{l.pair.replace('USDT', '')}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>${l.price.toLocaleString()}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: l.volumeSpike > 1.5 ? '#f59e0b' : 'var(--text-secondary)' }}>
+                            {l.volumeSpike}x
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>
+                            ${l.longLiqZone.toLocaleString()} ({l.distToLongLiq}%)
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'monospace', color: '#10b981' }}>
+                            ${l.shortLiqZone.toLocaleString()} ({l.distToShortLiq}%)
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: l.risk === 'HIGH' ? 'rgba(239,68,68,0.15)' : l.risk === 'MEDIUM' ? 'rgba(245,158,11,0.15)' : 'rgba(100,116,139,0.1)', color: l.risk === 'HIGH' ? '#ef4444' : l.risk === 'MEDIUM' ? '#f59e0b' : '#64748b' }}>
+                              {l.risk === 'HIGH' ? '🔥 ВЫСОКИЙ' : l.risk === 'MEDIUM' ? '⚡ СРЕДНИЙ' : '✓ НИЗКИЙ'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ) : null}
+            {/* Dead code below removed — was Finviz equity_intel */}
           </div>
 
           {/* RIGHT: Top Strategies + Market Pulse */}
@@ -931,95 +881,6 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
           ))}
         </div>
 
-        {/* Stock Chart Modal */}
-        {selectedStockChart && (
-          <div
-            onClick={() => setSelectedStockChart(null)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(10px)',
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '20px',
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '24px',
-                width: '100%',
-                maxWidth: '720px',
-                padding: '24px',
-                boxShadow: 'var(--card-shadow)',
-                position: 'relative',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    📈 Технический график: {selectedStockChart}
-                  </h3>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    Дневной таймфрейм (Finviz Daily Stock Chart)
-                  </span>
-                </div>
-                <button
-                  onClick={() => setSelectedStockChart(null)}
-                  style={{
-                    background: 'var(--bg-accent)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#111' }}>
-                <img
-                  src={`https://finviz.com/chart.ashx?t=${selectedStockChart}&ty=c&ta=1&p=d&s=l`}
-                  alt={`${selectedStockChart} Daily Chart`}
-                  style={{ width: '100%', display: 'block' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                <button
-                  onClick={() => setSelectedStockChart(null)}
-                  style={{
-                    background: 'var(--accent-color)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '8px 18px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Закрыть
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
 

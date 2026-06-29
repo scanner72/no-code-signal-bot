@@ -19,6 +19,9 @@ export const systemApi = {
 export const dashboardApi = {
   getStats: () => api.get('/dashboard/stats'),
   getScreener: () => api.get('/dashboard/screener'),
+  getFunding: () => api.get('/dashboard/funding'),
+  getOpenInterest: () => api.get('/dashboard/open-interest'),
+  getLiquidations: () => api.get('/dashboard/liquidations'),
 };
 
 export const paperTradingApi = {

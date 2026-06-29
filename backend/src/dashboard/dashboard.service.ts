@@ -5,6 +5,7 @@ import { Signal } from '../signals/signal.entity';
 import { Strategy } from '../strategies/strategy.entity';
 import { Candle } from '../candles/candle.entity';
 import { SettingsService } from '../settings/settings.service';
+import { BinanceApiService } from '../candles/binance-api.service';
 
 @Injectable()
 export class DashboardService {
@@ -18,6 +19,7 @@ export class DashboardService {
     @InjectRepository(Candle)
     private readonly candleRepository: Repository<Candle>,
     private readonly settingsService: SettingsService,
+    private readonly binanceApi: BinanceApiService,
   ) {}
 
   async getStats() {
@@ -150,6 +152,127 @@ export class DashboardService {
     }
 
     return days;
+  }
+
+  async getFundingRates() {
+    const dbPairs = await this.settingsService.get('trading_pairs');
+    const pairs = (dbPairs || process.env.TRADING_PAIRS || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+
+    const results = [];
+    for (const pair of pairs) {
+      try {
+        const ticker = await this.binanceApi.fetchTicker(pair);
+        const rate = ticker.lastFundingRate;
+        const annualized = rate * 3 * 365 * 100;
+        results.push({
+          pair,
+          rate,
+          ratePercent: +(rate * 100).toFixed(4),
+          annualized: +annualized.toFixed(1),
+          side: rate > 0.0001 ? 'LONG_PAY' : rate < -0.0001 ? 'SHORT_PAY' : 'NEUTRAL',
+          anomaly: Math.abs(rate) > 0.001,
+        });
+      } catch (e) {
+        this.logger.warn(`Funding: failed for ${pair}: ${e.message}`);
+      }
+    }
+    return results.sort((a, b) => Math.abs(b.rate) - Math.abs(a.rate));
+  }
+
+  async getOpenInterest() {
+    const dbPairs = await this.settingsService.get('trading_pairs');
+    const pairs = (dbPairs || process.env.TRADING_PAIRS || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+
+    const results = [];
+    for (const pair of pairs) {
+      try {
+        const ticker = await this.binanceApi.fetchTicker(pair);
+        const candles = await this.candleRepository.find({
+          where: { pair, timeframe: '1h' },
+          order: { time: 'DESC' },
+          take: 2,
+        });
+
+        const currentPrice = candles.length > 0 ? parseFloat(candles[0].close.toString()) : ticker.markPrice;
+        const prevPrice = candles.length > 1 ? parseFloat(candles[1].close.toString()) : currentPrice;
+        const priceChange = prevPrice > 0 ? ((currentPrice - prevPrice) / prevPrice) * 100 : 0;
+        const oiValue = ticker.openInterest * currentPrice;
+
+        let interpretation = 'NEUTRAL';
+        if (priceChange > 0.3 && ticker.openInterest > 0) interpretation = 'TREND_CONFIRM';
+        else if (priceChange < -0.3 && ticker.openInterest > 0) interpretation = 'SELL_PRESSURE';
+        else if (Math.abs(priceChange) < 0.1) interpretation = 'ACCUMULATION';
+
+        results.push({
+          pair,
+          openInterest: ticker.openInterest,
+          oiValueUsd: +oiValue.toFixed(0),
+          price: +currentPrice.toFixed(2),
+          priceChange1h: +priceChange.toFixed(2),
+          interpretation,
+        });
+      } catch (e) {
+        this.logger.warn(`OI: failed for ${pair}: ${e.message}`);
+      }
+    }
+    return results.sort((a, b) => b.oiValueUsd - a.oiValueUsd);
+  }
+
+  async getLiquidations() {
+    const dbPairs = await this.settingsService.get('trading_pairs');
+    const pairs = (dbPairs || process.env.TRADING_PAIRS || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+
+    const results = [];
+    for (const pair of pairs) {
+      try {
+        const candles = await this.candleRepository.find({
+          where: { pair, timeframe: '1h' },
+          order: { time: 'DESC' },
+          take: 24,
+        });
+
+        if (candles.length === 0) continue;
+
+        const latest = candles[0];
+        const price = parseFloat(latest.close.toString());
+        const volumes = candles.map(c => parseFloat(c.volume.toString()));
+        const avgVol = volumes.reduce((s, v) => s + v, 0) / volumes.length;
+        const latestVol = volumes[0];
+        const volSpike = avgVol > 0 ? latestVol / avgVol : 0;
+
+        const high24 = Math.max(...candles.map(c => parseFloat(c.high.toString())));
+        const low24 = Math.min(...candles.map(c => parseFloat(c.low.toString())));
+        const range = high24 - low24;
+        const rangePercent = price > 0 ? (range / price) * 100 : 0;
+
+        const longLiqZone = low24 * 0.99;
+        const shortLiqZone = high24 * 1.01;
+        const distToLongLiq = price > 0 ? ((price - longLiqZone) / price) * 100 : 0;
+        const distToShortLiq = price > 0 ? ((shortLiqZone - price) / price) * 100 : 0;
+
+        let risk = 'LOW';
+        if (volSpike > 2 && rangePercent > 3) risk = 'HIGH';
+        else if (volSpike > 1.5 || rangePercent > 2) risk = 'MEDIUM';
+
+        results.push({
+          pair,
+          price: +price.toFixed(2),
+          volumeSpike: +volSpike.toFixed(2),
+          range24hPercent: +rangePercent.toFixed(2),
+          longLiqZone: +longLiqZone.toFixed(2),
+          shortLiqZone: +shortLiqZone.toFixed(2),
+          distToLongLiq: +distToLongLiq.toFixed(2),
+          distToShortLiq: +distToShortLiq.toFixed(2),
+          risk,
+        });
+      } catch (e) {
+        this.logger.warn(`Liquidation: failed for ${pair}: ${e.message}`);
+      }
+    }
+    return results.sort((a, b) => {
+      const riskOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+      return (riskOrder[a.risk] || 2) - (riskOrder[b.risk] || 2);
+    });
   }
 
   async getScreener() {
