@@ -186,20 +186,23 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
     return sourceNode?.type?.includes('exchange') || sourceNode?.type === 'scanner' || false;
   }, [nodes, edges]);
 
+  const prevExchangeRef = useRef<{ connected: boolean; pair: string }>({ connected: false, pair: '' });
   useEffect(() => {
-    const inputNode = nodes.find(n => n.type === 'input' && n.data?.showInputConnector);
-    if (!inputNode) return;
-    const incomingEdge = edges.find(e => e.target === inputNode.id);
-    const sourceNode = incomingEdge ? nodes.find(n => n.id === incomingEdge.source) : null;
-    const isExchange = sourceNode?.type?.includes('exchange') || sourceNode?.type === 'scanner';
-    const exchangePair = isExchange ? (sourceNode?.data?.pair || sourceNode?.data?.symbol || '') : '';
-    if (!!inputNode.data.exchangeConnected !== !!isExchange || inputNode.data.exchangePair !== exchangePair) {
-      setNodes(nds => nds.map(n => n.id === inputNode.id
-        ? { ...n, data: { ...n.data, exchangeConnected: !!isExchange, exchangePair } }
+    setNodes(nds => {
+      const inputNode = nds.find(n => n.type === 'input' && n.data?.showInputConnector);
+      if (!inputNode) return nds;
+      const incomingEdge = edges.find(e => e.target === inputNode.id);
+      const sourceNode = incomingEdge ? nds.find(n => n.id === incomingEdge.source) : null;
+      const isExchange = !!(sourceNode?.type?.includes('exchange') || sourceNode?.type === 'scanner');
+      const exchangePair = isExchange ? (sourceNode?.data?.pair || sourceNode?.data?.symbol || '') : '';
+      if (prevExchangeRef.current.connected === isExchange && prevExchangeRef.current.pair === exchangePair) return nds;
+      prevExchangeRef.current = { connected: isExchange, pair: exchangePair };
+      return nds.map(n => n.id === inputNode.id
+        ? { ...n, data: { ...n.data, exchangeConnected: isExchange, exchangePair } }
         : n
-      ));
-    }
-  }, [edges, nodes, setNodes]);
+      );
+    });
+  }, [edges, setNodes]);
 
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const reactFlowInstanceRef = useRef<any>(null);
