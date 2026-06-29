@@ -1393,16 +1393,132 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
   // Count recognized nodes (excluding input node and signal nodes)
   const parsedNodeCount = nodes.filter(n => n.type !== 'input' && n.type !== 'signal').length;
 
-  // Fallback: If no nodes were generated (other than the input node),
-  // create a Custom Code node with the entire script.
-  if (nodes.length === 1) {
+  // Extract script name and type
+  const scriptNameMatch = code.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
+  const scriptName = scriptNameMatch ? scriptNameMatch[1] : 'Pine Script';
+  const scriptType = /\bstrategy\s*\(/.test(code) ? 'strategy' : 'indicator';
+
+  // Extract all input parameters with full metadata for Pine Block
+  const allPineInputs: Array<{
+    paramName: string; type: string; defaultValue: any; title?: string;
+    minValue?: number; maxValue?: number; options?: string[];
+    group?: string; tooltip?: string; step?: number;
+  }> = [];
+  const fullInputRx = /(\w+)\s*=\s*input\.(int|float|bool|string|timeframe)\s*\(([^)]*)\)/gi;
+  for (const m of code.matchAll(fullInputRx)) {
+    const [, paramName, type, argsStr] = m;
+    const defMatch = argsStr.match(/(?:defval\s*=\s*)?(?:["']([^"']+)["']|(\d+(?:\.\d+)?)|(\btrue\b|\bfalse\b))/);
+    const titleMatch = argsStr.match(/title\s*=\s*["']([^"']+)["']/);
+    const groupMatch = argsStr.match(/group\s*=\s*(\w+)/);
+    const tooltipMatch = argsStr.match(/tooltip\s*=\s*["']([^"']+)["']/);
+    const minMatch = argsStr.match(/minval\s*=\s*([\d.]+)/);
+    const maxMatch = argsStr.match(/maxval\s*=\s*([\d.]+)/);
+    const stepMatch = argsStr.match(/step\s*=\s*([\d.]+)/);
+    const optionsMatch = argsStr.match(/options\s*=\s*\[([^\]]+)\]/);
+
+    let defaultValue: any = defMatch ? (defMatch[1] || defMatch[2] || defMatch[3]) : '';
+    if (type === 'int') defaultValue = parseInt(String(defaultValue), 10) || 0;
+    else if (type === 'float') defaultValue = parseFloat(String(defaultValue)) || 0;
+    else if (type === 'bool') defaultValue = defaultValue === 'true';
+
+    let groupName = groupMatch ? groupMatch[1] : undefined;
+    if (groupName) {
+      const groupVarRx = new RegExp(`${groupName}\\s*=\\s*["']([^"']+)["']`);
+      const gm = code.match(groupVarRx);
+      if (gm) groupName = gm[1];
+    }
+
+    allPineInputs.push({
+      paramName, type,
+      defaultValue,
+      title: titleMatch?.[1] || paramName,
+      minValue: minMatch ? parseFloat(minMatch[1]) : undefined,
+      maxValue: maxMatch ? parseFloat(maxMatch[1]) : undefined,
+      step: stepMatch ? parseFloat(stepMatch[1]) : undefined,
+      options: optionsMatch ? optionsMatch[1].split(',').map(s => s.trim().replace(/["']/g, '')) : undefined,
+      group: groupName,
+      tooltip: tooltipMatch?.[1],
+    });
+  }
+
+  // Extract alertcondition titles for Pine Block alerts
+  const pineAlerts: Array<{ title: string; type: 'LONG' | 'SHORT' }> = [];
+  const alertBlockRx = /alertcondition\s*\([^,]+,\s*["']([^"']+)["']/g;
+  for (const am of code.matchAll(alertBlockRx)) {
+    const title = am[1];
+    const type: 'LONG' | 'SHORT' = /sell|short|bear/i.test(title) ? 'SHORT' : 'LONG';
+    pineAlerts.push({ title, type });
+  }
+
+  // Determine if we should use Pine Block mode:
+  // Complex indicator with many unsupported constructs → cleaner as single Pine Block
+  const isComplexIndicator = scriptType === 'indicator' && unsupported.length >= 3;
+  const hasLotsOfNoise = cmpNodes.length > 8 && signalSources.length <= 2;
+  const usePineBlockMode = isComplexIndicator || (hasLotsOfNoise && unsupported.length >= 2);
+
+  if (usePineBlockMode) {
+    parseLogger.info('Using Pine Block mode for complex script', { scriptName, unsupported: unsupported.length, cmpNodes: cmpNodes.length });
+
+    // Reset to clean graph: Input → Pine Block → Signals
+    nodes.length = 0;
+    edges.length = 0;
+
+    const cleanInputId = uid('input');
+    nodes.push({ id: cleanInputId, type: 'input', position: { x: 50, y: 220 }, data: { source: 'Mark Price', showInputConnector: true } });
+
+    const pineBlockId = uid('pine_block');
+    nodes.push({
+      id: pineBlockId,
+      type: 'pine_block',
+      position: { x: 320, y: 120 },
+      data: {
+        scriptName,
+        scriptType,
+        pineCode: code,
+        pineInputs: allPineInputs,
+        pineAlerts,
+        varName: scriptName,
+        funcName: scriptType,
+      },
+    });
+    addEdge(cleanInputId, pineBlockId);
+
+    // Create signal nodes from alertcondition or strategy.entry
+    const alertTypes = new Set<string>();
+    for (const alert of pineAlerts) {
+      if (!alertTypes.has(alert.type)) {
+        alertTypes.add(alert.type);
+        const sigId = uid(`signal_${alert.type.toLowerCase()}`);
+        nodes.push({
+          id: sigId, type: 'signal',
+          position: { x: 680, y: alert.type === 'LONG' ? 160 : 300 },
+          data: { signalType: alert.type },
+        });
+        addEdge(pineBlockId, sigId, undefined, alert.type === 'LONG' ? '#10B981' : '#EF4444');
+      }
+    }
+    if (alertTypes.size === 0) {
+      const sigId = uid('signal');
+      nodes.push({ id: sigId, type: 'signal', position: { x: 680, y: 220 }, data: { signalType: 'LONG' } });
+      addEdge(pineBlockId, sigId, undefined, '#10B981');
+    }
+
+    report.quality = 'full';
+    report.qualityPercent = 100;
+    report.indicators = [scriptName];
+    report.warnings = [];
+    parseLogger.success('Pine Block mode complete', {
+      quality: 'full', nodeCount: nodes.length, inputs: allPineInputs.length, alerts: pineAlerts.length,
+    });
+  } else if (nodes.length === 1) {
+    // Fallback: If no nodes were generated (other than the input node)
     parseLogger.warn('No indicators recognized', { nodeCount: nodes.length });
     const customId = uid('custom_pine');
     nodes.push({
       id: customId,
-      type: 'custom_code',
+      type: 'pine_block',
       position: { x: 320, y: 220 },
-      data: { name: 'PineScript Block', code: code }
+      data: { scriptName, scriptType, pineCode: code, pineInputs: allPineInputs, pineAlerts, varName: scriptName, funcName: scriptType },
     });
     addEdge(inputId, customId);
 
@@ -1412,7 +1528,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
 
     report.quality = 'fallback';
     report.qualityPercent = 0;
-    report.warnings.push('No indicators recognized — entire script placed in Custom Code node');
+    report.warnings.push('No indicators recognized — script placed in Pine Block');
     parseLogger.warn('Fallback mode activated', { quality: 'fallback' });
   } else {
     // Estimate quality: ratio of recognized ta.* calls vs total
