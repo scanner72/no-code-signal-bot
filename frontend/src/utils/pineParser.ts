@@ -1309,7 +1309,13 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     'macd', 'bb', 'stoch', 'atr', 'cci', 'mfi', 'obv', 'adx', 'dmi',
     'roc', 'mom', 'vwap', 'wpr', 'supertrend',
     'crossover', 'crossunder', 'cross',
-    'highest', 'lowest', 'pivothigh', 'pivotlow',
+    'highest', 'lowest', 'highestbars', 'lowestbars',
+    'pivothigh', 'pivotlow',
+    'rising', 'falling', 'change', 'tr',
+    'valuewhen', 'barssince', 'cum',
+    'percentile_linear_interpolation', 'percentile_nearest_rank', 'percentrank',
+    'linreg', 'correlation', 'stdev', 'variance', 'median', 'mode',
+    'swma', 'kama', 'cog',
   ]);
   const unhandledTa = [...new Set(allTaCalls.filter(f => !handledTa.has(f)))];
   for (const fn of unhandledTa) {
@@ -1318,7 +1324,9 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
 
   // Detect unrecognized Pine constructs
   const unsupported: string[] = [];
-  if (/\bfor\b/.test(src)) unsupported.push('for loops');
+  // Only warn about for/while if they weren't converted to lookback nodes
+  const hasForLoopNode = nodes.some(n => n.type === 'lookback_window');
+  if (/\bfor\b/.test(src) && !hasForLoopNode) unsupported.push('for loops');
   if (/\bwhile\b/.test(src)) unsupported.push('while loops');
   if (/\bswitch\b/.test(src)) unsupported.push('switch statements');
   if (/\btype\b\s+\w+/.test(src)) unsupported.push('custom types (v5)');
