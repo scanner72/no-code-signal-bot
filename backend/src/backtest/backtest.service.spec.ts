@@ -42,7 +42,7 @@ describe('BacktestService', () => {
     };
     mockSignalsEngine = { evaluateNode: jest.fn().mockResolvedValue(false) };
     const mockIndicatorsService = { calculateATR: jest.fn().mockReturnValue([2]) };
-    const mockSignalsGateway = { broadcastBacktestProgress: jest.fn() };
+    const mockSignalsGateway = { broadcastProgress: jest.fn().mockResolvedValue(undefined) };
  
     service = new BacktestService(mockStrategyRepo, mockCandlesService, mockSignalsEngine, mockIndicatorsService as any, mockSignalsGateway as any);
   });

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileCode, ArrowRight } from 'lucide-react';
+import { FileCode, ArrowRight, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { parsePineScript } from '../utils/pineParser';
+import { parseLogger, LogEntry } from '../utils/parseLogger';
 import { toast } from '../stores/notificationStore';
 import { useLanguageStore } from '../stores/useLanguageStore';
 
@@ -10,12 +11,21 @@ const PineImport: React.FC = () => {
   const { t } = useLanguageStore();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [recommendations, setRecommendations] = useState<string[]>([]);
 
   const convert = () => {
     if (!code.trim() || busy) return;
     setBusy(true);
+    setShowLogs(true);
     try {
       const parsed = parsePineScript(code);
+      const currentLogs = parseLogger.getLogs();
+      const currentRecommendations = parseLogger.getRecommendations();
+      setLogs(currentLogs);
+      setRecommendations(currentRecommendations);
+
       if (!parsed.nodes.length) {
         toast.error('Не удалось распарсить Pine Script — проверьте синтаксис');
         setBusy(false);
@@ -46,6 +56,10 @@ const PineImport: React.FC = () => {
         },
       });
     } catch (e: any) {
+      const currentLogs = parseLogger.getLogs();
+      const currentRecommendations = parseLogger.getRecommendations();
+      setLogs(currentLogs);
+      setRecommendations(currentRecommendations);
       toast.error(`Ошибка конвертации: ${e?.message || e}`);
       setBusy(false);
     }
@@ -99,6 +113,90 @@ const PineImport: React.FC = () => {
       <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
         {t('pine_import_hint')}
       </div>
+
+      {recommendations.length > 0 && (
+        <div style={{ marginTop: 32, padding: 16, background: 'var(--bg-secondary)', borderRadius: 12, border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+            📋 Рекомендации:
+          </div>
+          {recommendations.map((rec, idx) => (
+            <div key={idx} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+              {rec}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showLogs && logs.length > 0 && (
+        <div style={{ marginTop: 32, border: '1px solid var(--border-color)', borderRadius: 12, overflow: 'hidden' }}>
+          <button
+            onClick={() => setShowLogs(!showLogs)}
+            style={{
+              width: '100%', padding: '12px 16px',
+              background: 'var(--bg-secondary)',
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+            }}
+          >
+            <span>Лог импорта ({logs.length} событий)</span>
+            <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  parseLogger.downloadAsFile();
+                  toast.success('Лог скачан');
+                }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-color)',
+                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
+                }}
+              >
+                <Download size={14} /> Скачать
+              </button>
+              {showLogs ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </span>
+          </button>
+
+          {showLogs && (
+            <div style={{
+              maxHeight: 400, overflowY: 'auto', padding: 12,
+              background: '#0f172a', fontFamily: 'monospace', fontSize: 12,
+            }}>
+              {logs.map((log, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '4px 0', marginBottom: 4,
+                    color: log.level === 'error' ? '#ef4444' : log.level === 'warn' ? '#f59e0b' : log.level === 'success' ? '#10b981' : '#cbd5e1',
+                    borderLeft: '3px solid ' + (
+                      log.level === 'error' ? '#ef4444' : log.level === 'warn' ? '#f59e0b' : log.level === 'success' ? '#10b981' : '#64748b'
+                    ),
+                    paddingLeft: 8,
+                  }}
+                >
+                  <span style={{ color: '#64748b' }}>
+                    {new Date(log.timestamp).toLocaleTimeString('ru-RU')}
+                  </span>
+                  {' '}
+                  <span style={{ fontWeight: 600, textTransform: 'uppercase', fontSize: 11 }}>
+                    [{log.level}]
+                  </span>
+                  {' '}
+                  <span>{log.message}</span>
+                  {log.details && (
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                      {JSON.stringify(log.details, null, 2).split('\n').map((line, i) => (
+                        <div key={i} style={{ marginLeft: 12 }}>{line}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { Node, Edge } from 'reactflow';
+import { parseLogger } from './parseLogger';
 
 let _counter = 0;
 function uid(label: string) {
@@ -76,11 +77,17 @@ interface SignalSource {
 
 export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; report: ParseReport } {
   _counter = 0;
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
-  const push = (e: Edge) => edges.push(e);
+  parseLogger.clear();
+  parseLogger.info('Starting Pine Script parsing', { codeLength: code.length });
 
-  const src = normalizeToV5(stripComments(code));
+  try {
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    const push = (e: Edge) => edges.push(e);
+
+    parseLogger.debug('Stripping comments and normalizing to v5 syntax');
+    const src = normalizeToV5(stripComments(code));
+    parseLogger.debug('Normalization complete', { normalizedLength: src.length });
 
   const report: ParseReport = {
     totalLines: 0,
@@ -93,10 +100,16 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     qualityPercent: 100,
   };
 
+  // Detect Pine Script version
+  const versionMatch = code.match(/@version\s*=\s*(\d+)/i);
+  const pineVersion = versionMatch ? versionMatch[1] : 'unknown';
+  parseLogger.info(`Pine Script version: ${pineVersion}`, { version: pineVersion });
+
   const meaningfulLines = src.split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0 && !l.startsWith('//'));
   report.totalLines = meaningfulLines.length;
+  parseLogger.debug(`Script has ${report.totalLines} meaningful lines`);
 
   const recognizedPatterns = new Set<string>();
   function markRecognized(line: string) {
@@ -127,11 +140,16 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
   // ── 1. Indicators ────────────────────────────────────────────────────────────
 
   // ta.rsi(src, period)
-  const rsiRx = /(\w+)\s*=\s*ta\.rsi\s*\(\s*(\w+)\s*,\s*(\d+)\s*\)/g;
-  for (const m of src.matchAll(rsiRx)) {
+  const rsiRx = /(\w+)\s*=\s*ta\.rsi\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/g;
+  const rsiMatches = [...src.matchAll(rsiRx)];
+  if (rsiMatches.length > 0) {
+    parseLogger.debug(`Found ${rsiMatches.length} RSI indicator(s)`, { vars: rsiMatches.map(m => m[1]) });
+  }
+  for (const m of rsiMatches) {
     const [, varName, , periodStr] = m;
     const nodeId = uid(`rsi_${varName}`);
-    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'RSI', params: { period: +periodStr } } });
+    const period = parseInt(periodStr, 10) || 14;
+    nodes.push({ id: nodeId, type: 'indicator', position: { x: 320, y: indY }, data: { name: 'RSI', params: { period } } });
     addEdge(inputId, nodeId);
     vars[varName] = { nodeId, indType: 'rsi' };
     indY += 110;
@@ -254,7 +272,17 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     indY += 110;
   }
 
-  // volume SMA
+  // ── 1d. Volume Analysis Patterns ────────────────────────────────────────────
+
+  interface VolumeFilter {
+    nodeId: string;
+    filterType: 'crossover' | 'surge' | 'threshold';
+    description: string;
+  }
+
+  const volumeFilters: VolumeFilter[] = [];
+
+  // Pattern 1: volume SMA
   const volRx = /(\w+)\s*=\s*ta\.sma\s*\(\s*volume\s*,\s*(\d+)\s*\)/g;
   for (const m of src.matchAll(volRx)) {
     const [, varName, period] = m;
@@ -264,6 +292,106 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     addEdge(inputId, nodeId);
     vars[varName] = { nodeId, indType: 'volume' };
     indY += 110;
+  }
+
+  // Pattern 2: volume > avg_volume * multiplier (volume surge)
+  const volSurgeRx = /volume\s*>\s*ta\.sma\s*\(\s*volume\s*,\s*(\d+)\s*\)\s*\*\s*([\d.]+)/g;
+  for (const m of src.matchAll(volSurgeRx)) {
+    const [, period, multiplier] = m;
+    const nodeId = uid(`vol_surge`);
+    nodes.push({
+      id: nodeId,
+      type: 'volume_filter',
+      position: { x: 700, y: indY },
+      data: {
+        filterType: 'surge',
+        period: +period,
+        multiplier: +multiplier,
+        description: `Volume > ${multiplier}x ${period}-bar SMA`,
+      },
+    });
+    addEdge(inputId, nodeId);
+    volumeFilters.push({
+      nodeId,
+      filterType: 'surge',
+      description: `Volume surge (>${multiplier}x)`,
+    });
+    indY += 130;
+
+    parseLogger.debug(`Found volume surge pattern`, {
+      period: +period,
+      multiplier: +multiplier,
+    });
+  }
+
+  // Pattern 2b: vol_sma = ta.sma(volume, N) + volume > vol_sma * multiplier
+  if (volumeFilters.length === 0) {
+    const volVarRx = /(\w+)\s*=\s*ta\.sma\s*\(\s*volume\s*,\s*(\d+)\s*\)/g;
+    const volVarMatches = [...src.matchAll(volVarRx)];
+    for (const vm of volVarMatches) {
+      const [, volVarName, period] = vm;
+      const compareRx = new RegExp(`volume\\s*>\\s*${volVarName}\\s*\\*\\s*([\\d.]+)`);
+      const cm = src.match(compareRx);
+      if (cm) {
+        const multiplier = cm[1];
+        const nodeId = uid(`vol_surge`);
+        nodes.push({
+          id: nodeId,
+          type: 'volume_filter',
+          position: { x: 700, y: indY },
+          data: {
+            filterType: 'surge',
+            period: +period,
+            multiplier: +multiplier,
+            description: `Volume > ${multiplier}x ${period}-bar SMA`,
+          },
+        });
+        addEdge(inputId, nodeId);
+        volumeFilters.push({
+          nodeId,
+          filterType: 'surge',
+          description: `Volume surge (>${multiplier}x)`,
+        });
+        indY += 130;
+        parseLogger.debug(`Found volume surge pattern (variable)`, { period: +period, multiplier: +multiplier });
+      }
+    }
+  }
+
+  // Pattern 3: volume > sma_volume (crossover)
+  const volCrossRx = /volume\s*>\s*(\w+)\s*(?:sma|avg).*?volume/gi;
+  for (const m of src.matchAll(volCrossRx)) {
+    const [, varName] = m;
+    if (volumeFilters.some(v => v.description.includes('crossover'))) continue;
+
+    const nodeId = uid(`vol_cross`);
+    nodes.push({
+      id: nodeId,
+      type: 'volume_filter',
+      position: { x: 700, y: indY },
+      data: {
+        filterType: 'crossover',
+        description: `Volume crossover above SMA`,
+      },
+    });
+
+    addEdge(inputId, nodeId);
+    volumeFilters.push({
+      nodeId,
+      filterType: 'crossover',
+      description: 'Volume crossover',
+    });
+    indY += 130;
+
+    parseLogger.debug(`Found volume crossover pattern`);
+  }
+
+  // Math functions: math.abs, math.max, math.min, math.round, etc.
+  const mathRx = /(\w+)\s*=\s*math\.(abs|max|min|round|ceil|floor|sqrt|pow|log)\s*\(/g;
+  for (const m of src.matchAll(mathRx)) {
+    const [, varName, func] = m;
+    vars[varName] = { nodeId: inputId, indType: 'math' };
+    parseLogger.debug(`Found math function: math.${func}`, { varName, func });
   }
 
   // ta.adx(period) / ta.dmi(period) → ADX indicator
@@ -362,17 +490,249 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     indY += 110;
   }
 
-  // input.int / input.float / input.bool / input.source / input() → extract default value
-  const inputRx = /(\w+)\s*=\s*input(?:\.\w+)?\s*\(\s*(?:defval\s*=\s*)?(\d+(?:\.\d+)?)/g;
+  // ── 1b. Input Parameters (input.int, input.float, etc.) ──────────────────────
+
+  interface InputParameter {
+    nodeId: string;
+    paramName: string;
+    type: string; // 'int', 'float', 'bool', 'string'
+    defaultValue: any;
+    minVal?: number;
+    maxVal?: number;
+    title?: string;
+  }
+
+  const inputParameters: InputParameter[] = [];
+
+  // Pattern: varName = input.int(defval=14, title="RSI Period", minval=2, maxval=50)
+  const inputIntRx = /(\w+)\s*=\s*input\.int\s*\(\s*(?:defval\s*=\s*)?(\d+)(?:.*?title\s*=\s*["']([^"']+)["'])?(?:.*?minval\s*=\s*(\d+))?(?:.*?maxval\s*=\s*(\d+))?\s*\)/gi;
+
+  for (const m of src.matchAll(inputIntRx)) {
+    const [, paramName, defValStr, title, minStr, maxStr] = m;
+    if (vars[paramName]) continue;
+
+    const nodeId = uid(`input_${paramName}`);
+    const defVal = parseInt(defValStr, 10);
+
+    nodes.push({
+      id: nodeId,
+      type: 'input_param',
+      position: { x: 50, y: indY },
+      data: {
+        paramName,
+        type: 'int',
+        defaultValue: defVal,
+        minValue: minStr ? parseInt(minStr, 10) : undefined,
+        maxValue: maxStr ? parseInt(maxStr, 10) : undefined,
+        title: title || paramName,
+      },
+    });
+
+    inputParameters.push({
+      nodeId,
+      paramName,
+      type: 'int',
+      defaultValue: defVal,
+      minVal: minStr ? parseInt(minStr, 10) : undefined,
+      maxVal: maxStr ? parseInt(maxStr, 10) : undefined,
+      title: title || paramName,
+    });
+
+    vars[paramName] = { nodeId, indType: 'input_param' };
+    indY += 100;
+
+    parseLogger.debug(`Found input.int parameter`, {
+      paramName,
+      defaultValue: defVal,
+      title,
+      minVal: minStr ? parseInt(minStr, 10) : undefined,
+      maxVal: maxStr ? parseInt(maxStr, 10) : undefined,
+    });
+  }
+
+  // Pattern: varName = input.float(defval=0.5, title="Threshold")
+  const inputFloatRx = /(\w+)\s*=\s*input\.float\s*\(\s*(?:defval\s*=\s*)?([\d.]+)(?:.*?title\s*=\s*["']([^"']+)["'])?(?:.*?minval\s*=\s*([\d.]+))?(?:.*?maxval\s*=\s*([\d.]+))?\s*\)/gi;
+
+  for (const m of src.matchAll(inputFloatRx)) {
+    const [, paramName, defValStr, title, minStr, maxStr] = m;
+    if (vars[paramName]) continue;
+
+    const nodeId = uid(`input_${paramName}`);
+    const defVal = parseFloat(defValStr);
+
+    nodes.push({
+      id: nodeId,
+      type: 'input_param',
+      position: { x: 50, y: indY },
+      data: {
+        paramName,
+        type: 'float',
+        defaultValue: defVal,
+        minValue: minStr ? parseFloat(minStr) : undefined,
+        maxValue: maxStr ? parseFloat(maxStr) : undefined,
+        title: title || paramName,
+      },
+    });
+
+    inputParameters.push({
+      nodeId,
+      paramName,
+      type: 'float',
+      defaultValue: defVal,
+      minVal: minStr ? parseFloat(minStr) : undefined,
+      maxVal: maxStr ? parseFloat(maxStr) : undefined,
+      title: title || paramName,
+    });
+
+    vars[paramName] = { nodeId, indType: 'input_param' };
+    indY += 100;
+
+    parseLogger.debug(`Found input.float parameter`, {
+      paramName,
+      defaultValue: defVal,
+      title,
+      minVal: minStr ? parseFloat(minStr) : undefined,
+      maxVal: maxStr ? parseFloat(maxStr) : undefined,
+    });
+  }
+
+  // Pattern: varName = input.bool(defval=true, title="Enable XYZ")
+  const inputBoolRx = /(\w+)\s*=\s*input\.bool\s*\(\s*(?:defval\s*=\s*)?(true|false)(?:.*?title\s*=\s*["']([^"']+)["'])?\s*\)/gi;
+
+  for (const m of src.matchAll(inputBoolRx)) {
+    const [, paramName, defValStr, title] = m;
+    if (vars[paramName]) continue;
+
+    const nodeId = uid(`input_${paramName}`);
+    const defVal = defValStr.toLowerCase() === 'true';
+
+    nodes.push({
+      id: nodeId,
+      type: 'input_param',
+      position: { x: 50, y: indY },
+      data: {
+        paramName,
+        type: 'bool',
+        defaultValue: defVal,
+        title: title || paramName,
+      },
+    });
+
+    inputParameters.push({
+      nodeId,
+      paramName,
+      type: 'bool',
+      defaultValue: defVal,
+      title: title || paramName,
+    });
+
+    vars[paramName] = { nodeId, indType: 'input_param' };
+    indY += 100;
+
+    parseLogger.debug(`Found input.bool parameter`, {
+      paramName,
+      defaultValue: defVal,
+      title,
+    });
+  }
+
+  // Legacy: input() without type (treat as default)
+  const inputRx = /(\w+)\s*=\s*input(?!\.\w+)\s*\(\s*(?:defval\s*=\s*)?(\d+(?:\.\d+)?)/g;
   for (const m of src.matchAll(inputRx)) {
-    const [, varName, defVal] = m;
-    if (vars[varName]) continue;
-    // Store as a pseudo-variable with the input node (default value as a constant)
-    vars[varName] = { nodeId: inputId, indType: 'input' };
+    const [, paramName, defValStr] = m;
+    if (vars[paramName]) continue;
+
+    const nodeId = uid(`input_${paramName}`);
+    const defVal = parseFloat(defValStr);
+
+    nodes.push({
+      id: nodeId,
+      type: 'input_param',
+      position: { x: 50, y: indY },
+      data: {
+        paramName,
+        type: 'float',
+        defaultValue: defVal,
+        title: paramName,
+      },
+    });
+
+    vars[paramName] = { nodeId, indType: 'input_param' };
+    indY += 100;
+  }
+
+  // ── 1c. Lookback Window Patterns ────────────────────────────────────────────
+
+  interface LookbackWindow {
+    nodeId: string;
+    condition: string;
+    lookbackBars: number;
+    logic: 'all' | 'any' | 'majority';
+  }
+
+  const lookbackWindows: LookbackWindow[] = [];
+
+  // Simple for-loop to lookback: for i = 0 to N / if condition[i]
+  const simpleForRx = /for\s+\w+\s*=\s*0\s+to\s+(\d+)\s*\n\s+if\s+(.+?)\[/gm;
+  for (const m of src.matchAll(simpleForRx)) {
+    const [, barsStr, condition] = m;
+    const bars = parseInt(barsStr, 10);
+    const hasBreak = src.includes('break');
+    const nodeId = uid('lookback_for');
+    nodes.push({
+      id: nodeId,
+      type: 'lookback_window',
+      position: { x: 700, y: indY },
+      data: {
+        lookbackBars: bars + 1,
+        condition: condition.trim(),
+        logic: hasBreak ? 'any' : 'all',
+      },
+    });
+    addEdge(inputId, nodeId);
+    indY += 130;
+    parseLogger.debug('Converted for-loop to lookback window', { bars: bars + 1, condition: condition.trim(), logic: hasBreak ? 'any' : 'all' });
+  }
+
+  // Pattern: for i=0 to N if condition OR check last N bars for condition
+  // Simplified: detect comments or patterns like "last 3 bars rsi > 50"
+  const lookbackRx = /(?:last|past|previous)\s+(\d+)\s+(?:bar|candle)s?\s+(.+?)(?:;|$|\n)/gi;
+
+  for (const m of src.matchAll(lookbackRx)) {
+    const [, barsStr, condition] = m;
+    const bars = parseInt(barsStr, 10);
+
+    const nodeId = uid(`lookback_${bars}`);
+    nodes.push({
+      id: nodeId,
+      type: 'lookback_window',
+      position: { x: 700, y: indY },
+      data: {
+        lookbackBars: bars,
+        condition: condition.trim(),
+        logic: 'all', // default to all
+        description: `All of last ${bars} bars: ${condition.trim()}`,
+      },
+    });
+
+    addEdge(inputId, nodeId);
+    lookbackWindows.push({
+      nodeId,
+      condition: condition.trim(),
+      lookbackBars: bars,
+      logic: 'all',
+    });
+    indY += 130;
+
+    parseLogger.debug(`Found lookback window pattern`, {
+      bars,
+      condition: condition.trim(),
+      logic: 'all',
+    });
   }
 
   // request.security(syminfo, timeframe, expr) → MTF node
-  const secRx = /(\w+)\s*=\s*request\.security\s*\(\s*(?:\w+)\s*,\s*["'](\w+)["']/g;
+  const secRx = /(\w+)\s*=\s*request\.security\s*\(\s*(?:[\w.]+)\s*,\s*["'](\w+)["']/g;
   for (const m of src.matchAll(secRx)) {
     const [, varName, tf] = m;
     if (vars[varName]) continue;
@@ -433,7 +793,13 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     }
   }
 
-  for (const m of src.matchAll(crossRx)) {
+  const crossMatches = [...src.matchAll(crossRx)];
+  if (crossMatches.length > 0) {
+    parseLogger.debug(`Found ${crossMatches.length} crossover/under signal(s)`, {
+      signals: crossMatches.map(m => ({ var: m[1], type: m[2], left: m[3], right: m[4] })),
+    });
+  }
+  for (const m of crossMatches) {
     const [, varName, crossType, leftVar, rightVar] = m;
     buildCross(varName, crossType, leftVar, rightVar);
   }
@@ -446,6 +812,13 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
 
   // var > N  or  var > var2
   const cmpRx = /\b(\w+)\s*(>|<|>=|<=|==)\s*(\w+(?:\.\w+)?)\b/g;
+  const cmpMatches = [...src.matchAll(cmpRx)].filter(m => vars[m[1]]);
+  if (cmpMatches.length > 0) {
+    parseLogger.debug(`Found ${cmpMatches.length} comparison(s)`, {
+      comparisons: cmpMatches.map(m => `${m[1]} ${m[2]} ${m[3]}`),
+    });
+  }
+
   const cmpNodes: CmpNode[] = [];
   const cmpSeen = new Set<string>();
   let cmpY = 50;
@@ -482,6 +855,130 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
 
     cmpNodes.push({ nodeId, varName: left, op, val: isNumeric ? numVal : null, rightVar: rightIsVar ? right : undefined });
     cmpY += 110;
+  }
+
+  // ── 3b. Conditional Branches (if/else) ──────────────────────────────────────
+
+  interface ConditionalBranch {
+    nodeId: string;
+    condition: string;
+    trueSignal: 'LONG' | 'SHORT' | null;
+    falseSignal: 'LONG' | 'SHORT' | null;
+  }
+
+  const conditionalBranches: ConditionalBranch[] = [];
+
+  // ── 3c. State Accumulators (var counter) ────────────────────────────────────
+
+  interface StateAccumulator {
+    nodeId: string;
+    varName: string;
+    initialValue: number;
+    incrementCondition: string;
+  }
+
+  const accumulators: StateAccumulator[] = [];
+
+  // Pattern: var counter = 0; counter += 1 if condition
+  const varAccumulatorRx = /var\s+(\w+)\s*=\s*(\d+)\s*[\s\S]*?(\1)\s*\+=\s*(\d+)\s+if\s+(\w+(?:\s+[><=!]+\s+[\w.]+)?)/g;
+
+  for (const m of src.matchAll(varAccumulatorRx)) {
+    const [, varName, initValStr, , incrStr, condition] = m;
+    const nodeId = uid(`accumulator_${varName}`);
+    const initialValue = parseInt(initValStr, 10);
+    const incrementValue = parseInt(incrStr, 10);
+
+    nodes.push({
+      id: nodeId,
+      type: 'accumulator',
+      position: { x: 580, y: indY },
+      data: {
+        varName,
+        initialValue,
+        incrementValue,
+        incrementCondition: condition.trim(),
+        description: `${varName}: +${incrementValue} if ${condition.trim()}`,
+      },
+    });
+
+    addEdge(inputId, nodeId);
+    accumulators.push({ nodeId, varName, initialValue, incrementCondition: condition.trim() });
+    vars[varName] = { nodeId, indType: 'accumulator' };
+    indY += 120;
+
+    parseLogger.debug(`Found var accumulator`, {
+      varName,
+      initialValue,
+      incrementValue,
+      condition: condition.trim(),
+    });
+  }
+
+  // Pattern 1: if condition strategy.entry(...) else strategy.entry(...)
+  const ifElseRx = /if\s+(\w+(?:\s+[><=!]+\s+[\w.]+)?)\s*\n\s*strategy\.entry\s*\(\s*["']([^"']+)["']\s*,\s*strategy\.(long|short)[^)]*\)\s*(?:\n\s*)?else\s*(?:\n\s*)?strategy\.entry\s*\(\s*["']([^"']+)["']\s*,\s*strategy\.(long|short)/gi;
+
+  for (const m of src.matchAll(ifElseRx)) {
+    const [, cond, trueName, trueDir, falseName, falseDir] = m;
+    const nodeId = uid(`ifelse_${cond.replace(/\s+/g, '_')}`);
+
+    const trueSignal = trueDir.toLowerCase() === 'long' ? 'LONG' : 'SHORT';
+    const falseSignal = falseDir.toLowerCase() === 'long' ? 'LONG' : 'SHORT';
+
+    nodes.push({
+      id: nodeId,
+      type: 'conditional_fork',
+      position: { x: 700, y: indY },
+      data: {
+        condition: cond.trim(),
+        trueLabel: trueName,
+        falseLabel: falseName,
+        trueSignal,
+        falseSignal,
+      },
+    });
+
+    addEdge(inputId, nodeId);
+    conditionalBranches.push({ nodeId, condition: cond.trim(), trueSignal, falseSignal });
+    indY += 150;
+
+    parseLogger.debug(`Found if/else conditional branch`, {
+      condition: cond.trim(),
+      trueSignal,
+      falseSignal,
+    });
+  }
+
+  // Pattern 2: if condition strategy.entry(...) [no else]
+  const ifOnlyRx = /if\s+(\w+(?:\s+[><=!]+\s+[\w.]+)?)\s*\n\s*strategy\.entry\s*\(\s*["']([^"']+)["']\s*,\s*strategy\.(long|short)[^)]*\)(?!\s*else)/gi;
+
+  for (const m of src.matchAll(ifOnlyRx)) {
+    const [, cond, name, dir] = m;
+    // Already captured by ifElseRx or other patterns, skip duplicates
+    if (conditionalBranches.some(c => c.condition === cond.trim())) continue;
+
+    const nodeId = uid(`if_${cond.replace(/\s+/g, '_')}`);
+    const signal = dir.toLowerCase() === 'long' ? 'LONG' : 'SHORT';
+
+    nodes.push({
+      id: nodeId,
+      type: 'conditional_fork',
+      position: { x: 700, y: indY },
+      data: {
+        condition: cond.trim(),
+        trueLabel: name,
+        trueSignal: signal,
+        falseSignal: null,
+      },
+    });
+
+    addEdge(inputId, nodeId);
+    conditionalBranches.push({ nodeId, condition: cond.trim(), trueSignal: signal, falseSignal: null });
+    indY += 150;
+
+    parseLogger.debug(`Found if conditional (no else)`, {
+      condition: cond.trim(),
+      signal,
+    });
   }
 
   // ── 4. Logic: detect AND combinations ────────────────────────────────────────
@@ -581,12 +1078,115 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     indY += 110;
   }
 
+  // ── 4b. Exit Conditions (strategy.exit) ──────────────────────────────────────
+
+  interface ExitCondition {
+    nodeId: string;
+    exitType: 'stop' | 'limit' | 'trail' | 'time';
+    value: number;
+    description: string;
+  }
+
+  const exitConditions: ExitCondition[] = [];
+
+  // Pattern: strategy.exit("Exit", stop=100, limit=500)
+  const exitRx = /strategy\.exit\s*\(\s*["']([^"']+)["']\s*(?:,\s*(?:stop|when)\s*=\s*(\w+|\d+))?(?:,\s*limit\s*=\s*(\d+))?(?:,\s*trail_points\s*=\s*(\d+))?\s*\)/gi;
+
+  for (const m of src.matchAll(exitRx)) {
+    const [, exitName, stopVal, limitVal, trailVal] = m;
+
+    if (stopVal && !isNaN(parseInt(stopVal, 10))) {
+      const nodeId = uid(`exit_stop`);
+      const stopPips = parseInt(stopVal, 10);
+
+      nodes.push({
+        id: nodeId,
+        type: 'exit_condition',
+        position: { x: 1000, y: indY },
+        data: {
+          exitType: 'stop',
+          exitName,
+          value: stopPips,
+          description: `Stop Loss: ${stopPips} pips`,
+        },
+      });
+
+      addEdge(inputId, nodeId);
+      exitConditions.push({
+        nodeId,
+        exitType: 'stop',
+        value: stopPips,
+        description: `Stop Loss: ${stopPips} pips`,
+      });
+      indY += 130;
+
+      parseLogger.debug(`Found stop loss exit`, { value: stopPips, name: exitName });
+    }
+
+    if (limitVal && !isNaN(parseInt(limitVal, 10))) {
+      const nodeId = uid(`exit_limit`);
+      const limitPips = parseInt(limitVal, 10);
+
+      nodes.push({
+        id: nodeId,
+        type: 'exit_condition',
+        position: { x: 1000, y: indY },
+        data: {
+          exitType: 'limit',
+          exitName,
+          value: limitPips,
+          description: `Take Profit: ${limitPips} pips`,
+        },
+      });
+
+      addEdge(inputId, nodeId);
+      exitConditions.push({
+        nodeId,
+        exitType: 'limit',
+        value: limitPips,
+        description: `Take Profit: ${limitPips} pips`,
+      });
+      indY += 130;
+
+      parseLogger.debug(`Found take profit exit`, { value: limitPips, name: exitName });
+    }
+
+    if (trailVal && !isNaN(parseInt(trailVal, 10))) {
+      const nodeId = uid(`exit_trail`);
+      const trailPips = parseInt(trailVal, 10);
+
+      nodes.push({
+        id: nodeId,
+        type: 'exit_condition',
+        position: { x: 1000, y: indY },
+        data: {
+          exitType: 'trail',
+          exitName,
+          value: trailPips,
+          description: `Trailing Stop: ${trailPips} pips`,
+        },
+      });
+
+      addEdge(inputId, nodeId);
+      exitConditions.push({
+        nodeId,
+        exitType: 'trail',
+        value: trailPips,
+        description: `Trailing Stop: ${trailPips} pips`,
+      });
+      indY += 130;
+
+      parseLogger.debug(`Found trailing stop exit`, { value: trailPips, name: exitName });
+    }
+  }
+
   // ── 5. Detect signal conditions ──────────────────────────────────────────────
   // strategy.entry("Long", strategy.long, when = condition)
   // alertcondition(condition, ...)
   // longCondition → direct name patterns
 
   const signalSources: SignalSource[] = [];
+  const signalDetectionStart = signalSources.length;
 
   function resolveCondition(condVar: string): string | null {
     return logicSources[condVar] || crossMap[condVar]?.id || cmpNodes.find(c => c.varName === condVar)?.nodeId || vars[condVar]?.nodeId || null;
@@ -668,6 +1268,13 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     signalSources.push({ id: cmpNodes[cmpNodes.length - 1].nodeId, type: 'LONG' });
   }
 
+  if (signalSources.length > 0) {
+    parseLogger.debug(`Found ${signalSources.length} signal(s)`, {
+      signals: signalSources.map(s => s.type),
+      signalIds: signalSources.map(s => s.id),
+    });
+  }
+
   // ── 6. Wire signals ──────────────────────────────────────────────────────────
 
   let sigY = 300;
@@ -722,6 +1329,11 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
   if (/\barray\.new/.test(src)) unsupported.push('arrays');
   if (/\bline\.new|label\.new|box\.new/.test(src)) unsupported.push('drawing objects');
   if (/\btable\.new/.test(src)) unsupported.push('tables');
+
+  if (unsupported.length > 0) {
+    parseLogger.warn(`Found ${unsupported.length} unsupported Pine constructs`, { unsupported });
+  }
+
   for (const u of unsupported) {
     report.warnings.push(`${u} — not supported, skipped`);
   }
@@ -732,6 +1344,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
   // Fallback: If no nodes were generated (other than the input node),
   // create a Custom Code node with the entire script.
   if (nodes.length === 1) {
+    parseLogger.warn('No indicators recognized', { nodeCount: nodes.length });
     const customId = uid('custom_pine');
     nodes.push({
       id: customId,
@@ -748,6 +1361,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     report.quality = 'fallback';
     report.qualityPercent = 0;
     report.warnings.push('No indicators recognized — entire script placed in Custom Code node');
+    parseLogger.warn('Fallback mode activated', { quality: 'fallback' });
   } else {
     // Estimate quality: ratio of recognized ta.* calls vs total
     const totalTaCalls = allTaCalls.length || 1;
@@ -755,7 +1369,23 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     report.qualityPercent = Math.round((recognizedTaCalls / totalTaCalls) * 100);
     report.quality = report.qualityPercent >= 90 ? 'full' : 'partial';
     report.recognizedLines = parsedNodeCount;
+    parseLogger.success('Parse complete', {
+      quality: report.quality,
+      qualityPercent: report.qualityPercent,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      indicators: report.indicators,
+      signals: report.signals,
+    });
   }
 
-  return { nodes, edges, report };
+    return { nodes, edges, report };
+  } catch (error: any) {
+    parseLogger.error('Parse failed with error', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
+    throw error;
+  }
 }

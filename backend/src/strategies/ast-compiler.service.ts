@@ -419,6 +419,33 @@ export class AstCompilerService {
         };
       }
 
+      case 'conditional_fork': {
+        const trueEdge = inputEdges.find((e) => e.sourceHandle === 'true');
+        const falseEdge = inputEdges.find((e) => e.sourceHandle === 'false');
+
+        return {
+          type: 'conditional_fork',
+          condition: currentNode.data.condition || 'unknown',
+          trueSignal: currentNode.data.trueSignal || 'LONG',
+          falseSignal: currentNode.data.falseSignal || 'SHORT',
+          trueLabel: currentNode.data.trueLabel,
+          falseLabel: currentNode.data.falseLabel,
+        };
+      }
+
+      case 'accumulator': {
+        const inputEdge = inputEdges[0];
+        const sourceNode = inputEdge ? allNodes.find((n) => n.id === inputEdge.source) : null;
+        return {
+          type: 'accumulator',
+          varName: currentNode.data.varName || 'counter',
+          initialValue: currentNode.data.initialValue || 0,
+          incrementCondition: sourceNode ? this.buildNodeAst(sourceNode, allNodes, allEdges) : currentNode.data.incrementCondition,
+          resetCondition: currentNode.data.resetCondition,
+          incrementValue: currentNode.data.incrementValue || 1,
+        };
+      }
+
       default:
         return currentNode.data.value || 0;
     }
