@@ -154,9 +154,44 @@ export class DashboardService {
     return days;
   }
 
+  private async getTop20Pairs(): Promise<string[]> {
+    try {
+      const tickers = await this.binanceApi.fetchTickers24h();
+      return Object.values(tickers)
+        .filter((t: any) => t.symbol.endsWith('USDT') && t.volume > 0)
+        .sort((a: any, b: any) => b.volume - a.volume)
+        .slice(0, 20)
+        .map((t: any) => t.symbol);
+    } catch (e) {
+      this.logger.warn(`Top20 fallback to config: ${e.message}`);
+      const dbPairs = await this.settingsService.get('trading_pairs');
+      return (dbPairs || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+    }
+  }
+
+  async getMarketStrip() {
+    try {
+      const tickers = await this.binanceApi.fetchTickers24h();
+      return Object.values(tickers)
+        .filter((t: any) => t.symbol.endsWith('USDT') && t.volume > 0)
+        .sort((a: any, b: any) => b.volume - a.volume)
+        .slice(0, 20)
+        .map((t: any) => ({
+          pair: t.symbol,
+          price: t.lastPrice,
+          change24h: t.priceChangePercent,
+          volume24h: t.volume,
+          high24h: t.high,
+          low24h: t.low,
+        }));
+    } catch (e) {
+      this.logger.warn(`Market strip failed: ${e.message}`);
+      return [];
+    }
+  }
+
   async getFundingRates() {
-    const dbPairs = await this.settingsService.get('trading_pairs');
-    const pairs = (dbPairs || process.env.TRADING_PAIRS || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+    const pairs = await this.getTop20Pairs();
 
     const results = [];
     for (const pair of pairs) {
@@ -180,8 +215,7 @@ export class DashboardService {
   }
 
   async getOpenInterest() {
-    const dbPairs = await this.settingsService.get('trading_pairs');
-    const pairs = (dbPairs || process.env.TRADING_PAIRS || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+    const pairs = await this.getTop20Pairs();
 
     const results = [];
     for (const pair of pairs) {
@@ -219,8 +253,7 @@ export class DashboardService {
   }
 
   async getLiquidations() {
-    const dbPairs = await this.settingsService.get('trading_pairs');
-    const pairs = (dbPairs || process.env.TRADING_PAIRS || 'BTCUSDT,ETHUSDT,SOLUSDT').split(',').map(p => p.trim());
+    const pairs = await this.getTop20Pairs();
 
     const results = [];
     for (const pair of pairs) {

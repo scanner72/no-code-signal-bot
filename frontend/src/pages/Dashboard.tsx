@@ -343,9 +343,9 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
     systemApi.getHealth().then(res => setHealth(res.data?.services || res.data)).catch(() => {});
     paperTradingApi.getEquityCurve().then(res => setEquityData(res.data || [])).catch(() => {});
 
-    const fetchScreener = () => dashboardApi.getScreener().then(res => setScreener(res.data || [])).catch(() => {});
-    fetchScreener();
-    const interval = setInterval(fetchScreener, 30_000);
+    const fetchMarket = () => dashboardApi.getMarketStrip().then(res => setScreener(res.data || [])).catch(() => {});
+    fetchMarket();
+    const interval = setInterval(fetchMarket, 15_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -406,6 +406,33 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
             </div>
             <span style={{ fontSize: '9px', background: 'rgba(124,58,237,0.2)', color: '#a78bfa', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>v3.2.0</span>
           </div>
+        </div>
+
+        {/* ── Live Market Strip (Top 20 by volume, updates every 15s) ── */}
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px',
+          padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '20px', overflowX: 'auto',
+          marginBottom: '20px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <Activity size={14} color="#10b981" />
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LIVE</span>
+          </div>
+          {screener.length === 0 && <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Загрузка топ-20...</span>}
+          {screener.map((s: any) => (
+            <div key={s.pair} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{s.pair.replace('USDT', '')}</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>${Number(s.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              <span style={{
+                fontSize: '10px', fontWeight: 700, fontFamily: 'monospace',
+                color: s.change24h >= 0 ? '#10b981' : '#ef4444',
+                padding: '1px 5px', borderRadius: '4px',
+                background: s.change24h >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+              }}>
+                {s.change24h >= 0 ? '+' : ''}{Number(s.change24h).toFixed(1)}%
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* ── KPI Row ── */}
@@ -855,31 +882,6 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = () => {
           </div>
         </div>
 
-        {/* ── Market Pulse (compact strip) ── */}
-        <div style={{
-          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px',
-          padding: '14px 24px', display: 'flex', alignItems: 'center', gap: '24px', overflowX: 'auto',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <Activity size={14} color="var(--accent-color)" />
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Market</span>
-          </div>
-          {screener.length === 0 && <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Загрузка...</span>}
-          {screener.map(s => (
-            <div key={s.pair} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{s.pair.replace('USDT', '')}</span>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>${s.price?.toLocaleString()}</span>
-              <span style={{
-                fontSize: '11px', fontWeight: 700, fontFamily: 'monospace',
-                color: s.change24h >= 0 ? '#10b981' : '#ef4444',
-                padding: '2px 6px', borderRadius: '6px',
-                background: s.change24h >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-              }}>
-                {s.change24h >= 0 ? '+' : ''}{s.change24h}%
-              </span>
-            </div>
-          ))}
-        </div>
 
 
       </div>

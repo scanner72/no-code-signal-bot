@@ -20,6 +20,14 @@ export class DashboardController {
   }
 
   @UseInterceptors(CacheInterceptor)
+  @CacheKey('dashboard_market_strip')
+  @CacheTTL(15)
+  @Get('market-strip')
+  getMarketStrip() {
+    return this.dashboardService.getMarketStrip();
+  }
+
+  @UseInterceptors(CacheInterceptor)
   @CacheKey('dashboard_funding')
   @CacheTTL(60)
   @Get('funding')

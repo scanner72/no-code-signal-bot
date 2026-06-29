@@ -19,6 +19,7 @@ export const systemApi = {
 export const dashboardApi = {
   getStats: () => api.get('/dashboard/stats'),
   getScreener: () => api.get('/dashboard/screener'),
+  getMarketStrip: () => api.get('/dashboard/market-strip'),
   getFunding: () => api.get('/dashboard/funding'),
   getOpenInterest: () => api.get('/dashboard/open-interest'),
   getLiquidations: () => api.get('/dashboard/liquidations'),
