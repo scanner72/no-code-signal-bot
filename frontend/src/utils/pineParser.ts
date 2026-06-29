@@ -1219,13 +1219,43 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     if (srcId) signalSources.push({ id: srcId, type: isShort ? 'SHORT' : 'LONG' });
   }
 
-  // alertcondition(condition, ...) — first arg as LONG signal
+  // alertcondition(condition, title) — parse title for Buy/Sell type
   if (signalSources.length === 0) {
-    const alertRx = /alertcondition\s*\(\s*(\w+)\s*,/g;
+    const alertRx = /alertcondition\s*\(\s*([^,]+?)\s*,\s*["']([^"']+)["']/g;
+    const alertSeen = new Set<string>();
     for (const m of src.matchAll(alertRx)) {
-      const [, condVar] = m;
+      const [, condExpr, title] = m;
+      const condVar = condExpr.trim().split(/\s+/)[0];
+      const type: 'LONG' | 'SHORT' = /sell|short|bear/i.test(title) ? 'SHORT' : 'LONG';
       const srcId = resolveCondition(condVar);
-      if (srcId) signalSources.push({ id: srcId, type: 'LONG' });
+      if (srcId && !alertSeen.has(srcId + type)) {
+        alertSeen.add(srcId + type);
+        signalSources.push({ id: srcId, type });
+      }
+    }
+
+    // alertconditions exist but conditions couldn't be resolved — connect via best available source
+    if (signalSources.length === 0 && /alertcondition\s*\(/.test(src)) {
+      const lastLogic = Object.values(logicSources).pop();
+      const lastCmp = cmpNodes.length > 0 ? cmpNodes[cmpNodes.length - 1].nodeId : null;
+      const bestSrc = lastLogic || lastCmp;
+      if (bestSrc) {
+        // Create buy/sell signals from alert titles
+        const alertTitleRx = /alertcondition\s*\([^,]+,\s*["']([^"']+)["']/g;
+        const seen = new Set<string>();
+        for (const am of src.matchAll(alertTitleRx)) {
+          const title = am[1];
+          const type: 'LONG' | 'SHORT' = /sell|short|bear/i.test(title) ? 'SHORT' : 'LONG';
+          if (!seen.has(type)) {
+            seen.add(type);
+            signalSources.push({ id: bestSrc, type });
+          }
+        }
+        if (signalSources.length === 0) {
+          signalSources.push({ id: bestSrc, type: 'LONG' });
+        }
+      }
+      parseLogger.debug('alertcondition found but conditions unresolvable — using fallback source');
     }
   }
 
@@ -1235,7 +1265,7 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
     for (const m of src.matchAll(alertMsgRx)) {
       const msg = m[1].toLowerCase();
       if (/buy|long/i.test(msg) || /sell|short/i.test(msg)) {
-        const type = /sell|short/i.test(msg) ? 'SHORT' : 'LONG';
+        const type: 'LONG' | 'SHORT' = /sell|short/i.test(msg) ? 'SHORT' : 'LONG';
         const lastLogic = Object.values(logicSources).pop();
         const lastCross = Object.values(crossMap).pop();
         const srcId = lastLogic || lastCross?.id;
@@ -1266,6 +1296,20 @@ export function parsePineScript(code: string): { nodes: Node[]; edges: Edge[]; r
   // Fallback: last comparison node → LONG signal
   if (signalSources.length === 0 && cmpNodes.length > 0) {
     signalSources.push({ id: cmpNodes[cmpNodes.length - 1].nodeId, type: 'LONG' });
+  }
+
+  // Connect orphaned comparison nodes to the nearest signal via a logic node
+  if (signalSources.length > 0 && cmpNodes.length > 1) {
+    const connectedIds = new Set(edges.map(e => e.source));
+    const orphanCmps = cmpNodes.filter(c => !connectedIds.has(c.nodeId));
+    if (orphanCmps.length > 0 && orphanCmps.length <= 30) {
+      const summaryId = uid('logic_summary');
+      nodes.push({ id: summaryId, type: 'logic', position: { x: 880, y: cmpY }, data: { operator: 'AND' } });
+      for (const oc of orphanCmps) addEdge(oc.nodeId, summaryId, undefined, '#2E7D32');
+      addEdge(summaryId, signalSources[0].id);
+      cmpY += 120;
+      parseLogger.debug(`Connected ${orphanCmps.length} orphaned comparisons via summary logic node`);
+    }
   }
 
   if (signalSources.length > 0) {
