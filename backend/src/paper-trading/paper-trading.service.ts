@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { VirtualTrade, TradeStatus } from './virtual-trade.entity';
 import { BinanceApiService } from '../candles/binance-api.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -141,8 +141,9 @@ export class PaperTradingService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async checkOpenTrades() {
+    // Account-сделки (paper_account_id != NULL) мониторит PaperAccountsService.checkAccountTrades
     const openTrades = await this.virtualTradeRepository.find({
-      where: { status: TradeStatus.OPEN },
+      where: { status: TradeStatus.OPEN, paper_account_id: IsNull() },
       relations: ['strategy'],
     });
 

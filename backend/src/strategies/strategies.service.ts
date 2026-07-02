@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Strategy } from './strategy.entity';
 import { StrategyVersion } from './strategy-version.entity';
 import { AstCompilerService } from './ast-compiler.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PaperAccountsService } from '../paper-trading/paper-accounts.service';
 
 @Injectable()
 export class StrategiesService {
@@ -15,6 +16,8 @@ export class StrategiesService {
     private versionRepository: Repository<StrategyVersion>,
     private astCompiler: AstCompilerService,
     private readonly eventEmitter: EventEmitter2,
+    @Inject(forwardRef(() => PaperAccountsService))
+    private paperAccountsService: PaperAccountsService,
   ) {}
 
   findAll() {
@@ -44,6 +47,8 @@ export class StrategiesService {
       } as any),
     );
 
+    await this.paperAccountsService.syncPaperAccounts(saved);
+
     return saved;
   }
 
@@ -54,6 +59,7 @@ export class StrategiesService {
     const ast = nodes.length ? this.astCompiler.compile(nodes, edges) : strategy.ast;
     Object.assign(strategy, { ...data, nodes, edges, ast });
     const saved = await this.strategyRepository.save(strategy);
+    await this.paperAccountsService.syncPaperAccounts(saved);
 
     // Determine next version number and save snapshot
     const lastVersion = await this.versionRepository.findOne({

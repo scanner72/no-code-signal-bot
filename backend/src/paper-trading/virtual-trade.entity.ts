@@ -56,6 +56,17 @@ export class VirtualTrade {
   @Column('decimal', { precision: 5, scale: 2, default: 1.0, nullable: true })
   risk_multiplier: number; // dynamic ATR / confidence risk scaling factor
 
+  // ── Paper Trading Account (per-node virtual accounts) ────────────────────
+  /** NULL = сделка legacy-пути (тумблер is_paper_trading) */
+  @Column({ nullable: true })
+  paper_account_id: number;
+
+  @Column('decimal', { precision: 20, scale: 2, nullable: true })
+  margin_used: number;
+
+  @Column('decimal', { precision: 6, scale: 2, nullable: true })
+  leverage_used: number;
+
   // ── Trailing Stop fields ──────────────────────────────────────────────────
   @Column('decimal', { precision: 20, scale: 8, nullable: true })
   stop_price: number; // dynamic trailing stop level

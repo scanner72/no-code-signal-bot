@@ -69,6 +69,7 @@ describe('SignalsEngineService.evaluateNode', () => {
       null as any, // ocoManagerService
       null as any, // ccxtQueueService
       null as any, // algoExecutionService
+      null as any, // paperAccountsService
     );
   });
 
