@@ -75,6 +75,21 @@ describe('PaperAccountsService.syncPaperAccounts', () => {
     await service.syncPaperAccounts({ id: 7, nodes: [{ id: 'x', type: 'signal', data: {} }] });
     expect(accountRepo.save).not.toHaveBeenCalled();
   });
+
+  it('невалидные числа (0, отрицательные, мусор) падают на дефолты', async () => {
+    await service.syncPaperAccounts({
+      id: 7,
+      nodes: [paperNode('n1', { startingCapital: 0, leverage: 'abc', riskPercent: -5 })],
+    });
+    expect(accountRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        starting_capital: 1000,
+        current_balance: 1000,
+        leverage: 1,
+        risk_percent: 10,
+      }),
+    );
+  });
 });
 
 describe('PaperAccountsService.openAccountTrade', () => {

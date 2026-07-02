@@ -1,5 +1,5 @@
 // frontend/src/components/nodes/PaperTradingNode.tsx
-import { memo, useEffect, useState, CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useState, CSSProperties } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import axios from 'axios';
 import { nodeWrap, nodeHead, nodeDot, nodeType, nodeBody, nodeParam, nodeParamVal, PORT } from './nodeStyles';
@@ -23,31 +23,39 @@ const PaperTradingNode = ({ id, data, selected }: NodeProps) => {
   // updateNodeData заменяет data целиком — обязательно спредим текущее
   const patch = (p: Record<string, any>) => updateNodeData(id, { ...data, ...p });
 
+  const loadStats = useCallback(async () => {
+    if (!strategyId) return;
+    try {
+      const res = await axios.get(`${API}/paper-trading/accounts`, { params: { strategyId } });
+      const acc = (res.data || []).find((a: any) => a.node_id === id);
+      if (acc?.stats) {
+        setStats({ ...acc.stats, accountId: acc.id, balance: acc.current_balance });
+      }
+    } catch { /* тихо: бэкенд может быть недоступен в превью */ }
+  }, [strategyId, id]);
+
   useEffect(() => {
     if (!strategyId) return;
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await axios.get(`${API}/paper-trading/accounts`, { params: { strategyId } });
-        const acc = (res.data || []).find((a: any) => a.node_id === id);
-        if (!cancelled && acc?.stats) {
-          setStats({ ...acc.stats, accountId: acc.id, balance: acc.current_balance });
-        }
-      } catch { /* тихо: бэкенд может быть недоступен в превью */ }
-    };
-    load();
-    const t = setInterval(load, 45000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [strategyId, id]);
+    loadStats();
+    const t = setInterval(loadStats, 45000);
+    return () => clearInterval(t);
+  }, [strategyId, loadStats]);
 
   const handleReset = async () => {
     if (!stats?.accountId) return;
     if (!confirm('Сбросить счёт? Открытые позиции будут закрыты по рынку, баланс вернётся к стартовому капиталу. История сделок сохранится.')) return;
     try {
       await axios.post(`${API}/paper-trading/accounts/${stats.accountId}/reset`);
-      setStats(null);
+      await loadStats();
     } catch { /* silent */ }
   };
+
+  // Partial TP уровни: [{ target: '2%', closePercent: 50 }, ...]
+  const tps: Array<{ target: any; closePercent: any }> = Array.isArray(data.partialTPs) ? data.partialTPs : [];
+  const setTp = (i: number, field: 'target' | 'closePercent', val: string) =>
+    patch({ partialTPs: tps.map((p, idx) => (idx === i ? { ...p, [field]: val } : p)) });
+  const addTp = () => patch({ partialTPs: [...tps, { target: '', closePercent: '' }] });
+  const removeTp = (i: number) => patch({ partialTPs: tps.filter((_, idx) => idx !== i) });
 
   const pnl = Number(stats?.totalPnlPercent ?? 0);
 
@@ -127,6 +135,25 @@ const PaperTradingNode = ({ id, data, selected }: NodeProps) => {
                 </div>
               </>
             )}
+            <div style={nodeParam}>SL → безубыток после 1-го TP
+              <input className="nodrag" type="checkbox" checked={!!data.moveSLtoBE}
+                onChange={(e) => patch({ moveSLtoBE: e.target.checked })} />
+            </div>
+            <div style={nodeParam}>Partial TP уровни
+              <span className="nodrag" style={{ color: CYAN, cursor: 'pointer', fontWeight: 700 }} onClick={addTp}>
+                + добавить
+              </span>
+            </div>
+            {tps.map((p, i) => (
+              <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
+                <input className="nodrag" style={{ ...inputStyle, width: 56 }} value={p.target ?? ''} placeholder="цель %"
+                  onChange={(e) => setTp(i, 'target', e.target.value)} />
+                <input className="nodrag" style={{ ...inputStyle, width: 56 }} value={p.closePercent ?? ''} placeholder="закр. %"
+                  onChange={(e) => setTp(i, 'closePercent', e.target.value)} />
+                <span className="nodrag" style={{ color: '#ef4444', cursor: 'pointer', fontWeight: 700, padding: '0 2px' }}
+                  onClick={() => removeTp(i)}>×</span>
+              </div>
+            ))}
             {stats?.accountId && (
               <button
                 className="nodrag"

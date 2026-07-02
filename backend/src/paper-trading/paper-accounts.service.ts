@@ -28,6 +28,12 @@ function parsePercent(val: any): number | null {
   return isNaN(n) ? null : n;
 }
 
+/** Положительное конечное число, иначе дефолт (0/NaN/отрицательные — не валидный капитал/плечо/риск) */
+function positiveOr(val: any, fallback: number): number {
+  const n = Number(val);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 @Injectable()
 export class PaperAccountsService {
   private readonly logger = new Logger(PaperAccountsService.name);
@@ -54,9 +60,9 @@ export class PaperAccountsService {
       const d: PaperNodeData = node.data || {};
       const cfg = {
         label: d.label || 'Config',
-        starting_capital: Number(d.startingCapital) || 1000,
-        leverage: Number(d.leverage) || 1,
-        risk_percent: Number(d.riskPercent) || 10,
+        starting_capital: positiveOr(d.startingCapital, 1000),
+        leverage: positiveOr(d.leverage, 1),
+        risk_percent: positiveOr(d.riskPercent, 10),
         sl_percent: parsePercent(d.sl),
         tp_percent: parsePercent(d.tp),
         use_trailing: !!d.useTrailing,
