@@ -176,3 +176,87 @@ describe('PaperAccountsService.closeAccountTrade', () => {
     expect(tradeRepo.save).not.toHaveBeenCalled();
   });
 });
+
+describe('PaperAccountsService.processAccountTrade', () => {
+  let service: PaperAccountsService;
+  let accountRepo: any;
+  let tradeRepo: any;
+
+  const baseAccount = {
+    id: 5, current_balance: 900, sl_percent: null, tp_percent: null,
+    use_trailing: false, trailing_distance: 1, trailing_activation: 0.5,
+    move_sl_to_be: false, partial_tps: [],
+  };
+  const baseTrade = () => ({
+    id: 11, paper_account_id: 5, status: 'OPEN', type: 'LONG',
+    entry_price: 100, highest_price: 100, lowest_price: 100, peak_price: 100,
+    stop_price: null, trailing_active: false, partial_tp_hits: 0,
+    margin_used: 100, remaining_volume: 100, leverage_used: 10,
+  });
+
+  beforeEach(() => {
+    accountRepo = makeRepo();
+    tradeRepo = makeRepo();
+    service = new PaperAccountsService(accountRepo, tradeRepo, null as any);
+  });
+
+  it('ликвидация: -10% цены при плече 10 закрывает сделку как LIQUIDATION', async () => {
+    accountRepo.findOneBy.mockResolvedValue({ ...baseAccount });
+    const trade: any = baseTrade();
+    tradeRepo.findOneBy.mockResolvedValue(trade); // для closeAccountTrade
+    await service.processAccountTrade(trade, 90);
+    const closed = tradeRepo.save.mock.calls.map((c: any) => c[0]).find((t: any) => t.status === 'CLOSED');
+    expect(closed.exit_reason).toBe('LIQUIDATION');
+    expect(closed.pnl_percent).toBe(-100);
+  });
+
+  it('фиксированный SL аккаунта (1% цены) закрывает при -1.5%', async () => {
+    accountRepo.findOneBy.mockResolvedValue({ ...baseAccount, sl_percent: 1 });
+    const trade: any = { ...baseTrade(), leverage_used: 2 };
+    tradeRepo.findOneBy.mockResolvedValue(trade);
+    await service.processAccountTrade(trade, 98.5);
+    const closed = tradeRepo.save.mock.calls.map((c: any) => c[0]).find((t: any) => t.status === 'CLOSED');
+    expect(closed.exit_reason).toBe('SL');
+  });
+
+  it('фиксированный TP аккаунта (3% цены) закрывает при +3%', async () => {
+    accountRepo.findOneBy.mockResolvedValue({ ...baseAccount, tp_percent: 3 });
+    const trade: any = { ...baseTrade(), leverage_used: 2 };
+    tradeRepo.findOneBy.mockResolvedValue(trade);
+    await service.processAccountTrade(trade, 103);
+    const closed = tradeRepo.save.mock.calls.map((c: any) => c[0]).find((t: any) => t.status === 'CLOSED');
+    expect(closed.exit_reason).toBe('TP');
+    expect(closed.pnl_percent).toBeCloseTo(6); // 3% × 2
+  });
+
+  it('без SL/TP/trailing просто обновляет water marks и pnl', async () => {
+    accountRepo.findOneBy.mockResolvedValue({ ...baseAccount });
+    const trade: any = baseTrade();
+    await service.processAccountTrade(trade, 101);
+    expect(trade.highest_price).toBe(101);
+    expect(trade.pnl_percent).toBeCloseTo(10); // 1% × 10
+    expect(tradeRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 11, status: 'OPEN' }));
+  });
+
+  it('trailing stop: активация, подъём стопа за пиком, закрытие TRAILING', async () => {
+    accountRepo.findOneBy.mockResolvedValue({ ...baseAccount, use_trailing: true, trailing_distance: 1, trailing_activation: 0.5 });
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+    await service.processAccountTrade(trade, 102);          // активация + стоп = 102×0.99 = 100.98
+    expect(trade.trailing_active).toBe(true);
+    expect(Number(trade.stop_price)).toBeCloseTo(100.98);
+    tradeRepo.findOneBy.mockResolvedValue(trade);
+    await service.processAccountTrade(trade, 100.5);        // цена ≤ стопа → закрытие
+    const closed = tradeRepo.save.mock.calls.map((c: any) => c[0]).find((t: any) => t.status === 'CLOSED');
+    expect(closed.exit_reason).toBe('TRAILING');
+  });
+
+  it('partial TP возвращает часть маржи с прибылью на баланс', async () => {
+    const account = { ...baseAccount, partial_tps: [{ target: 2, closePercent: 50 }, { target: 4, closePercent: 100 }] };
+    accountRepo.findOneBy.mockResolvedValue(account);
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+    await service.processAccountTrade(trade, 102); // +2% → первый partial: закрыто 50% (маржа 50, pnl 1)
+    expect(trade.partial_tp_hits).toBe(1);
+    expect(Number(trade.remaining_volume)).toBeCloseTo(50);
+    expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: 951 })); // 900 + 50 + 1
+  });
+});

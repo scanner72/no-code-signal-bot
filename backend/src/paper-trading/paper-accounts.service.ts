@@ -200,4 +200,136 @@ export class PaperAccountsService {
       `[PaperAccount #${trade.paper_account_id}] Closed #${trade.id} (${trade.exit_reason}) PnL: ${marginPnlPct.toFixed(2)}% of margin`,
     );
   }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async checkAccountTrades() {
+    const openTrades = await this.virtualTradeRepository.find({
+      where: { status: TradeStatus.OPEN, paper_account_id: Not(IsNull()) },
+    });
+    if (!openTrades.length) return;
+
+    try {
+      const tickers = await this.binanceApiService.fetchTickers24h();
+      for (const trade of openTrades) {
+        const ticker = tickers[trade.pair];
+        if (!ticker) continue;
+        await this.processAccountTrade(trade, Number(ticker.lastPrice));
+      }
+    } catch (e) {
+      this.logger.error(`checkAccountTrades error: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * Один тик мониторинга account-сделки: ликвидация → trailing → partial TP → фикс. SL/TP.
+   * Все пороги — проценты движения цены; плечо влияет на денежный PnL и порог ликвидации.
+   */
+  async processAccountTrade(trade: VirtualTrade, currentPrice: number): Promise<void> {
+    const account = await this.accountRepository.findOneBy({ id: trade.paper_account_id });
+    if (!account) return;
+
+    const entry = Number(trade.entry_price);
+    const lev = Number(trade.leverage_used) || 1;
+
+    if (currentPrice > Number(trade.highest_price)) trade.highest_price = currentPrice;
+    if (currentPrice < Number(trade.lowest_price)) trade.lowest_price = currentPrice;
+
+    const pricePnl = trade.type === 'LONG'
+      ? ((currentPrice - entry) / entry) * 100
+      : ((entry - currentPrice) / entry) * 100;
+
+    trade.pnl_percent = pricePnl * lev; // непрерывно показываем PnL на маржу
+
+    // ── 1. Ликвидация ────────────────────────────────────────────────────
+    if (pricePnl <= -100 / lev) {
+      await this.virtualTradeRepository.save(trade);
+      await this.closeAccountTrade(trade.id, currentPrice, 'LIQUIDATION');
+      return;
+    }
+
+    // ── 2. Trailing stop ─────────────────────────────────────────────────
+    if (account.use_trailing) {
+      const dist = Number(account.trailing_distance) / 100;
+      const act = Number(account.trailing_activation) / 100;
+
+      if (trade.type === 'LONG') {
+        if (currentPrice > Number(trade.peak_price)) trade.peak_price = currentPrice;
+        if ((currentPrice - entry) / entry >= act) trade.trailing_active = true;
+        if (trade.trailing_active) {
+          const newStop = Number(trade.peak_price) * (1 - dist);
+          if (!trade.stop_price || newStop > Number(trade.stop_price)) trade.stop_price = newStop;
+        }
+        if (trade.stop_price && currentPrice <= Number(trade.stop_price)) {
+          await this.virtualTradeRepository.save(trade);
+          await this.closeAccountTrade(trade.id, currentPrice, trade.trailing_active ? 'TRAILING' : 'SL');
+          return;
+        }
+      } else {
+        if (currentPrice < Number(trade.peak_price)) trade.peak_price = currentPrice;
+        if ((entry - currentPrice) / entry >= act) trade.trailing_active = true;
+        if (trade.trailing_active) {
+          const newStop = Number(trade.peak_price) * (1 + dist);
+          if (!trade.stop_price || newStop < Number(trade.stop_price)) trade.stop_price = newStop;
+        }
+        if (trade.stop_price && currentPrice >= Number(trade.stop_price)) {
+          await this.virtualTradeRepository.save(trade);
+          await this.closeAccountTrade(trade.id, currentPrice, trade.trailing_active ? 'TRAILING' : 'SL');
+          return;
+        }
+      }
+    }
+
+    // ── 3. Partial TP ────────────────────────────────────────────────────
+    const partials = Array.isArray(account.partial_tps) ? account.partial_tps : [];
+    if (partials.length > 0 && Number(trade.partial_tp_hits) < partials.length) {
+      const idx = Number(trade.partial_tp_hits);
+      const level = partials[idx];
+
+      if (pricePnl >= Number(level.target)) {
+        const closedMargin = Number(trade.remaining_volume) * (Number(level.closePercent) / 100);
+        const pnlValue = (closedMargin * pricePnl * lev) / 100;
+        trade.remaining_volume = Number(trade.remaining_volume) - closedMargin;
+        trade.partial_tp_hits = idx + 1;
+        account.current_balance = Number(account.current_balance) + closedMargin + pnlValue;
+        await this.accountRepository.save(account);
+        this.logger.log(
+          `[PaperAccount #${account.id}] Partial TP#${idx + 1} for #${trade.id}: released $${closedMargin.toFixed(2)} + $${pnlValue.toFixed(2)} PnL`,
+        );
+
+        if (account.move_sl_to_be && idx === 0) {
+          const improve = trade.type === 'LONG'
+            ? !trade.stop_price || entry > Number(trade.stop_price)
+            : !trade.stop_price || entry < Number(trade.stop_price);
+          if (improve) trade.stop_price = entry;
+        }
+
+        if (Number(trade.partial_tp_hits) >= partials.length) {
+          await this.virtualTradeRepository.save(trade);
+          await this.closeAccountTrade(trade.id, currentPrice, 'TP');
+          return;
+        }
+      }
+    }
+
+    // ── 4. Фиксированный SL / TP ─────────────────────────────────────────
+    const effectiveSL: number | null = trade.stop_price
+      ? Math.abs(((trade.type === 'LONG'
+          ? Number(trade.stop_price) - entry
+          : entry - Number(trade.stop_price)) / entry) * 100)
+      : (account.sl_percent !== null && account.sl_percent !== undefined ? Number(account.sl_percent) : null);
+
+    if (effectiveSL !== null && pricePnl <= -effectiveSL) {
+      await this.virtualTradeRepository.save(trade);
+      await this.closeAccountTrade(trade.id, currentPrice, 'SL');
+      return;
+    }
+
+    if (account.tp_percent !== null && account.tp_percent !== undefined && partials.length === 0 && pricePnl >= Number(account.tp_percent)) {
+      await this.virtualTradeRepository.save(trade);
+      await this.closeAccountTrade(trade.id, currentPrice, 'TP');
+      return;
+    }
+
+    await this.virtualTradeRepository.save(trade);
+  }
 }
