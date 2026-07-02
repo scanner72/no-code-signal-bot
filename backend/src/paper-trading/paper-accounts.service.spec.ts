@@ -7,6 +7,7 @@ const makeRepo = () => ({
   findOneByOrFail: jest.fn(),
   save: jest.fn().mockImplementation(async (x: any) => x),
   create: jest.fn().mockImplementation((x: any) => x),
+  update: jest.fn().mockResolvedValue({ affected: 1 }),
 });
 
 describe('PaperAccountsService.syncPaperAccounts', () => {
@@ -175,6 +176,35 @@ describe('PaperAccountsService.closeAccountTrade', () => {
     await service.closeAccountTrade(11, 102, 'TP');
     expect(tradeRepo.save).not.toHaveBeenCalled();
   });
+
+  it('накапливает pnl_value поверх уже зафиксированного partial TP (не перезаписывает)', async () => {
+    // trade уже получил partial TP на 1 (accumulated ранее), закрываем финальный leg на remaining_volume 50
+    tradeRepo.findOneBy.mockResolvedValue({
+      ...openTrade, remaining_volume: 50, pnl_value: 1, margin_used: 100,
+    });
+    await service.closeAccountTrade(11, 102, 'TP'); // +2% цены × лев 5 = +10% маржи; leg margin = 50 → pnl leg = 5
+    const savedTrade = tradeRepo.save.mock.calls[0][0];
+    expect(savedTrade.pnl_value).toBeCloseTo(1 + 5); // 1 (partial) + 5 (close leg) = 6
+    expect(savedTrade.pnl_percent).toBeCloseTo(6); // 6 / margin_used(100) × 100
+    expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: 955 })); // 900 + 50 + 5
+  });
+
+  it('атомарный claim: если update.affected === 0 (проиграна гонка), не сохраняет сделку и не кредитует баланс', async () => {
+    tradeRepo.findOneBy.mockResolvedValue({ ...openTrade });
+    tradeRepo.update.mockResolvedValue({ affected: 0 });
+    await service.closeAccountTrade(11, 102, 'TP');
+    expect(tradeRepo.save).not.toHaveBeenCalled();
+    expect(accountRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('атомарный claim: вызывает update с { id, status: OPEN } → { status: CLOSED } перед мутацией', async () => {
+    tradeRepo.findOneBy.mockResolvedValue({ ...openTrade });
+    await service.closeAccountTrade(11, 102, 'TP');
+    expect(tradeRepo.update).toHaveBeenCalledWith(
+      { id: 11, status: 'OPEN' },
+      { status: 'CLOSED' },
+    );
+  });
 });
 
 describe('PaperAccountsService.processAccountTrade', () => {
@@ -258,6 +288,32 @@ describe('PaperAccountsService.processAccountTrade', () => {
     expect(trade.partial_tp_hits).toBe(1);
     expect(Number(trade.remaining_volume)).toBeCloseTo(50);
     expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: 951 })); // 900 + 50 + 1
+  });
+
+  it('partial TP аккумулирует pnl_value на сделке (не теряется до финального закрытия)', async () => {
+    const account = { ...baseAccount, partial_tps: [{ target: 2, closePercent: 50 }, { target: 4, closePercent: 100 }] };
+    accountRepo.findOneBy.mockResolvedValue(account);
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+    await service.processAccountTrade(trade, 102); // +2% → первый partial: закрыто 50% (маржа 50, pnl 1)
+    expect(Number(trade.pnl_value)).toBeCloseTo(1);
+  });
+
+  it('после partial TP финальное closeAccountTrade суммирует pnl_value и пересчитывает pnl_percent от исходной маржи', async () => {
+    const account = { ...baseAccount, partial_tps: [{ target: 2, closePercent: 50 }] };
+    accountRepo.findOneBy.mockResolvedValue(account);
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+    await service.processAccountTrade(trade, 102); // partial TP: pnl_value=1, remaining_volume=50, margin_used=100
+    expect(Number(trade.pnl_value)).toBeCloseTo(1);
+    expect(Number(trade.remaining_volume)).toBeCloseTo(50);
+
+    // финальное закрытие того же остатка по той же цене (+2% цены, лев 1 → +2% маржи на leg)
+    tradeRepo.findOneBy.mockResolvedValue(trade);
+    accountRepo.findOneBy.mockResolvedValue({ id: 5, current_balance: Number(account.current_balance) });
+    await service.closeAccountTrade(trade.id, 102, 'TP');
+    const savedTrade = tradeRepo.save.mock.calls.map((c: any) => c[0]).find((t: any) => t.status === 'CLOSED');
+    expect(Number(savedTrade.pnl_value)).toBeCloseTo(2); // 1 (partial) + 1 (close leg: 50 × 2% = 1)
+    expect(Number(savedTrade.pnl_percent)).toBeCloseTo(2); // 2 / margin_used(100) × 100
+    expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: Number(account.current_balance) + 50 + 1 }));
   });
 });
 

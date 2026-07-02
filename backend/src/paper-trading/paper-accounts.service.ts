@@ -170,6 +170,13 @@ export class PaperAccountsService {
     const trade = await this.virtualTradeRepository.findOneBy({ id });
     if (!trade || trade.status !== TradeStatus.OPEN || !trade.paper_account_id) return;
 
+    // Атомарный claim — только один из конкурентных вызовов может закрыть эту сделку
+    const claim = await this.virtualTradeRepository.update(
+      { id, status: TradeStatus.OPEN },
+      { status: TradeStatus.CLOSED },
+    );
+    if (!claim.affected) return;
+
     const entry = Number(trade.entry_price);
     const lev = Number(trade.leverage_used) || 1;
     const margin = Number(trade.remaining_volume ?? trade.margin_used);
@@ -187,8 +194,10 @@ export class PaperAccountsService {
     trade.exit_reason = marginPnlPct === -100 ? 'LIQUIDATION' : reason;
     trade.status = TradeStatus.CLOSED;
     trade.closed_at = new Date();
-    trade.pnl_percent = marginPnlPct;
-    trade.pnl_value = pnlValue;
+    trade.pnl_value = Number(trade.pnl_value || 0) + pnlValue;
+    trade.pnl_percent = Number(trade.margin_used) > 0
+      ? (Number(trade.pnl_value) / Number(trade.margin_used)) * 100
+      : marginPnlPct;
     await this.virtualTradeRepository.save(trade);
 
     const account = await this.accountRepository.findOneBy({ id: trade.paper_account_id });
@@ -290,6 +299,7 @@ export class PaperAccountsService {
         const pnlValue = (closedMargin * pricePnl * lev) / 100;
         trade.remaining_volume = Number(trade.remaining_volume) - closedMargin;
         trade.partial_tp_hits = idx + 1;
+        trade.pnl_value = Number(trade.pnl_value || 0) + pnlValue;
         account.current_balance = Number(account.current_balance) + closedMargin + pnlValue;
         await this.accountRepository.save(account);
         this.logger.log(
