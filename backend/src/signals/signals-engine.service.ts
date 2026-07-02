@@ -25,6 +25,8 @@ import { OrderbookService } from '../orderbook/orderbook.service';
 import { OcoManagerService } from '../orders/oco-manager.service';
 import { CCXTQueueService } from '../orders/ccxt-queue.service';
 import { AlgoExecutionService } from '../orders/algo-execution.service';
+import { PaperAccountsService } from '../paper-trading/paper-accounts.service';
+import { findPaperNodesForSignal } from '../paper-trading/paper-node-finder';
 
 /** Parse a percent/ATR string to a numeric fraction ("2%" → 0.02) */
 function parsePct(val: any): number | null {
@@ -86,6 +88,7 @@ export class SignalsEngineService {
     private ocoManagerService: OcoManagerService,
     private ccxtQueueService: CCXTQueueService,
     private algoExecutionService: AlgoExecutionService,
+    private paperAccountsService: PaperAccountsService,
   ) { }
 
   public getExecutionTrace(strategyId: number) {
@@ -451,6 +454,23 @@ export class SignalsEngineService {
           correlation,
           riskMultiplier
         );
+      }
+
+      // 5b. Paper Trading Output nodes — независимые виртуальные счета на нодах
+      try {
+        const paperNodeIds = findPaperNodesForSignal(
+          strategy.nodes || [],
+          strategy.edges || [],
+          signal.type,
+        );
+        if (paperNodeIds.length) {
+          const accounts = await this.paperAccountsService.getActiveAccounts(strategy.id, paperNodeIds);
+          for (const account of accounts) {
+            await this.paperAccountsService.openAccountTrade(account, pair, signal.type, signal.price);
+          }
+        }
+      } catch (e) {
+        this.logger.error(`Paper account execution error: ${(e as Error).message}`);
       }
 
       // 6. Live execution
