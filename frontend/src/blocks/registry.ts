@@ -138,6 +138,23 @@ export const registry: Record<string, BlockConfig> = {
   trade_webhook:      { type: 'trade_action', id: 'trade_webhook',      name: 'Webhook',      category: '🚀 Торговля', dotColor: '#8b5cf6', defaultData: { action: 'webhook', url: '', method: 'POST' } },
   trade_telegram:     { type: 'trade_action', id: 'trade_telegram',     name: 'Telegram Alert', category: '🚀 Торговля', dotColor: '#0088cc', defaultData: { action: 'telegram', telegramMessage: 'Сигнал: {{signal}} на {{pair}} по цене {{price}}' } },
   trade_grid:         { type: 'trade_action', id: 'trade_grid',         name: 'Grid Bot',     category: '🚀 Торговля', dotColor: '#ec4899', defaultData: { action: 'grid', lowerPrice: '60000', upperPrice: '70000', grids: 20, gridType: 'ARITHMETIC', volume: '50%' } },
+
+  paper_trading: {
+    type: 'paper_trading_output', id: 'paper_trading', name: '🧪 Paper Trading', category: '🚀 Торговля', dotColor: '#22d3ee',
+    defaultData: {
+      label: 'Config A',
+      startingCapital: 1000,
+      leverage: 1,
+      riskPercent: 10,
+      sl: '',
+      tp: '',
+      useTrailing: false,
+      trailingDistance: '1%',
+      trailingActivation: '0.5%',
+      moveSLtoBE: false,
+      partialTPs: [],
+    },
+  },
 };
 
 export const CATEGORIES: BlockCategory[] = [
@@ -181,4 +198,5 @@ export const EDGE_COLORS: Record<string, string> = {
   fusion_combiner: '#ec4899',
   deep_research: '#6366f1',
   portfolio_risk_sizer: '#f59e0b',
+  paper_trading_output: '#22d3ee',
 };

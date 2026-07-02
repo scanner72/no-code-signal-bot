@@ -37,6 +37,7 @@ import TradeActionNode from '../components/nodes/TradeActionNode';
 import WebhookNode from '../components/nodes/WebhookNode';
 import PolymarketScannerNode from '../components/nodes/PolymarketScannerNode';
 import FinvizScannerNode from '../components/nodes/FinvizScannerNode';
+import PaperTradingNode from '../components/nodes/PaperTradingNode';
 import DeribitPcrNode from '../components/nodes/DeribitPcrNode';
 import FusionCombinerNode from '../components/nodes/FusionCombinerNode';
 import DeepResearchNode from '../components/nodes/DeepResearchNode';
@@ -96,6 +97,7 @@ const nodeTypes = {
   webhook:          WebhookNode,
   polymarket_scanner: PolymarketScannerNode,
   finviz_scanner: FinvizScannerNode,
+  paper_trading_output: PaperTradingNode,
   deribit_pcr: DeribitPcrNode,
   fusion_combiner: FusionCombinerNode,
   deep_research: DeepResearchNode,
@@ -502,7 +504,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
         if (trueSources.includes(n.type!)) {
           // Sources only need an outgoing connection
           disconnected = !isSource;
-        } else if (n.type === 'trade_action' || n.type === 'signal') {
+        } else if (n.type === 'trade_action' || n.type === 'signal' || n.type === 'paper_trading_output') {
           // Sinks only need an incoming connection and must be reachable from a true source
           disconnected = !isTarget || !isReachable;
         } else {
@@ -1513,7 +1515,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
                     'orderbook', 'ai_forecast', 'deribit_pcr', 'user_level', 'scanner', 'heym_mcp', 'mcp_tool',
                     'hermes', 'ml_filter', 'deep_research', 'portfolio_risk_sizer',
                   ];
-                  const sinkTypes = ['trade_action', 'signal'];
+                  const sinkTypes = ['trade_action', 'signal', 'paper_trading_output'];
 
                   const disconnectedNodes = nodes.filter(n => {
                     const isSource = edges.some(e => e.source === n.id);
