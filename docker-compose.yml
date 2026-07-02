@@ -229,20 +229,17 @@ services:
   # Dashboard: http://localhost:3456  API: http://freellmapi:3000/v1
   # ─────────────────────────────────────────────────────
   freellmapi:
-    image: tashfeenahmed/freellmapi:latest
+    # Docker Hub repo (tashfeenahmed/freellmapi) was pulled by the author;
+    # the project now publishes to GHCR instead.
+    image: ghcr.io/tashfeenahmed/freellmapi:latest
     container_name: freellmapi
     restart: unless-stopped
     ports:
-      - "3456:3000"
+      - "3456:3001"
     volumes:
-      - freellmapi_data:/app/data
+      - freellmapi_data:/app/server/data
     environment:
       - ENCRYPTION_KEY=${FREELLMAPI_ENCRYPTION_KEY:-}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   postgres_data:

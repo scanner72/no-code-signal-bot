@@ -747,10 +747,10 @@ const Settings = () => {
                                             onClick={() => {
                                                 setHermesProvider(p.value);
                                                 // Set sensible default URLs
-                                                if (!hermesUrl || hermesUrl === 'http://localhost:11434' || hermesUrl === 'https://api.openai.com' || hermesUrl === 'http://hermes:7700' || hermesUrl === 'http://freellmapi:3000') {
+                                                if (!hermesUrl || hermesUrl === 'http://localhost:11434' || hermesUrl === 'https://api.openai.com' || hermesUrl === 'http://hermes:7700' || hermesUrl === 'http://freellmapi:3000' || hermesUrl === 'http://freellmapi:3001') {
                                                     if (p.value === 'ollama') setHermesUrl('http://localhost:11434');
                                                     else if (p.value === 'openai') setHermesUrl('https://api.openai.com');
-                                                    else if (p.value === 'freellmapi') setHermesUrl('http://freellmapi:3000');
+                                                    else if (p.value === 'freellmapi') setHermesUrl('http://freellmapi:3001');
                                                     else if (p.value === 'hermes') setHermesUrl('http://hermes:7700');
                                                 }
                                                 if (!hermesModel || hermesModel === 'llama3.2' || hermesModel === 'gpt-4o-mini' || hermesModel === 'nous-hermes-3') {
@@ -785,7 +785,7 @@ const Settings = () => {
                                         placeholder={
                                             hermesProvider === 'ollama' ? 'http://localhost:11434' :
                                             hermesProvider === 'openai' ? 'https://api.openai.com' :
-                                            hermesProvider === 'freellmapi' ? 'http://freellmapi:3000' :
+                                            hermesProvider === 'freellmapi' ? 'http://freellmapi:3001' :
                                             'http://hermes:7700'
                                         }
                                         value={hermesUrl}
