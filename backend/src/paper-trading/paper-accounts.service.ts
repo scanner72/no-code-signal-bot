@@ -332,4 +332,103 @@ export class PaperAccountsService {
 
     await this.virtualTradeRepository.save(trade);
   }
+
+  async getAccountsWithStats(strategyId?: number) {
+    const where: any = strategyId ? { strategy_id: strategyId } : {};
+    const accounts = await this.accountRepository.find({ where, order: { id: 'ASC' } });
+    const result: any[] = [];
+
+    for (const acc of accounts) {
+      const trades = await this.virtualTradeRepository.find({ where: { paper_account_id: acc.id } });
+      const closed = trades.filter((t) => t.status === TradeStatus.CLOSED);
+      const open = trades.filter((t) => t.status === TradeStatus.OPEN);
+      const wins = closed.filter((t) => Number(t.pnl_value) > 0).length;
+      const totalPnlValue = closed.reduce((s, t) => s + Number(t.pnl_value), 0);
+      const openMargin = open.reduce((s, t) => s + Number(t.remaining_volume ?? t.margin_used), 0);
+
+      result.push({
+        ...acc,
+        stats: {
+          equity: Math.round((Number(acc.current_balance) + openMargin) * 100) / 100,
+          totalPnlValue: Math.round(totalPnlValue * 100) / 100,
+          totalPnlPercent: Math.round((totalPnlValue / Number(acc.starting_capital)) * 10000) / 100,
+          winRate: closed.length ? Math.round((wins / closed.length) * 100) : 0,
+          closedTrades: closed.length,
+          openTrades: open.length,
+          skippedSignals: Number(acc.skipped_signals || 0),
+        },
+      });
+    }
+    return result;
+  }
+
+  async getAccountDetail(id: number) {
+    const account = await this.accountRepository.findOneByOrFail({ id });
+    const trades = await this.virtualTradeRepository.find({
+      where: { paper_account_id: id },
+      order: { opened_at: 'DESC' },
+    });
+    return { account, trades };
+  }
+
+  /** Закрывает открытые позиции по текущему рынку и возвращает баланс к стартовому капиталу */
+  async resetAccount(id: number) {
+    await this.accountRepository.findOneByOrFail({ id });
+    const open = await this.virtualTradeRepository.find({
+      where: { paper_account_id: id, status: TradeStatus.OPEN },
+    });
+
+    let tickers: any = {};
+    try {
+      tickers = await this.binanceApiService.fetchTickers24h();
+    } catch { /* закроем по entry_price */ }
+
+    for (const trade of open) {
+      const price = tickers[trade.pair] ? Number(tickers[trade.pair].lastPrice) : Number(trade.entry_price);
+      await this.closeAccountTrade(trade.id, price, 'MANUAL');
+    }
+
+    const fresh = await this.accountRepository.findOneByOrFail({ id });
+    fresh.current_balance = fresh.starting_capital;
+    return this.accountRepository.save(fresh);
+  }
+
+  async compareAccounts(ids: number[]) {
+    const out: any[] = [];
+    for (const id of ids) {
+      const account = await this.accountRepository.findOneBy({ id });
+      if (!account) continue;
+
+      const closed = await this.virtualTradeRepository.find({
+        where: { paper_account_id: id, status: TradeStatus.CLOSED },
+        order: { closed_at: 'ASC' },
+      });
+
+      let equity = Number(account.starting_capital);
+      let peak = equity;
+      let maxDrawdown = 0;
+      const curve: Array<{ date: Date; equity: number }> = [{ date: account.created_at, equity }];
+
+      for (const t of closed) {
+        equity += Number(t.pnl_value);
+        peak = Math.max(peak, equity);
+        if (peak > 0) maxDrawdown = Math.max(maxDrawdown, ((peak - equity) / peak) * 100);
+        curve.push({ date: t.closed_at, equity: Math.round(equity * 100) / 100 });
+      }
+
+      const wins = closed.filter((t) => Number(t.pnl_value) > 0).length;
+      out.push({
+        account,
+        curve,
+        stats: {
+          totalPnlPercent:
+            Math.round(((equity - Number(account.starting_capital)) / Number(account.starting_capital)) * 10000) / 100,
+          winRate: closed.length ? Math.round((wins / closed.length) * 100) : 0,
+          maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+          trades: closed.length,
+        },
+      });
+    }
+    return out;
+  }
 }

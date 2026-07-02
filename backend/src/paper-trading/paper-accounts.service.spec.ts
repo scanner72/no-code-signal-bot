@@ -260,3 +260,60 @@ describe('PaperAccountsService.processAccountTrade', () => {
     expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: 951 })); // 900 + 50 + 1
   });
 });
+
+describe('PaperAccountsService stats & reset & compare', () => {
+  let service: PaperAccountsService;
+  let accountRepo: any;
+  let tradeRepo: any;
+  let binance: any;
+
+  beforeEach(() => {
+    accountRepo = makeRepo();
+    tradeRepo = makeRepo();
+    binance = { fetchTickers24h: jest.fn().mockResolvedValue({ BTCUSDT: { lastPrice: '105' } }) };
+    service = new PaperAccountsService(accountRepo, tradeRepo, binance);
+  });
+
+  it('getAccountsWithStats: считает winRate, PnL и equity', async () => {
+    accountRepo.find.mockResolvedValue([
+      { id: 5, strategy_id: 7, node_id: 'n1', starting_capital: 1000, current_balance: 950 },
+    ]);
+    tradeRepo.find.mockResolvedValue([
+      { status: 'CLOSED', pnl_value: 20, margin_used: 100, remaining_volume: 0 },
+      { status: 'CLOSED', pnl_value: -10, margin_used: 100, remaining_volume: 0 },
+      { status: 'OPEN', pnl_value: 0, margin_used: 100, remaining_volume: 100 },
+    ]);
+    const [acc] = await service.getAccountsWithStats(7);
+    expect(acc.stats.winRate).toBe(50);
+    expect(acc.stats.totalPnlValue).toBe(10);
+    expect(acc.stats.totalPnlPercent).toBeCloseTo(1);
+    expect(acc.stats.equity).toBe(1050); // 950 свободных + 100 маржи в открытой позиции
+    expect(acc.stats.openTrades).toBe(1);
+    expect(acc.stats.closedTrades).toBe(2);
+  });
+
+  it('resetAccount: закрывает открытые позиции по рынку и возвращает стартовый капитал', async () => {
+    accountRepo.findOneByOrFail.mockResolvedValue({ id: 5, starting_capital: 1000, current_balance: 400 });
+    tradeRepo.find.mockResolvedValue([
+      { id: 11, pair: 'BTCUSDT', status: 'OPEN', paper_account_id: 5 },
+    ]);
+    const closeSpy = jest.spyOn(service, 'closeAccountTrade').mockResolvedValue();
+    const saved = await service.resetAccount(5);
+    expect(closeSpy).toHaveBeenCalledWith(11, 105, 'MANUAL');
+    expect(saved.current_balance).toBe(1000);
+  });
+
+  it('compareAccounts: строит equity curve и maxDrawdown', async () => {
+    accountRepo.findOneBy.mockResolvedValue({ id: 5, starting_capital: 1000, created_at: new Date('2026-07-01') });
+    tradeRepo.find.mockResolvedValue([
+      { pnl_value: 100, closed_at: new Date('2026-07-01T10:00Z') }, // 1100, peak
+      { pnl_value: -220, closed_at: new Date('2026-07-01T11:00Z') }, // 880 → DD 20%
+      { pnl_value: 50, closed_at: new Date('2026-07-01T12:00Z') },  // 930
+    ]);
+    const [res] = await service.compareAccounts([5]);
+    expect(res.curve.map((p: any) => p.equity)).toEqual([1000, 1100, 880, 930]);
+    expect(res.stats.maxDrawdown).toBeCloseTo(20);
+    expect(res.stats.totalPnlPercent).toBeCloseTo(-7);
+    expect(res.stats.trades).toBe(3);
+  });
+});
