@@ -11,6 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d signals_db"]
       interval: 10s
@@ -21,6 +22,7 @@ services:
     image: redis:alpine
     ports:
       - "6450:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -71,6 +73,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
@@ -115,6 +118,7 @@ services:
       - "8070:8070"
     volumes:
       - kronos_cache:/app/.cache/huggingface
+    restart: unless-stopped
     # Runs on CPU by default (auto-falls back to kronos-mini). To use an NVIDIA
     # GPU for faster forecasts, install nvidia-container-toolkit and uncomment:
     # deploy:
@@ -140,6 +144,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
 
   # ─────────────────────────────────────────────────────
   # 🧠 Hermes — OPTIONAL LLM risk-filter agent.
