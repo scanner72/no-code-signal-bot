@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Play, Square, TrendingUp, TrendingDown, DollarSign, Percent, Calendar, ShieldAlert } from 'lucide-react';
 import { toast, useNotificationStore } from '../stores/notificationStore';
+import PaperCompareSection from '../components/PaperCompareSection';
 
 const API = (import.meta as any).env?.VITE_API_URL || '/api';
 
@@ -143,6 +144,8 @@ const PaperTrading = () => {
           </div>
         </div>
       </div>
+
+      <PaperCompareSection />
 
       {/* Main Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '24px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
