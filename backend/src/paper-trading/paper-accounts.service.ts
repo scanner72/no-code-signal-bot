@@ -104,4 +104,100 @@ export class PaperAccountsService {
       where: { strategy_id: strategyId, node_id: In(nodeIds), is_active: true },
     });
   }
+
+  /**
+   * Открывает виртуальную сделку на аккаунте.
+   * Маржа = current_balance × risk_percent / 100 (компаундинг), списывается с баланса.
+   * Портфель: по одной открытой позиции на пару; противоположный сигнал закрывает текущую.
+   */
+  async openAccountTrade(
+    account: PaperTradingAccount,
+    pair: string,
+    type: string,
+    entryPrice: number,
+  ): Promise<VirtualTrade | null> {
+    const existing = await this.virtualTradeRepository.findOne({
+      where: { paper_account_id: account.id, pair, status: TradeStatus.OPEN },
+    });
+
+    if (existing) {
+      if (existing.type !== type) {
+        await this.closeAccountTrade(existing.id, entryPrice, 'OPPOSITE_SIGNAL');
+      } else {
+        return null; // позиция того же направления уже открыта
+      }
+    }
+
+    // Перечитываем баланс: closeAccountTrade выше мог его изменить
+    const fresh = await this.accountRepository.findOneByOrFail({ id: account.id });
+    const margin = (Number(fresh.current_balance) * Number(fresh.risk_percent)) / 100;
+    if (margin <= 0 || margin > Number(fresh.current_balance)) {
+      fresh.skipped_signals = Number(fresh.skipped_signals || 0) + 1;
+      await this.accountRepository.save(fresh);
+      this.logger.warn(`[PaperAccount #${fresh.id}] Skipped ${type} ${pair}: insufficient balance (${fresh.current_balance})`);
+      return null;
+    }
+
+    fresh.current_balance = Number(fresh.current_balance) - margin;
+    await this.accountRepository.save(fresh);
+
+    const trade = this.virtualTradeRepository.create({
+      strategy_id: fresh.strategy_id,
+      paper_account_id: fresh.id,
+      pair,
+      type,
+      entry_price: entryPrice,
+      highest_price: entryPrice,
+      lowest_price: entryPrice,
+      peak_price: entryPrice,
+      stop_price: null,
+      trailing_active: false,
+      partial_tp_hits: 0,
+      volume: margin,
+      remaining_volume: margin,
+      margin_used: margin,
+      leverage_used: Number(fresh.leverage) || 1,
+      status: TradeStatus.OPEN,
+    });
+    return this.virtualTradeRepository.save(trade);
+  }
+
+  /**
+   * Закрывает account-сделку. PnL на маржу = price% × плечо, капится на -100% (ликвидация).
+   * Возвращает (оставшуюся) маржу + PnL на баланс аккаунта.
+   */
+  async closeAccountTrade(id: number, exitPrice: number, reason: string): Promise<void> {
+    const trade = await this.virtualTradeRepository.findOneBy({ id });
+    if (!trade || trade.status !== TradeStatus.OPEN || !trade.paper_account_id) return;
+
+    const entry = Number(trade.entry_price);
+    const lev = Number(trade.leverage_used) || 1;
+    const margin = Number(trade.remaining_volume ?? trade.margin_used);
+
+    const pricePnl = trade.type === 'LONG'
+      ? ((exitPrice - entry) / entry) * 100
+      : ((entry - exitPrice) / entry) * 100;
+
+    let marginPnlPct = pricePnl * lev;
+    if (marginPnlPct < -100 || reason === 'LIQUIDATION') marginPnlPct = -100;
+
+    const pnlValue = (margin * marginPnlPct) / 100;
+
+    trade.exit_price = exitPrice;
+    trade.exit_reason = marginPnlPct === -100 ? 'LIQUIDATION' : reason;
+    trade.status = TradeStatus.CLOSED;
+    trade.closed_at = new Date();
+    trade.pnl_percent = marginPnlPct;
+    trade.pnl_value = pnlValue;
+    await this.virtualTradeRepository.save(trade);
+
+    const account = await this.accountRepository.findOneBy({ id: trade.paper_account_id });
+    if (account) {
+      account.current_balance = Number(account.current_balance) + margin + pnlValue;
+      await this.accountRepository.save(account);
+    }
+    this.logger.log(
+      `[PaperAccount #${trade.paper_account_id}] Closed #${trade.id} (${trade.exit_reason}) PnL: ${marginPnlPct.toFixed(2)}% of margin`,
+    );
+  }
 }
