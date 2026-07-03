@@ -174,6 +174,24 @@ describe('BacktestService', () => {
     expect(result.trades[0].pnlPercent).toBeLessThan(0); // закрылись по SL внутри суб-свечи
   });
 
+  it('неточный режим (accurate:false): позиция закрывается по TP, а не висит до force-close (regression: 1 сделка)', async () => {
+    const candles = makeCandles(150, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 150; i++) candles[i].close = '206'; // +3% > TP 2%
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    const result = await service.run(1, { ...DEFAULT_OPTS, tp: 0.02, sl: 0.01 });
+    expect(result.totalTrades).toBe(1);
+    expect(result.trades[0].exitReason).toBe('TP');       // настоящий выход по тейку...
+    expect(result.trades[0].forceClosed).toBeUndefined(); // ...а не принудительный в конце периода
+  });
+
   it('does not open a new position while one is open', async () => {
     // Flat candles: price never moves, so TP/SL is never hit — position stays open forever
     const flatCandles = Array.from({ length: 150 }, (_, i) => ({
