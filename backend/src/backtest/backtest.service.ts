@@ -133,12 +133,14 @@ export class BacktestService {
       const collect = (node: any) => {
         if (!node || typeof node !== 'object') return;
         if (node.type === 'indicator') {
-          const period = node.period || 14;
-          const source = node.source || 'close';
-          const key = `${node.indicator}:${period}:${source}`;
+          // Компилированный AST хранит {name, params:{period,source}}, optimizer-путь — {indicator, period, source}
+          const indicatorName = node.indicator || node.name;
+          const period = node.period || node.params?.period || 14;
+          const source = node.source || node.params?.source || 'close';
+          const key = `${indicatorName}:${period}:${source}`;
           if (!indicatorCache.has(key)) {
             let series: number[];
-            switch (node.indicator) {
+            switch (indicatorName) {
               case 'RSI': series = this.indicatorsService.calculateRSI(srcArr(source), period); break;
               case 'SMA': series = this.indicatorsService.calculateSMA(srcArr(source), period); break;
               case 'EMA': series = this.indicatorsService.calculateEMA(srcArr(source), period); break;

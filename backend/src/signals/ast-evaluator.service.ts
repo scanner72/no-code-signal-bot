@@ -93,12 +93,14 @@ export class AstEvaluatorService {
 
       // ── Indicators (pure computation) ──
       case 'indicator': {
-        const period = node.period || 14;
-        const source = node.source || 'close';
+        // Компилированный AST хранит {name, params:{period,source}}, optimizer-путь — {indicator, period, source}
+        const indicatorName = node.indicator || node.name;
+        const period = node.period || node.params?.period || 14;
+        const source = node.source || node.params?.source || 'close';
 
         // Fast path: precomputed series from backtest (O(1) lookup instead of O(n) recompute)
         if (context?.indicatorCache && typeof context.candleIndex === 'number') {
-          const cached = context.indicatorCache.get(`${node.indicator}:${period}:${source}`);
+          const cached = context.indicatorCache.get(`${indicatorName}:${period}:${source}`);
           if (cached) {
             const pos = context.candleIndex - cached.offset;
             if (getHistory) {
@@ -112,7 +114,7 @@ export class AstEvaluatorService {
         const values = candles.map(c => parseFloat(c[source] || c.close)).reverse();
         let result: number[];
 
-        switch (node.indicator) {
+        switch (indicatorName) {
           case 'RSI': result = this.indicatorsService.calculateRSI(values, period); break;
           case 'SMA': result = this.indicatorsService.calculateSMA(values, period); break;
           case 'EMA': result = this.indicatorsService.calculateEMA(values, period); break;

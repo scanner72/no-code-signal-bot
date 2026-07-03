@@ -1,4 +1,6 @@
 import { BacktestService } from './backtest.service';
+import { AstEvaluatorService } from '../signals/ast-evaluator.service';
+import { IndicatorsService } from '../indicators/indicators.service';
 
 const makeCandles = (n: number, startPrice = 100) =>
   Array.from({ length: n }, (_, i) => ({
@@ -107,6 +109,44 @@ describe('BacktestService', () => {
     const result = await service.run(1, { ...DEFAULT_OPTS, tp: 0.05, sl: 0.01 });
     expect(result.totalTrades).toBeGreaterThan(0);
     expect(result.trades[0].pnlPercent).toBeLessThan(0);
+  });
+
+  it('компилированный AST (name/params) с реальным евалуатором: RSI<30 открывает сделки (regression: 0 trades)', async () => {
+    // Реальный евалуатор + реальные индикаторы — мок скрывал несовпадение полей
+    // (компилятор пишет {name, params.period}, движок читал {indicator, period})
+    const realIndicators = new IndicatorsService(null as any);
+    const realEvaluator = new AstEvaluatorService(null as any, realIndicators);
+    const mockSignalsGateway = { broadcastProgress: jest.fn().mockResolvedValue(undefined) };
+    const realService = new BacktestService(
+      mockStrategyRepo, mockCandlesService, realEvaluator as any,
+      realIndicators as any, mockSignalsGateway as any,
+    );
+
+    // AST ровно в той форме, что выдаёт ast-compiler для builder-стратегий
+    mockStrategyRepo.findOneBy.mockResolvedValue({
+      ...strategy,
+      ast: {
+        type: 'signal',
+        signalType: 'LONG',
+        condition: {
+          type: 'comparison',
+          operator: '<',
+          left: { type: 'indicator', name: 'RSI', params: { period: 14 } },
+          right: 30,
+        },
+      },
+    });
+
+    // 120 ровных свечей, затем обвал → RSI(14) уходит к нулю → условие обязано сработать
+    const candles = makeCandles(150, 100).map((c, i) => {
+      const price = i < 120 ? 200 : 200 - (i - 119) * 3;
+      return { ...c, open: price, high: price + 1, low: price - 1, close: String(price) };
+    });
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    const result = await realService.run(1, { ...DEFAULT_OPTS, tp: 0.5, sl: 0.5 });
+    expect(result.totalTrades).toBeGreaterThan(0);
+    expect(result.trades[0].type).toBe('LONG');
   });
 
   it('accurate mode: не падает, когда позиция закрыта внутри 1m суб-свечи (regression: null.partialTpHits)', async () => {
