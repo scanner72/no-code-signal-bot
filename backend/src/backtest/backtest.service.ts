@@ -359,6 +359,9 @@ export class BacktestService {
                     break; // Trade closed
                 }
             }
+            // Позиция могла закрыться по SL/TP внутри суб-свечи выше — к следующей свече
+            if (!position) continue;
+
             // ── Partial TP logic ─────────────────────────────────────────────
             const partialTPs: Array<{target: number, closePercent: number}> = options.partialTPs || [];
             const sortedPTPs = [...partialTPs].sort((a, b) => a.target - b.target);

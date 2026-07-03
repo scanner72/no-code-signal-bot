@@ -109,6 +109,31 @@ describe('BacktestService', () => {
     expect(result.trades[0].pnlPercent).toBeLessThan(0);
   });
 
+  it('accurate mode: не падает, когда позиция закрыта внутри 1m суб-свечи (regression: null.partialTpHits)', async () => {
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 110; i++) candles[i].close = '197';
+
+    // Одна 1m суб-свеча внутри свечи 101, пробивающая SL (200 × 0.99 = 198)
+    const subCandles = [{
+      time: new Date(candles[101].time.getTime() + 1000),
+      open: 199, high: 199.5, low: 190, close: '191', volume: 10,
+    }];
+
+    mockCandlesService.getCandlesForRange.mockImplementation((_pair: string, tf: string) =>
+      Promise.resolve(tf === '1m' ? subCandles : candles));
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    const result = await service.run(1, { ...DEFAULT_OPTS, accurate: true, tp: 0.05, sl: 0.01 });
+    expect(result.totalTrades).toBeGreaterThan(0);
+    expect(result.trades[0].pnlPercent).toBeLessThan(0); // закрылись по SL внутри суб-свечи
+  });
+
   it('does not open a new position while one is open', async () => {
     // Flat candles: price never moves, so TP/SL is never hit — position stays open forever
     const flatCandles = Array.from({ length: 150 }, (_, i) => ({
