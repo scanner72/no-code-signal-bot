@@ -184,7 +184,7 @@ const Backtest = () => {
     const strategyIdNum = Number(selectedStrategyId);
 
     try {
-      const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = (import.meta as any).env?.VITE_API_URL || `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000`;
       const socketUrl = API_URL.replace('/api', '') + '/signals';
       const socket = io(socketUrl, { transports: ['websocket'] });
       socketRef.current = socket;

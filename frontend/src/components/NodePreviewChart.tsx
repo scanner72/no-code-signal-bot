@@ -16,7 +16,7 @@ const NodePreviewChart: React.FC<NodePreviewChartProps> = ({ node, onClose, defa
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const apiBase = import.meta.env.VITE_API_URL || `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000/api`;
 
     useEffect(() => {
         const fetchData = async () => {

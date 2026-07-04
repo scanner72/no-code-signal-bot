@@ -9,7 +9,7 @@ export const useCollaboration = (strategyId: string | null) => {
   useEffect(() => {
     if (!strategyId) return;
 
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
+    const socket = io(import.meta.env.VITE_API_URL || `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000`);
     socketRef.current = socket;
 
     socket.emit('join-strategy', { strategyId });

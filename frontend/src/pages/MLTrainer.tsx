@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { strategiesApi } from '../api/strategies';
+import { candlesApi } from '../api/candles';
 import { Brain, Cpu, Database, History, Play, AlertCircle, CheckCircle2, Loader2, BarChart3, FlaskConical, Trash2 } from 'lucide-react';
 import { useLanguageStore } from '../stores/useLanguageStore';
 
@@ -12,6 +13,7 @@ const MLTrainer = () => {
     const [features, setFeatures] = useState<string[]>([]);
     const [targetPair, setTargetPair] = useState('BTCUSDT');
     const [targetTimeframe, setTargetTimeframe] = useState('1h');
+    const [trackedSymbols, setTrackedSymbols] = useState<string[]>([]);
     const [training, setTraining] = useState(false);
     const [backtesting, setBacktesting] = useState(false);
     const [activeModel, setActiveModel] = useState<any>(null);
@@ -30,12 +32,14 @@ const MLTrainer = () => {
 
     const loadInitialData = async () => {
         try {
-            const [stratRes, modelRes] = await Promise.all([
+            const [stratRes, modelRes, symbolsRes] = await Promise.all([
                 strategiesApi.getAll(),
-                axios.get(`${apiBase}/ml/models`)
+                axios.get(`${apiBase}/ml/models`),
+                candlesApi.getTrackedSymbols()
             ]);
             setStrategies(stratRes.data);
             setModels(modelRes.data);
+            setTrackedSymbols(symbolsRes.data || []);
         } catch (e) {
             console.error('Failed to load data', e);
         }
@@ -45,6 +49,8 @@ const MLTrainer = () => {
         setSelectedStrategy(id);
         const strat = strategies.find(s => s.id === Number(id));
         if (strat) {
+            if (strat.pair) setTargetPair(strat.pair);
+            if (strat.timeframe) setTargetTimeframe(strat.timeframe);
             // Фичи берём из сырого графа стратегии (strat.nodes), а не из strat.ast:
             // ast — скомпилированное дерево без массива .nodes, обращение к нему падало.
             const featNodes = (strat.nodes || []).filter((n: any) =>
@@ -161,7 +167,11 @@ const MLTrainer = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
                                     <label style={labelStyle}>Pair</label>
-                                    <input value={targetPair} onChange={e => setTargetPair(e.target.value)} style={inputStyle} />
+                                    <select value={targetPair} onChange={e => setTargetPair(e.target.value)} style={inputStyle}>
+                                        {Array.from(new Set([...trackedSymbols, targetPair])).filter(Boolean).map(symbol => (
+                                            <option key={symbol} value={symbol}>{symbol}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label style={labelStyle}>TF</label>

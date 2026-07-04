@@ -11,7 +11,7 @@ const Sparkline = ({ name, params, type }: { name: string; params: any; type: st
     let active = true;
     const fetchSparkline = async () => {
       try {
-        const apiBase = (window as any).env?.VITE_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const apiBase = (window as any).env?.VITE_API_URL || import.meta.env.VITE_API_URL || `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000/api`;
         const response = await fetch(
           `${apiBase}/indicators/preview?pair=BTCUSDT&timeframe=1h&type=${type}&name=${name}&params=${encodeURIComponent(
             JSON.stringify(params || {})
