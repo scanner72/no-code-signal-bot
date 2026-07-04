@@ -23,7 +23,10 @@ export class BacktestProcessor {
         await job.progress(progress);
       });
       try {
-        await this.backtestRunsService.saveRun(strategyId, options, result);
+        // Persist a stripped copy: the candles array is ~17k objects (MBs of jsonb) per run
+        // and history features only need equityCurve/metrics. The full `result` (with candles)
+        // is still returned below for the frontend to plot the price tab.
+        await this.backtestRunsService.saveRun(strategyId, options, { ...result, candles: undefined });
       } catch (e) {
         this.logger.error(`Failed to persist backtest run: ${(e as Error).message}`);
       }

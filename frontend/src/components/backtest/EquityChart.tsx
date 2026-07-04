@@ -21,7 +21,8 @@ const PAD = { l: 46, r: 8, t: 8, b: 16 };
 const EquityChart = ({ equityCurve, benchmark, overlays = [], trades = [], onTradeDotClick, activeTradeIdx }: EquityChartProps) => {
   const model = useMemo(() => {
     if (!equityCurve || equityCurve.length < 2) return null;
-    const allSeries = [equityCurve, ...(benchmark ? [benchmark] : []), ...overlays.map((o) => o.points)];
+    const allSeries = [equityCurve, ...(benchmark?.length ? [benchmark] : []), ...overlays.map((o) => o.points)]
+      .filter((s) => s && s.length > 0);
     const t0 = Math.min(...allSeries.map((s) => new Date(s[0].t).getTime()));
     const t1 = Math.max(...allSeries.map((s) => new Date(s[s.length - 1].t).getTime()));
     const vAll = allSeries.flatMap((s) => s.map((p) => p.v));
@@ -67,8 +68,8 @@ const EquityChart = ({ equityCurve, benchmark, overlays = [], trades = [], onTra
           points={`${equityCurve.map((p) => `${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')} ${x(equityCurve[equityCurve.length - 1].t).toFixed(1)},${H - PAD.b} ${x(equityCurve[0].t).toFixed(1)},${H - PAD.b}`}
           fill="url(#eqFill)"
         />
-        {benchmark && <path d={path(benchmark)} fill="none" stroke="#79c0ff" strokeWidth="1" strokeDasharray="4,4" />}
-        {overlays.map((o) => <path key={o.label} d={path(o.points)} fill="none" stroke={o.color} strokeWidth="1.3" />)}
+        {benchmark && benchmark.length > 0 && <path d={path(benchmark)} fill="none" stroke="#79c0ff" strokeWidth="1" strokeDasharray="4,4" />}
+        {overlays.filter((o) => o.points && o.points.length > 0).map((o) => <path key={o.label} d={path(o.points)} fill="none" stroke={o.color} strokeWidth="1.3" />)}
         <path d={path(equityCurve)} fill="none" stroke="#2962ff" strokeWidth="1.8" />
         {trades.map((t, i) => (
           <circle key={i} cx={x(t.exitTime)} cy={y(equityCurve[Math.min(i + 1, equityCurve.length - 1)].v)}

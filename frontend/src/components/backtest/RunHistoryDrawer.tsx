@@ -39,33 +39,47 @@ const RunHistoryDrawer = ({ open, strategyId, reloadKey, onClose, overlayRunIds,
   if (!open) return null;
 
   const toggleOverlay = async (run: RunSummary) => {
-    if (overlayRunIds.includes(run.id)) {
-      onToggleOverlay(run.id, null);
-      return;
+    try {
+      if (overlayRunIds.includes(run.id)) {
+        onToggleOverlay(run.id, null);
+        return;
+      }
+      if (overlayRunIds.length >= 3) return;
+      const res = await axios.get(`${API}/backtest/runs/${run.id}`);
+      if (!res.data?.result) return;
+      const label = `#${run.id} ${optChips(run.options) || new Date(run.created_at).toLocaleDateString()}`;
+      onToggleOverlay(run.id, { id: run.id, label, result: res.data.result });
+    } catch {
+      // run may have been deleted concurrently or the request failed — ignore
     }
-    if (overlayRunIds.length >= 3) return;
-    const res = await axios.get(`${API}/backtest/runs/${run.id}`);
-    const label = `#${run.id} ${optChips(run.options) || new Date(run.created_at).toLocaleDateString()}`;
-    onToggleOverlay(run.id, { id: run.id, label, result: res.data.result });
   };
 
   const toggleCompare = async (run: RunSummary) => {
-    if (compareId === run.id) {
-      setCompareId(null);
-      onCompare(null);
-      return;
+    try {
+      if (compareId === run.id) {
+        setCompareId(null);
+        onCompare(null);
+        return;
+      }
+      const res = await axios.get(`${API}/backtest/runs/${run.id}`);
+      if (!res.data?.result || !res.data?.options) return;
+      setCompareId(run.id);
+      onCompare({ id: run.id, options: res.data.options, result: res.data.result });
+    } catch {
+      // run may have been deleted concurrently or the request failed — ignore
     }
-    const res = await axios.get(`${API}/backtest/runs/${run.id}`);
-    setCompareId(run.id);
-    onCompare({ id: run.id, options: res.data.options, result: res.data.result });
   };
 
   const del = async (id: number) => {
     if (!confirm(`Удалить прогон #${id}? Это действие необратимо.`)) return;
-    await axios.delete(`${API}/backtest/runs/${id}`);
-    setRuns((rs) => rs.filter((r) => r.id !== id));
-    if (overlayRunIds.includes(id)) onToggleOverlay(id, null);
-    if (compareId === id) { setCompareId(null); onCompare(null); }
+    try {
+      await axios.delete(`${API}/backtest/runs/${id}`);
+      setRuns((rs) => rs.filter((r) => r.id !== id));
+      if (overlayRunIds.includes(id)) onToggleOverlay(id, null);
+      if (compareId === id) { setCompareId(null); onCompare(null); }
+    } catch {
+      // deletion failed — leave the list as-is
+    }
   };
 
   return (

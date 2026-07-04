@@ -150,6 +150,18 @@ const RunPanel = (p: RunPanelProps) => {
             </label>
             <button onClick={() => setParamsOpen(false)} style={{ marginLeft: 'auto', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 11 }}>Свернуть</button>
           </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: 'var(--text-primary)', paddingBottom: 6 }}>
+              <input type="checkbox" checked={!!p.form.useTrailingStop} onChange={(e) => set('useTrailingStop', e.target.checked)} />
+              Trailing stop
+            </label>
+            {p.form.useTrailingStop && (
+              <>
+                <F label="Дистанция (%)" step="0.1" value={p.form.trailingDistance} onChange={(v) => set('trailingDistance', v)} />
+                <F label="Активация (%)" step="0.1" value={p.form.trailingActivation} onChange={(v) => set('trailingActivation', v)} />
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
