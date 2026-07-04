@@ -352,10 +352,20 @@ export class PaperAccountsService {
   async getAccountsWithStats(strategyId?: number) {
     const where: any = strategyId ? { strategy_id: strategyId } : {};
     const accounts = await this.accountRepository.find({ where, order: { id: 'ASC' } });
-    const result: any[] = [];
+    if (!accounts.length) return [];
 
+    const accountIds = accounts.map((a) => a.id);
+    const allTrades = await this.virtualTradeRepository.find({ where: { paper_account_id: In(accountIds) } });
+    const tradesByAccount = new Map<number, VirtualTrade[]>();
+    for (const t of allTrades) {
+      const list = tradesByAccount.get(t.paper_account_id as number);
+      if (list) list.push(t);
+      else tradesByAccount.set(t.paper_account_id as number, [t]);
+    }
+
+    const result: any[] = [];
     for (const acc of accounts) {
-      const trades = await this.virtualTradeRepository.find({ where: { paper_account_id: acc.id } });
+      const trades = tradesByAccount.get(acc.id) || [];
       const closed = trades.filter((t) => t.status === TradeStatus.CLOSED);
       const open = trades.filter((t) => t.status === TradeStatus.OPEN);
       const wins = closed.filter((t) => Number(t.pnl_value) > 0).length;
@@ -378,13 +388,39 @@ export class PaperAccountsService {
     return result;
   }
 
+  /**
+   * Строит equity curve по стартовому капиталу + кумулятивному pnl_value закрытых сделок.
+   * closedTradesAscByClosedAt должны быть отсортированы по closed_at ASC.
+   */
+  private buildEquityCurve(
+    startingCapital: number,
+    createdAt: Date,
+    closedTradesAscByClosedAt: VirtualTrade[],
+  ): Array<{ t: string; v: number }> {
+    let equity = Number(startingCapital);
+    const curve: Array<{ t: string; v: number }> = [
+      { t: new Date(createdAt).toISOString(), v: equity },
+    ];
+
+    for (const t of closedTradesAscByClosedAt) {
+      equity += Number(t.pnl_value);
+      curve.push({ t: new Date(t.closed_at).toISOString(), v: Math.round(equity * 100) / 100 });
+    }
+    return curve;
+  }
+
   async getAccountDetail(id: number) {
     const account = await this.accountRepository.findOneByOrFail({ id });
     const trades = await this.virtualTradeRepository.find({
       where: { paper_account_id: id },
       order: { opened_at: 'DESC' },
     });
-    return { account, trades };
+    const closed = await this.virtualTradeRepository.find({
+      where: { paper_account_id: id, status: TradeStatus.CLOSED },
+      order: { closed_at: 'ASC' },
+    });
+    const equityCurve = this.buildEquityCurve(Number(account.starting_capital), account.created_at, closed);
+    return { account, trades, equityCurve };
   }
 
   /** Закрывает открытые позиции по текущему рынку и возвращает баланс к стартовому капиталу */
@@ -420,16 +456,20 @@ export class PaperAccountsService {
         order: { closed_at: 'ASC' },
       });
 
+      const equityPoints = this.buildEquityCurve(Number(account.starting_capital), account.created_at, closed);
+      const dates = [account.created_at, ...closed.map((t) => t.closed_at)];
+      const curve: Array<{ date: Date; equity: number }> = equityPoints.map((p, i) => ({
+        date: dates[i],
+        equity: p.v,
+      }));
+
       let equity = Number(account.starting_capital);
       let peak = equity;
       let maxDrawdown = 0;
-      const curve: Array<{ date: Date; equity: number }> = [{ date: account.created_at, equity }];
-
       for (const t of closed) {
         equity += Number(t.pnl_value);
         peak = Math.max(peak, equity);
         if (peak > 0) maxDrawdown = Math.max(maxDrawdown, ((peak - equity) / peak) * 100);
-        curve.push({ date: t.closed_at, equity: Math.round(equity * 100) / 100 });
       }
 
       const wins = closed.filter((t) => Number(t.pnl_value) > 0).length;

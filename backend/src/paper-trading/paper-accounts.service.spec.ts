@@ -350,9 +350,9 @@ describe('PaperAccountsService stats & reset & compare', () => {
       { id: 5, strategy_id: 7, node_id: 'n1', starting_capital: 1000, current_balance: 950 },
     ]);
     tradeRepo.find.mockResolvedValue([
-      { status: 'CLOSED', pnl_value: 20, margin_used: 100, remaining_volume: 0 },
-      { status: 'CLOSED', pnl_value: -10, margin_used: 100, remaining_volume: 0 },
-      { status: 'OPEN', pnl_value: 0, margin_used: 100, remaining_volume: 100 },
+      { paper_account_id: 5, status: 'CLOSED', pnl_value: 20, margin_used: 100, remaining_volume: 0 },
+      { paper_account_id: 5, status: 'CLOSED', pnl_value: -10, margin_used: 100, remaining_volume: 0 },
+      { paper_account_id: 5, status: 'OPEN', pnl_value: 0, margin_used: 100, remaining_volume: 100 },
     ]);
     const [acc] = await service.getAccountsWithStats(7);
     expect(acc.stats.winRate).toBe(50);
@@ -386,5 +386,68 @@ describe('PaperAccountsService stats & reset & compare', () => {
     expect(res.stats.maxDrawdown).toBeCloseTo(20);
     expect(res.stats.totalPnlPercent).toBeCloseTo(-7);
     expect(res.stats.trades).toBe(3);
+  });
+
+  it('getAccountDetail: возвращает equityCurve со стартовым капиталом и кумулятивным pnl', async () => {
+    accountRepo.findOneByOrFail.mockResolvedValue({
+      id: 5, starting_capital: 1000, created_at: new Date('2026-07-01T00:00Z'),
+    });
+    tradeRepo.find.mockImplementation(async ({ where }: any) => {
+      if (where.status === 'CLOSED') {
+        return [
+          { pnl_value: 100, closed_at: new Date('2026-07-01T10:00Z') },
+          { pnl_value: -220, closed_at: new Date('2026-07-01T11:00Z') },
+          { pnl_value: 50, closed_at: new Date('2026-07-01T12:00Z') },
+        ];
+      }
+      return []; // trades list (order: opened_at DESC) — не важен для этого теста
+    });
+
+    const detail = await service.getAccountDetail(5);
+    expect(detail.equityCurve).toEqual([
+      { t: new Date('2026-07-01T00:00Z').toISOString(), v: 1000 },
+      { t: new Date('2026-07-01T10:00Z').toISOString(), v: 1100 },
+      { t: new Date('2026-07-01T11:00Z').toISOString(), v: 880 },
+      { t: new Date('2026-07-01T12:00Z').toISOString(), v: 930 },
+    ]);
+    expect(detail.equityCurve.length).toBe(3 + 1); // closedTrades + 1
+  });
+
+  it('getAccountsWithStats: батчит запрос сделок ОДНИМ вызовом find для нескольких аккаунтов', async () => {
+    accountRepo.find.mockResolvedValue([
+      { id: 5, strategy_id: 7, node_id: 'n1', starting_capital: 1000, current_balance: 950 },
+      { id: 6, strategy_id: 7, node_id: 'n2', starting_capital: 2000, current_balance: 2100 },
+    ]);
+    tradeRepo.find.mockResolvedValue([
+      { paper_account_id: 5, status: 'CLOSED', pnl_value: 20, margin_used: 100, remaining_volume: 0 },
+      { paper_account_id: 5, status: 'CLOSED', pnl_value: -10, margin_used: 100, remaining_volume: 0 },
+      { paper_account_id: 5, status: 'OPEN', pnl_value: 0, margin_used: 100, remaining_volume: 100 },
+      { paper_account_id: 6, status: 'CLOSED', pnl_value: 100, margin_used: 200, remaining_volume: 0 },
+    ]);
+
+    const [acc5, acc6] = await service.getAccountsWithStats(7);
+
+    expect(tradeRepo.find).toHaveBeenCalledTimes(1);
+    expect(tradeRepo.find).toHaveBeenCalledWith({ where: { paper_account_id: expect.anything() } });
+
+    expect(acc5.stats.winRate).toBe(50);
+    expect(acc5.stats.totalPnlValue).toBe(10);
+    expect(acc5.stats.totalPnlPercent).toBeCloseTo(1);
+    expect(acc5.stats.equity).toBe(1050);
+    expect(acc5.stats.openTrades).toBe(1);
+    expect(acc5.stats.closedTrades).toBe(2);
+
+    expect(acc6.stats.winRate).toBe(100);
+    expect(acc6.stats.totalPnlValue).toBe(100);
+    expect(acc6.stats.closedTrades).toBe(1);
+    expect(acc6.stats.openTrades).toBe(0);
+    expect(acc6.stats.equity).toBe(2100);
+  });
+
+  it('getAccountsWithStats: без аккаунтов не запрашивает сделки', async () => {
+    accountRepo.find.mockResolvedValue([]);
+    const result = await service.getAccountsWithStats(7);
+    expect(result).toEqual([]);
+    expect(tradeRepo.find).not.toHaveBeenCalled();
   });
 });
