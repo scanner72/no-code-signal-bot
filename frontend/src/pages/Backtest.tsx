@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { strategiesApi } from '../api/strategies';
 import { optimizerApi } from '../api/optimizer';
@@ -50,6 +51,7 @@ const btTranslations = {
 const Backtest = () => {
   const { userLevels } = useStrategyStore();
   const { language } = useLanguageStore();
+  const [searchParams] = useSearchParams();
   const t = btTranslations[language as 'ru' | 'en'] || btTranslations.en;
 
   // ── state: стратегии (перенесено из старой страницы) ──
@@ -138,8 +140,11 @@ const Backtest = () => {
     strategiesApi.getAll().then((res) => {
       setStrategies(res.data);
       if (res.data && res.data.length > 0) {
-        setSelectedStrategyId(res.data[0].id.toString());
-        setOptimizableParams(extractParams(res.data[0].ast));
+        const preselectId = searchParams.get('strategyId');
+        const preselected = preselectId && res.data.find((st: any) => st.id.toString() === preselectId);
+        const initial = preselected || res.data[0];
+        setSelectedStrategyId(initial.id.toString());
+        setOptimizableParams(extractParams(initial.ast));
       }
     }).catch((err) => {
       console.error('Failed to load strategies:', err);

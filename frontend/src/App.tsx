@@ -1,23 +1,31 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import StrategyBuilder from './pages/StrategyBuilder';
-import Dashboard from './pages/Dashboard';
-import SignalHistory from './pages/SignalHistory';
-import Settings from './pages/Settings';
-import Strategies from './pages/Strategies';
-import Backtest from './pages/Backtest';
-import Fleet from './pages/Fleet';
-import MLTrainer from './pages/MLTrainer';
-import CrossExchange from './pages/CrossExchange';
-import Documentation from './pages/Documentation';
-import PaperTrading from './pages/PaperTrading';
-import PineImport from './pages/PineImport';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import { useSession } from './lib/auth-client';
-import BacktestJob from './pages/BacktestJob';
 import ToastContainer from './components/ToastContainer';
+
+const StrategyBuilder = lazy(() => import('./pages/StrategyBuilder'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const SignalHistory = lazy(() => import('./pages/SignalHistory'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Strategies = lazy(() => import('./pages/Strategies'));
+const Backtest = lazy(() => import('./pages/Backtest'));
+const Fleet = lazy(() => import('./pages/Fleet'));
+const MLTrainer = lazy(() => import('./pages/MLTrainer'));
+const CrossExchange = lazy(() => import('./pages/CrossExchange'));
+const Documentation = lazy(() => import('./pages/Documentation'));
+const PaperTrading = lazy(() => import('./pages/PaperTrading'));
+const PineImport = lazy(() => import('./pages/PineImport'));
+
+function PageLoader() {
+  return (
+    <div style={{ display: 'flex', height: '100vh', width: '100%', justifyContent: 'center', alignItems: 'center', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+      Загрузка...
+    </div>
+  );
+}
 
 function PrivateRoutes() {
   const { data: session, isPending } = useSession();
@@ -35,29 +43,30 @@ function PrivateRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/builder" element={<BuilderPage />} />
-      <Route path="/*" element={
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/strategies" element={<StrategiesPage />} />
-            <Route path="/pine-import" element={<PineImport />} />
-            <Route path="/signals" element={<SignalHistory />} />
-            <Route path="/paper" element={<PaperTrading />} />
-            <Route path="/backtest" element={<Backtest />} />
-            <Route path="/backtest/job/:jobId" element={<BacktestJob />} />
-            <Route path="/fleet" element={<Fleet />} />
-            <Route path="/ml" element={<MLTrainer />} />
-            <Route path="/cross" element={<CrossExchange />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/docs" element={<Documentation />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Layout>
-      } />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/builder" element={<BuilderPage />} />
+        <Route path="/*" element={
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/strategies" element={<StrategiesPage />} />
+              <Route path="/pine-import" element={<PineImport />} />
+              <Route path="/signals" element={<SignalHistory />} />
+              <Route path="/paper" element={<PaperTrading />} />
+              <Route path="/backtest" element={<Backtest />} />
+              <Route path="/fleet" element={<Fleet />} />
+              <Route path="/ml" element={<MLTrainer />} />
+              <Route path="/cross" element={<CrossExchange />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/docs" element={<Documentation />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Layout>
+        } />
+      </Routes>
+    </Suspense>
   );
 }
 

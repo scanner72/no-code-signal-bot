@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { io } from 'socket.io-client';
 import { useLocation } from 'react-router-dom';
 import { useLanguageStore } from '../stores/useLanguageStore';
 import ReactFlow, {
@@ -66,7 +65,6 @@ import MarketChart from '../components/MarketChart';
 import { EDGE_COLORS } from '../blocks/registry';
 import { useStrategyStore } from '../stores/strategyStore';
 import { useUiStore } from '../stores/uiStore';
-import { useExecutionStore } from '../stores/executionStore';
 import { useCollaboration } from '../hooks/useCollaboration';
 import { getLayoutedElements } from '../utils/layout';
 
@@ -144,14 +142,9 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
   } = useStrategyStore();
 
   const {
-    pineModalOpen, templatesOpen, backtestOpen, pineCode,
-    setPineModalOpen, setTemplatesOpen, setBacktestOpen, setPineCode
+    pineModalOpen, templatesOpen, pineCode,
+    setPineModalOpen, setTemplatesOpen, setPineCode
   } = useUiStore();
-
-  const {
-    backtestForm, backtestReq,
-    setBacktestForm, setBacktestReq
-  } = useExecutionStore();
 
   const { t, language } = useLanguageStore();
 
@@ -210,8 +203,6 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
   const reactFlowInstanceRef = useRef<any>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null;
-  const [backtestProgress, setBacktestProgress] = useState(0);
-  const [backtestProgressStage, setBacktestProgressStage] = useState('');
 
   const [activeSubTab, setActiveSubTab] = useState<'canvas' | 'visual_ta'>('canvas');
   const [candlesData, setCandlesData] = useState<any[]>([]);
@@ -900,13 +891,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
     useNotificationStore.getState().addNotification('Оптимизатор', `Применены новые параметры на холсте для стратегии "${strategyName}".`, 'success');
   };
 
-  const runBacktest = async () => {
-    setBacktestReq({ status: 'loading' });
-    setBacktestProgress(0);
-    setBacktestProgressStage(language === 'ru' ? '📥 Инициализация бэктеста...' : '📥 Initializing backtest...');
-
-    let socket: any = null;
-
+  const openBacktestPage = async () => {
     try {
       // Auto-save if not saved yet
       let currentId = savedStrategyId;
@@ -921,50 +906,9 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
         await strategiesApi.update(currentId, payload);
       }
 
-      // Connect to WebSocket signals namespace for real-time progress updates
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const socketUrl = API_URL.replace('/api', '') + '/signals';
-      socket = io(socketUrl, { transports: ['websocket'] });
-
-      socket.on('BACKTEST_PROGRESS', (data: { strategyId: number; progress: number; stage: string }) => {
-        if (data.strategyId === currentId) {
-          setBacktestProgress(data.progress);
-          setBacktestProgressStage(data.stage);
-        }
-      });
-
-      await new Promise<void>((resolve) => {
-        if (socket.connected) return resolve();
-        socket.on('connect', () => resolve());
-        setTimeout(() => resolve(), 2000);
-      });
-
-      const queueRes = await strategiesApi.backtest(currentId as number, {
-        start: backtestForm.start,
-        end: backtestForm.end,
-        initialBalance: backtestForm.initialBalance,
-        fee: backtestForm.feePercent / 100,
-        tp: backtestForm.tpPercent / 100,
-        sl: backtestForm.slPercent / 100,
-        positionSize: backtestForm.positionSizePercent / 100,
-        useTrailingStop: backtestForm.useTrailingStop,
-        trailingDistance: backtestForm.trailingDistance / 100,
-        trailingActivation: backtestForm.trailingActivation / 100,
-      });
-
-      const jobId = queueRes.data?.jobId;
-      if (!jobId) throw new Error('No jobId');
-
-      setBacktestProgress(0);
-      toast.success(language === 'ru' ? `Бэктест запущен (Job #${jobId})` : `Backtest queued (Job #${jobId})`);
-      window.open(`/backtest/job/${jobId}`, '_blank', 'width=900,height=700');
+      window.open(`/backtest?strategyId=${currentId}`, '_blank');
     } catch (e: any) {
-      setBacktestProgress(0);
-      setBacktestReq({ status: 'error', error: e?.message || (language === 'ru' ? 'Ошибка запуска бэктеста' : 'Failed to start backtest') });
-    } finally {
-      if (socket) {
-        socket.disconnect();
-      }
+      toast.error(e?.message || (language === 'ru' ? 'Ошибка запуска бэктеста' : 'Failed to open backtest'));
     }
   };
 
@@ -1268,7 +1212,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
             {/* Quick Action: Backtest (Play) */}
             <button
-              onClick={() => { setBacktestOpen(true); setBacktestReq({ status: 'idle' }); }}
+              onClick={openBacktestPage}
               title={t('backtest')}
               style={{
                 ...iconBtnStyle,
@@ -1683,98 +1627,6 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
           />
         </ReactFlowProvider>
       </div>
-
-      {/* BACKTEST MODAL */}
-      {backtestOpen && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setBacktestOpen(false); }}>
-          <div className="modal-content" style={{ width: '640px', padding: 0, overflow: 'hidden' }}>
-            <button className="modal-close" onClick={() => setBacktestOpen(false)}>✕</button>
-            
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{t('backtest_strategy')}</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{strategyName} · {pair} · {timeframe}</div>
-            </div>
-
-            <div style={{ padding: '32px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <Field label={t('start_date')}><input type="date" value={backtestForm.start} onChange={e => setBacktestForm(f => ({ ...f, start: e.target.value }))} style={inputStyle} /></Field>
-              <Field label={t('end_date')}><input type="date" value={backtestForm.end} onChange={e => setBacktestForm(f => ({ ...f, end: e.target.value }))} style={inputStyle} /></Field>
-              <Field label={t('initial_balance')}><input type="number" value={backtestForm.initialBalance} onChange={e => setBacktestForm(f => ({ ...f, initialBalance: Number(e.target.value) }))} style={inputStyle} /></Field>
-              <Field label={t('commission_pct')}><input type="number" value={backtestForm.feePercent} step={0.01} onChange={e => setBacktestForm(f => ({ ...f, feePercent: Number(e.target.value) }))} style={inputStyle} /></Field>
-              <Field label={t('take_profit_pct')}><input type="number" value={backtestForm.tpPercent} step={0.1} onChange={e => setBacktestForm(f => ({ ...f, tpPercent: Number(e.target.value) }))} style={inputStyle} /></Field>
-              <Field label={t('stop_loss_pct')}><input type="number" value={backtestForm.slPercent} step={0.1} onChange={e => setBacktestForm(f => ({ ...f, slPercent: Number(e.target.value) }))} style={inputStyle} /></Field>
-              <Field label={t('slippage_pct')}><input type="number" value={backtestForm.slippagePct} step={0.05} onChange={e => setBacktestForm(f => ({ ...f, slippagePct: Number(e.target.value) }))} style={inputStyle} /></Field>
-              <Field label={t('latency_ms')}><input type="number" value={backtestForm.latencyMs} onChange={e => setBacktestForm(f => ({ ...f, latencyMs: Number(e.target.value) }))} style={inputStyle} /></Field>
-              <Field label={t('algorithm')}>
-                  <select value={backtestForm.executionAlgo} onChange={e => setBacktestForm(f => ({ ...f, executionAlgo: e.target.value as any }))} style={inputStyle}>
-                      <option value="MARKET">Market</option>
-                      <option value="TWAP">TWAP</option>
-                      <option value="VWAP">VWAP</option>
-                  </select>
-              </Field>
-              </div>
-
-              {backtestReq.status === 'error' && (
-                <div style={{ marginTop: '20px', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '10px', fontSize: '13px', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
-                  {backtestReq.error}
-                </div>
-              )}
-
-              <div style={{ gridColumn: '1 / -1', padding: '12px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px', border: '1px solid var(--border-color)', marginTop: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                   <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{t('trailing_stop')}</span>
-                  <input type="checkbox" checked={backtestForm.useTrailingStop} onChange={e => setBacktestForm({...backtestForm, useTrailingStop: e.target.checked})} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                </div>
-                {backtestForm.useTrailingStop && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('distance_pct')}</div>
-                      <input type="number" step="0.1" value={backtestForm.trailingDistance} onChange={e => setBacktestForm({...backtestForm, trailingDistance: Number(e.target.value)})} style={inputStyle} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('activation_pct')}</div>
-                      <input type="number" step="0.1" value={backtestForm.trailingActivation} onChange={e => setBacktestForm({...backtestForm, trailingActivation: Number(e.target.value)})} style={inputStyle} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {backtestReq.status === 'loading' ? (
-                <div style={{ marginTop: '24px', padding: '20px 24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', textAlign: 'center', boxShadow: 'inset 0 0 20px rgba(0,0,0,0.1)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                    <div className="loader-radar" style={{ width: '40px', height: '40px', border: '3px solid transparent', borderTopColor: 'var(--accent-color)', borderBottomColor: 'var(--success)', borderRadius: '50%', animation: 'spin 1.5s linear infinite', position: 'relative' }}>
-                      <div style={{ position: 'absolute', top: '6px', left: '6px', right: '6px', bottom: '6px', border: '3px solid transparent', borderLeftColor: 'var(--warning)', borderRightColor: 'var(--accent-color)', borderRadius: '50%', animation: 'spin 1s linear infinite reverse' }}></div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 800, marginBottom: '6px' }}>
-                    {language === 'ru' ? '🧬 Запуск бэктеста...' : '🧬 Running Backtest...'}
-                  </div>
-                  <div style={{ background: 'var(--bg-accent)', border: '1px solid var(--border-color)', height: '10px', borderRadius: '5px', overflow: 'hidden', width: '100%', margin: '12px 0', position: 'relative' }}>
-                    <div style={{ background: 'linear-gradient(90deg, #a855f7, #6366f1, #10b981)', height: '100%', width: `${backtestProgress}%`, transition: 'width 0.15s ease-out', boxShadow: '0 0 8px rgba(99, 102, 241, 0.5)' }}></div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, minHeight: '16px', textAlign: 'left' }}>
-                      {backtestProgressStage}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--accent-color)', fontWeight: 800, fontFamily: 'monospace' }}>
-                      {backtestProgress}%
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={runBacktest}
-                  style={{ ...primaryBtnStyle, width: '100%', marginTop: '24px', height: '44px' }}
-                >
-                  {t('run_backtest_btn')}
-                </button>
-              )}
-            </div>
-
-            {backtestReq.status === 'success' && <BacktestResults result={backtestReq.result} />}
-          </div>
-        </div>
-      )}
 
       {/* PINESCRIPT MODAL */}
       {pineModalOpen && (
