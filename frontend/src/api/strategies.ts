@@ -47,6 +47,7 @@ export interface BacktestParams {
   trailingActivation?: number;
   slippagePct?: number;
   latencyMs?: number;
+  executionAlgo?: 'MARKET' | 'TWAP' | 'VWAP';
   userLevels?: any[];
 }
 
