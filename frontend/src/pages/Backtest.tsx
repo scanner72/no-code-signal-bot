@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { strategiesApi } from '../api/strategies';
 import { optimizerApi } from '../api/optimizer';
@@ -82,6 +82,8 @@ const Backtest = () => {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const socketRef = useRef<any>(null);
 
   // ── state: оптимизация (перенесено как есть) ──
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -153,6 +155,14 @@ const Backtest = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStrategyId, strategies]);
 
+  // cleanup poll interval + socket on unmount (navigating away mid-run must not leak them)
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      socketRef.current?.disconnect();
+    };
+  }, []);
+
   const runBacktest = async () => {
     if (!selectedStrategyId) return;
     setRunning(true);
@@ -161,17 +171,17 @@ const Backtest = () => {
     setProgress(0);
     setStatusText(language === 'ru' ? '📥 Инициализация бэктеста...' : '📥 Initializing backtest...');
 
-    let socket: any = null;
     const strategyIdNum = Number(selectedStrategyId);
 
     try {
       const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
       const socketUrl = API_URL.replace('/api', '') + '/signals';
-      socket = io(socketUrl, { transports: ['websocket'] });
+      const socket = io(socketUrl, { transports: ['websocket'] });
+      socketRef.current = socket;
 
       socket.on('BACKTEST_PROGRESS', (data: { strategyId: number; progress: number; stage: string }) => {
         if (data.strategyId === strategyIdNum) {
-          setProgress(data.progress);
+          setProgress((p) => Math.max(p, Number(data.progress) || 0));
           setStatusText(data.stage);
         }
       });
@@ -205,18 +215,22 @@ const Backtest = () => {
       if (!jobId) throw new Error('No jobId returned');
 
       // Poll job status until completed/failed (progress also updates live via WS above)
+      const MAX_CONSECUTIVE_POLL_FAILURES = 5;
+      let consecutivePollFailures = 0;
       await new Promise<void>((resolve, reject) => {
         const poll = setInterval(async () => {
           try {
             const res = await strategiesApi.backtestJobStatus(jobId);
             const job = res.data;
+            consecutivePollFailures = 0;
 
-            if (job.status === 'active' && typeof job.progress === 'number' && job.progress > progress) {
-              setProgress(job.progress);
+            if (job.status === 'active' && typeof job.progress === 'number') {
+              setProgress((p) => Math.max(p, Number(job.progress) || 0));
             }
 
             if (job.status === 'completed') {
               clearInterval(poll);
+              pollRef.current = null;
               setProgress(100);
               setStatusText(language === 'ru' ? '✅ Завершено!' : '✅ Complete!');
               setResult(job.result);
@@ -227,18 +241,31 @@ const Backtest = () => {
 
             if (job.status === 'failed') {
               clearInterval(poll);
+              pollRef.current = null;
               reject(new Error(job.error || 'Backtest failed'));
             }
           } catch (e) {
-            // transient poll error — keep trying until timeout/failed status
+            consecutivePollFailures += 1;
+            if (consecutivePollFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+              clearInterval(poll);
+              pollRef.current = null;
+              reject(new Error(language === 'ru' ? 'Потеряна связь с сервером во время бэктеста' : 'Lost connection to server during backtest'));
+            }
+            // else: transient poll error — keep trying
           }
         }, 2000);
+        pollRef.current = poll;
       });
     } catch (e: any) {
       setRunning(false);
       toast.error(e.message || (language === 'ru' ? 'Ошибка при запуске бэктеста' : 'Failed to start backtest'));
     } finally {
-      if (socket) socket.disconnect();
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      socketRef.current?.disconnect();
+      socketRef.current = null;
     }
   };
 
