@@ -20,7 +20,9 @@ const MLTrainer = () => {
     const [featureImportance, setFeatureImportance] = useState<Record<string, number>>({});
     const [modelType, setModelType] = useState('random_forest');
 
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    // Пробиваемся к бэкенду по хосту текущей страницы, а не localhost пользователя
+    // (иначе на прод-деплое /ml/* уходит в localhost:3000 браузера → Network Error).
+    const apiBase = import.meta.env.VITE_API_URL || `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000/api`;
 
     useEffect(() => {
         loadInitialData();
@@ -43,8 +45,9 @@ const MLTrainer = () => {
         setSelectedStrategy(id);
         const strat = strategies.find(s => s.id === Number(id));
         if (strat) {
-            // Automatically detect potential features from indicator, smc, and order_flow nodes
-            const featNodes = strat.ast.nodes.filter((n: any) => 
+            // Фичи берём из сырого графа стратегии (strat.nodes), а не из strat.ast:
+            // ast — скомпилированное дерево без массива .nodes, обращение к нему падало.
+            const featNodes = (strat.nodes || []).filter((n: any) =>
                 ['indicator', 'smc', 'order_flow', 'input', 'scanner'].includes(n.type)
             );
             setFeatures(featNodes.map((n: any) => n.data?.name || n.type || n.id));
