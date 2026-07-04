@@ -100,6 +100,8 @@ const Backtest = () => {
   const [historyReload, setHistoryReload] = useState(0);
   const [overlays, setOverlays] = useState<Array<{ id: number; label: string; result: any }>>([]);
   const [compareRun, setCompareRun] = useState<{ id: number; options: any; result: any } | null>(null);
+  // Опции, с которыми был запущен ОТОБРАЖАЕМЫЙ результат (для честного diff в сравнении)
+  const [activeRunOptions, setActiveRunOptions] = useState<any>(null);
 
   const extractParams = (node: any): any[] => {
     const params: any[] = [];
@@ -152,6 +154,9 @@ const Backtest = () => {
       setOptimizableParams(extractParams(s.ast));
       setSelectedParams([]);
     }
+    // Кривые и сравнение принадлежат прошлой стратегии — сбрасываем при переключении
+    setOverlays([]);
+    setCompareRun(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStrategyId, strategies]);
 
@@ -193,7 +198,7 @@ const Backtest = () => {
       });
 
       // Queue the backtest job (returns immediately with jobId)
-      const queueRes = await strategiesApi.backtest(strategyIdNum, {
+      const runOptions = {
         start: form.start,
         end: form.end,
         initialBalance: form.initialBalance,
@@ -209,7 +214,9 @@ const Backtest = () => {
         accurate: form.accurate,
         executionAlgo: form.executionAlgo || 'MARKET',
         userLevels,
-      });
+      };
+      setActiveRunOptions(runOptions);
+      const queueRes = await strategiesApi.backtest(strategyIdNum, runOptions);
 
       const jobId = queueRes.data?.jobId;
       if (!jobId) throw new Error('No jobId returned');
@@ -361,18 +368,19 @@ const Backtest = () => {
     label: o.label, color: OVERLAY_COLORS[i], points: o.result.equityCurve || [],
   })), [overlays]);
 
-  // Отличия опций активного прогона (из form) от сравниваемого (из run.options)
+  // Отличия опций отображаемого прогона от сравниваемого (обе стороны — реальные опции запуска,
+  // а не текущая форма: её можно поменять без перезапуска, и diff начал бы врать)
   const compareOptionsDiff = useMemo(() => {
-    if (!compareRun) return '';
+    if (!compareRun || !activeRunOptions) return '';
     const o = (compareRun as any).options || {};
+    const a = activeRunOptions;
     const diffs: string[] = [];
-    const activeTp = Number(form.tpPercent);
-    const activeSl = Number(form.slPercent);
-    if (o.tp != null && Math.abs(o.tp * 100 - activeTp) > 1e-9) diffs.push(`TP ${activeTp}%→${(o.tp * 100).toFixed(1)}%`);
-    if (o.sl != null && Math.abs(o.sl * 100 - activeSl) > 1e-9) diffs.push(`SL ${activeSl}%→${(o.sl * 100).toFixed(1)}%`);
-    if (!!o.accurate !== !!form.accurate) diffs.push(`accurate ${form.accurate ? 'on' : 'off'}→${o.accurate ? 'on' : 'off'}`);
+    if (o.tp != null && a.tp != null && Math.abs(o.tp - a.tp) > 1e-9) diffs.push(`TP ${(a.tp * 100).toFixed(1)}%→${(o.tp * 100).toFixed(1)}%`);
+    if (o.sl != null && a.sl != null && Math.abs(o.sl - a.sl) > 1e-9) diffs.push(`SL ${(a.sl * 100).toFixed(1)}%→${(o.sl * 100).toFixed(1)}%`);
+    if (!!o.accurate !== !!a.accurate) diffs.push(`accurate ${a.accurate ? 'on' : 'off'}→${o.accurate ? 'on' : 'off'}`);
+    if ((o.executionAlgo || 'MARKET') !== (a.executionAlgo || 'MARKET')) diffs.push(`algo ${a.executionAlgo || 'MARKET'}→${o.executionAlgo || 'MARKET'}`);
     return diffs.join(' · ');
-  }, [compareRun, form]);
+  }, [compareRun, activeRunOptions]);
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 1400, margin: '0 auto' }}>

@@ -9,7 +9,11 @@ const label: CSSProperties = { color: 'var(--text-secondary)', fontSize: '9px', 
 const big: CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', lineHeight: 1.3 };
 const sub: CSSProperties = { color: 'var(--text-secondary)', fontSize: '10px', fontFamily: 'monospace' };
 
-const fmt = (n: any, d = 2) => Number(n ?? 0).toFixed(d);
+const fmt = (n: any, d = 2) => {
+  const v = Number(n ?? 0);
+  if (!Number.isFinite(v)) return v > 0 ? '∞' : v < 0 ? '−∞' : (0).toFixed(d);
+  return v.toFixed(d);
+};
 
 interface Props { result: any; compareResult?: any | null }
 

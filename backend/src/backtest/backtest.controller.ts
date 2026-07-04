@@ -35,18 +35,21 @@ export class BacktestController {
   }
 
   @Get('runs')
-  listRuns(@Query('strategyId') strategyId: string, @Query('limit') limit?: string) {
-    return this.backtestRunsService.listRuns(parseInt(strategyId, 10), limit ? parseInt(limit, 10) : 50);
+  listRuns(
+    @Query('strategyId', ParseIntPipe) strategyId: number,
+    @Query('limit') limit?: string,
+  ) {
+    return this.backtestRunsService.listRuns(strategyId, limit ? parseInt(limit, 10) : 50);
   }
 
   @Get('runs/:id')
-  getRun(@Param('id') id: string) {
-    return this.backtestRunsService.getRun(parseInt(id, 10));
+  getRun(@Param('id', ParseIntPipe) id: number) {
+    return this.backtestRunsService.getRun(id);
   }
 
   @Delete('runs/:id')
-  deleteRun(@Param('id') id: string) {
-    return this.backtestRunsService.deleteRun(parseInt(id, 10));
+  deleteRun(@Param('id', ParseIntPipe) id: number) {
+    return this.backtestRunsService.deleteRun(id);
   }
 
   @Get('job/:jobId')

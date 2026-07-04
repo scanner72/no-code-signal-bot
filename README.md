@@ -71,6 +71,11 @@ Then open:
 > 💡 Start with **paper trading** and the built-in strategy templates — no API keys needed
 > to explore the builder and backtester.
 
+> ⚠️ **Before exposing a server deployment:** the compose file ships with development
+> defaults — Postgres `user/password` and Local Deep Research `admin/admin`. Override
+> `POSTGRES_PASSWORD` (and the matching `DB_PASS`), `LDR_USERNAME`/`LDR_PASSWORD` in your
+> `.env`, and don't publish ports 5432/6450 beyond your private network.
+
 ## 🏗 Architecture
 
 ```

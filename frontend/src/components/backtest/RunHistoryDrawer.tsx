@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { toast } from '../../stores/notificationStore';
 
 const API = (import.meta as any).env?.VITE_API_URL || '/api';
 export const OVERLAY_COLORS = ['#a855f7', '#f59e0b', '#10b981'];
@@ -44,7 +45,10 @@ const RunHistoryDrawer = ({ open, strategyId, reloadKey, onClose, overlayRunIds,
         onToggleOverlay(run.id, null);
         return;
       }
-      if (overlayRunIds.length >= 3) return;
+      if (overlayRunIds.length >= 3) {
+        toast.error('Максимум 3 наложения — сначала сними одну из кривых');
+        return;
+      }
       const res = await axios.get(`${API}/backtest/runs/${run.id}`);
       if (!res.data?.result) return;
       const label = `#${run.id} ${optChips(run.options) || new Date(run.created_at).toLocaleDateString()}`;
