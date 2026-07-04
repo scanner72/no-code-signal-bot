@@ -130,8 +130,24 @@ export class AstEvaluatorService {
         return getHistory ? result : result[result.length - 1];
       }
 
-      case 'input':
+      case 'input': {
+        // Фьючерсные метрики читаются из полей свечи (паритет с live signals-engine),
+        // а не подменяются close-ценой — иначе fundingRate/OI/markPrice-стратегии
+        // в бэктесте молча сравнивают цену вместо метрики и дают 0 сигналов.
+        const src = node.source;
+        if (src === 'markPrice' || src === 'fundingRate' || src === 'openInterest') {
+          const field = src === 'markPrice' ? 'mark_price' : src === 'fundingRate' ? 'funding_rate' : 'open_interest';
+          const read = (c: any) => {
+            const raw = c[field];
+            if (raw === null || raw === undefined || raw === '') {
+              return src === 'markPrice' ? parseFloat(c.close) : 0; // markPrice→close, funding/OI→0
+            }
+            return parseFloat(raw);
+          };
+          return getHistory ? candles.map(read).reverse() : read(candles[0]);
+        }
         return getHistory ? closesHistory() : lastClose();
+      }
 
       case 'constant':
         return getHistory ? [node.value] : node.value;
