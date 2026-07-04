@@ -1,11 +1,13 @@
-import { Controller, Post, Get, Body, Param, ParseIntPipe, NotFoundException, HttpException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, ParseIntPipe, NotFoundException, HttpException, Query, Delete } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { BacktestRunsService } from './backtest-runs.service';
 
 @Controller('backtest')
 export class BacktestController {
   constructor(
     @InjectQueue('backtest') private readonly backtestQueue: Queue,
+    private readonly backtestRunsService: BacktestRunsService,
   ) {}
 
   @Post(':strategyId')
@@ -30,6 +32,21 @@ export class BacktestController {
       },
     );
     return { jobId: job.id, status: 'queued' };
+  }
+
+  @Get('runs')
+  listRuns(@Query('strategyId') strategyId: string, @Query('limit') limit?: string) {
+    return this.backtestRunsService.listRuns(parseInt(strategyId, 10), limit ? parseInt(limit, 10) : 50);
+  }
+
+  @Get('runs/:id')
+  getRun(@Param('id') id: string) {
+    return this.backtestRunsService.getRun(parseInt(id, 10));
+  }
+
+  @Delete('runs/:id')
+  deleteRun(@Param('id') id: string) {
+    return this.backtestRunsService.deleteRun(parseInt(id, 10));
   }
 
   @Get('job/:jobId')

@@ -2,12 +2,16 @@ import { Process, Processor, OnQueueStalled, OnQueueFailed, OnQueueError } from 
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { BacktestService } from './backtest.service';
+import { BacktestRunsService } from './backtest-runs.service';
 
 @Processor('backtest')
 export class BacktestProcessor {
   private readonly logger = new Logger(BacktestProcessor.name);
 
-  constructor(private readonly backtestService: BacktestService) {}
+  constructor(
+    private readonly backtestService: BacktestService,
+    private readonly backtestRunsService: BacktestRunsService,
+  ) {}
 
   @Process({ concurrency: 1 })
   async handleBacktest(job: Job<{ strategyId: number; options: any }>) {
@@ -18,6 +22,11 @@ export class BacktestProcessor {
       const result = await this.backtestService.run(strategyId, options, async (progress: number) => {
         await job.progress(progress);
       });
+      try {
+        await this.backtestRunsService.saveRun(strategyId, options, result);
+      } catch (e) {
+        this.logger.error(`Failed to persist backtest run: ${(e as Error).message}`);
+      }
       return result;
     } catch (err) {
       this.logger.error(`Backtest job ${job.id} failed: ${err.message}`);
