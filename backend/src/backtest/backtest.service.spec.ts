@@ -265,4 +265,32 @@ describe('BacktestService', () => {
     
     expect(resultTwap.trades[0].entryPrice).not.toEqual(resultMarket.trades[0].entryPrice);
   });
+
+  it('result содержит equityCurve и benchmark', async () => {
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 110; i++) candles[i].close = '206'; // TP 2% сработает
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    const result = await service.run(1, { ...DEFAULT_OPTS, tp: 0.02, sl: 0.01 });
+
+    // equityCurve: старт = initialBalance, финал = finalBalance, точек = сделки + 1
+    expect(result.equityCurve[0].v).toBe(1000);
+    expect(result.equityCurve.length).toBe(result.totalTrades + 1);
+    expect(result.equityCurve[result.equityCurve.length - 1].v).toBeCloseTo(result.finalBalance, 1);
+    expect(typeof result.equityCurve[0].t).toBe('string');
+
+    // benchmark: ≤200 точек, старт = initialBalance, buy&hold
+    expect(result.benchmark.length).toBeLessThanOrEqual(200);
+    expect(result.benchmark[0].v).toBe(1000);
+    const first = parseFloat(candles[0].close);
+    const last = parseFloat(candles[candles.length - 1].close);
+    expect(result.benchmark[result.benchmark.length - 1].v).toBeCloseTo((1000 * last) / first, 1);
+  });
 });

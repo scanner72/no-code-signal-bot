@@ -499,6 +499,32 @@ export class BacktestService {
       position = null;
     }
 
+    // ── Серии для фронта: кривая баланса и buy&hold бенчмарк ────────────────
+    // Сумма net-pnl сделок точно повторяет движение баланса (fees уже внутри pnl)
+    const equityCurve: Array<{ t: string; v: number }> = [];
+    if (simCandles.length > 0) {
+      equityCurve.push({ t: new Date(simCandles[0].time).toISOString(), v: round(options.initialBalance, 2) });
+      let eq = options.initialBalance;
+      for (const t of trades) {
+        eq += t.pnl;
+        equityCurve.push({ t: new Date(t.exitTime).toISOString(), v: round(eq, 2) });
+      }
+    }
+
+    const benchmark: Array<{ t: string; v: number }> = [];
+    if (simCandles.length > 0) {
+      const c0 = parseFloat(simCandles[0].close.toString());
+      const bstep = Math.max(1, Math.ceil(simCandles.length / 200));
+      for (let bi = 0; bi < simCandles.length; bi += bstep) {
+        const c = simCandles[bi];
+        benchmark.push({ t: new Date(c.time).toISOString(), v: round((options.initialBalance * parseFloat(c.close.toString())) / c0, 2) });
+      }
+      const lastC = simCandles[simCandles.length - 1];
+      if (benchmark[benchmark.length - 1].t !== new Date(lastC.time).toISOString()) {
+        benchmark.push({ t: new Date(lastC.time).toISOString(), v: round((options.initialBalance * parseFloat(lastC.close.toString())) / c0, 2) });
+      }
+    }
+
     const wins = trades.filter(t => t.pnl > 0);
     const losses = trades.filter(t => t.pnl <= 0);
 
@@ -615,6 +641,8 @@ export class BacktestService {
       },
       recommendations,
       trades,
+      equityCurve,
+      benchmark,
       candles: simCandles, // Return the candles so frontend can plot the backtest chart
     };
   }
