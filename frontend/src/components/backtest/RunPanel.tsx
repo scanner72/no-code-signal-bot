@@ -19,6 +19,22 @@ const BROKERAGE_PRESETS: Record<string, { fee: number; slippage: number; latency
   ib: { fee: 0.12, slippage: 0.10, latency: 150 },
 };
 
+// Hoisted to module scope: must not close over `p`/`set` from RunPanel, otherwise
+// it gets redefined on every render, React treats it as a new component type,
+// and the input remounts on each keystroke — losing focus. See review finding 1.
+const F = ({ label, value, onChange, type = 'number', step }: {
+  label: string;
+  value: any;
+  onChange: (v: string | number) => void;
+  type?: string;
+  step?: string;
+}) => (
+  <div style={{ flex: 1, minWidth: 110 }}>
+    <div style={lbl}>{label}</div>
+    <input style={inputS} type={type} step={step} value={value ?? ''} onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)} />
+  </div>
+);
+
 interface RunPanelProps {
   strategies: Array<{ id: number; name: string; pair: string; timeframe: string }>;
   selectedStrategyId: string;
@@ -39,12 +55,6 @@ const RunPanel = (p: RunPanelProps) => {
   const [paramsOpen, setParamsOpen] = useState(false);
   const s = p.strategies.find((x) => String(x.id) === p.selectedStrategyId);
   const set = (k: string, v: any) => p.setForm((f: any) => ({ ...f, [k]: v }));
-  const F = ({ k, label, type = 'number', step }: { k: string; label: string; type?: string; step?: string }) => (
-    <div style={{ flex: 1, minWidth: 110 }}>
-      <div style={lbl}>{label}</div>
-      <input style={inputS} type={type} step={step} value={p.form[k] ?? ''} onChange={(e) => set(k, type === 'number' ? Number(e.target.value) : e.target.value)} />
-    </div>
-  );
 
   const applyBrokerPreset = (model: string) => {
     if (model === 'custom') {
@@ -105,12 +115,12 @@ const RunPanel = (p: RunPanelProps) => {
           padding: 14, boxShadow: '0 16px 48px rgba(0,0,0,0.55)',
         }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-            <F k="start" label="Начало" type="date" />
-            <F k="end" label="Конец" type="date" />
-            <F k="initialBalance" label="Баланс ($)" />
-            <F k="tpPercent" label="Take Profit (%)" step="0.1" />
-            <F k="slPercent" label="Stop Loss (%)" step="0.1" />
-            <F k="positionSizePercent" label="Размер позиции (%)" />
+            <F label="Начало" type="date" value={p.form.start} onChange={(v) => set('start', v)} />
+            <F label="Конец" type="date" value={p.form.end} onChange={(v) => set('end', v)} />
+            <F label="Баланс ($)" value={p.form.initialBalance} onChange={(v) => set('initialBalance', v)} />
+            <F label="Take Profit (%)" step="0.1" value={p.form.tpPercent} onChange={(v) => set('tpPercent', v)} />
+            <F label="Stop Loss (%)" step="0.1" value={p.form.slPercent} onChange={(v) => set('slPercent', v)} />
+            <F label="Размер позиции (%)" value={p.form.positionSizePercent} onChange={(v) => set('positionSizePercent', v)} />
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 110 }}>
@@ -123,9 +133,17 @@ const RunPanel = (p: RunPanelProps) => {
                 <option value="ib">Interactive Brokers</option>
               </select>
             </div>
-            <F k="feePercent" label="Комиссия (%)" step="0.01" />
-            <F k="slippagePct" label="Slippage (%)" step="0.01" />
-            <F k="latencyMs" label="Latency (ms)" />
+            <F label="Комиссия (%)" step="0.01" value={p.form.feePercent} onChange={(v) => set('feePercent', v)} />
+            <F label="Slippage (%)" step="0.01" value={p.form.slippagePct} onChange={(v) => set('slippagePct', v)} />
+            <F label="Latency (ms)" value={p.form.latencyMs} onChange={(v) => set('latencyMs', v)} />
+            <div style={{ flex: 1, minWidth: 110 }}>
+              <div style={lbl}>Алгоритм входа</div>
+              <select style={inputS} value={p.form.executionAlgo || 'MARKET'} onChange={(e) => set('executionAlgo', e.target.value)}>
+                <option value="MARKET">Market</option>
+                <option value="TWAP">TWAP</option>
+                <option value="VWAP">VWAP</option>
+              </select>
+            </div>
             <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: 'var(--text-primary)', paddingBottom: 6 }}>
               <input type="checkbox" checked={!!p.form.accurate} onChange={(e) => set('accurate', e.target.checked)} />
               ⚡ Точный режим (1m суб-свечи) — медленнее, честнее ловит SL
