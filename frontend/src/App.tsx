@@ -5,6 +5,8 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import { useSession } from './lib/auth-client';
 import ToastContainer from './components/ToastContainer';
+import VersionChecker from './components/VersionChecker';
+import ChunkErrorBoundary from './components/ChunkErrorBoundary';
 
 const StrategyBuilder = lazy(() => import('./pages/StrategyBuilder'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -43,30 +45,32 @@ function PrivateRoutes() {
   }
 
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/builder" element={<BuilderPage />} />
-        <Route path="/*" element={
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/strategies" element={<StrategiesPage />} />
-              <Route path="/pine-import" element={<PineImport />} />
-              <Route path="/signals" element={<SignalHistory />} />
-              <Route path="/paper" element={<PaperTrading />} />
-              <Route path="/backtest" element={<Backtest />} />
-              <Route path="/fleet" element={<Fleet />} />
-              <Route path="/ml" element={<MLTrainer />} />
-              <Route path="/cross" element={<CrossExchange />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/docs" element={<Documentation />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Layout>
-        } />
-      </Routes>
-    </Suspense>
+    <ChunkErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/builder" element={<BuilderPage />} />
+          <Route path="/*" element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/strategies" element={<StrategiesPage />} />
+                <Route path="/pine-import" element={<PineImport />} />
+                <Route path="/signals" element={<SignalHistory />} />
+                <Route path="/paper" element={<PaperTrading />} />
+                <Route path="/backtest" element={<Backtest />} />
+                <Route path="/fleet" element={<Fleet />} />
+                <Route path="/ml" element={<MLTrainer />} />
+                <Route path="/cross" element={<CrossExchange />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/docs" element={<Documentation />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Layout>
+          } />
+        </Routes>
+      </Suspense>
+    </ChunkErrorBoundary>
   );
 }
 
@@ -89,6 +93,7 @@ function App() {
         <Route path="/*" element={<PrivateRoutes />} />
       </Routes>
       <ToastContainer />
+      <VersionChecker />
     </BrowserRouter>
   );
 }
