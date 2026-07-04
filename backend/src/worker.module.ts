@@ -9,12 +9,14 @@ import { Strategy } from './strategies/strategy.entity';
 import { StrategyVersion } from './strategies/strategy-version.entity';
 import { Signal } from './signals/signal.entity';
 import { Setting } from './settings/setting.entity';
+import { BacktestRun } from './backtest/backtest-run.entity';
 import { CandlesModule } from './candles/candles.module';
 import { IndicatorsModule } from './indicators/indicators.module';
 import { SettingsModule } from './settings/settings.module';
 import { BacktestService } from './backtest/backtest.service';
 import { BacktestProcessor } from './backtest/backtest.processor';
 import { BacktestProgressService } from './backtest/backtest-progress.service';
+import { BacktestRunsService } from './backtest/backtest-runs.service';
 import { OptimizerService } from './backtest/optimizer.service';
 import { StrategiesModule } from './strategies/strategies.module';
 import { AstEvaluatorModule } from './signals/ast-evaluator.module';
@@ -66,13 +68,13 @@ import { AstEvaluatorModule } from './signals/ast-evaluator.module';
       }),
     }),
     EventEmitterModule.forRoot(),
-    TypeOrmModule.forFeature([Strategy]),
+    TypeOrmModule.forFeature([Strategy, BacktestRun]),
     CandlesModule,
     IndicatorsModule,
     StrategiesModule,
     SettingsModule,
     AstEvaluatorModule,
   ],
-  providers: [BacktestService, BacktestProcessor, BacktestProgressService, OptimizerService],
+  providers: [BacktestService, BacktestProcessor, BacktestProgressService, BacktestRunsService, OptimizerService],
 })
 export class WorkerModule {}
