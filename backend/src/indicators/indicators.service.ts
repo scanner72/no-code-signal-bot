@@ -59,9 +59,11 @@ export class IndicatorsService {
   }
 
   calculateGeneric(name: string, candles: any[], params: any): any {
-    const closes = candles.map(c => c.close);
-    const highs = candles.map(c => c.high);
-    const lows = candles.map(c => c.low);
+    // TypeORM decimal-колонки возвращают строки ('62769.80000000'); technicalindicators
+    // на строках даёт NaN → JSON null. Приводим к числу.
+    const closes = candles.map(c => Number(c.close));
+    const highs = candles.map(c => Number(c.high));
+    const lows = candles.map(c => Number(c.low));
 
     switch (name) {
         case 'RSI':
