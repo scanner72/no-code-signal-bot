@@ -1,4 +1,43 @@
 import { AstEvaluatorService } from './ast-evaluator.service';
+import { IndicatorsService } from '../indicators/indicators.service';
+
+describe('AstEvaluatorService — indicator property (backtest standalone)', () => {
+  const indicators = new IndicatorsService(null as any);
+  const service = new AstEvaluatorService(null as any, indicators);
+
+  // 80 хронологических свечей с колебанием, потом newest-first (candles[0] = последняя)
+  const chrono = Array.from({ length: 80 }, (_, i) => {
+    const base = 100 + 10 * Math.sin(i / 5) + i * 0.2;
+    return { close: String(base), high: String(base + 2), low: String(base - 2), volume: 1000 };
+  });
+  const candles = [...chrono].reverse();
+  const closesC = chrono.map((c) => parseFloat(c.close));
+  const highsC = chrono.map((c) => parseFloat(c.high));
+  const lowsC = chrono.map((c) => parseFloat(c.low));
+  const last = (a: any[]) => a[a.length - 1];
+
+  const ev = (node: any) => service.evaluateNode(node, candles, false, {}, { backtestMode: true });
+
+  it('Stochastic property k совпадает с IndicatorsService (не SMA)', async () => {
+    const expected = last(indicators.calculateStochastic(highsC, lowsC, closesC, 14, 3)).k;
+    const v = await ev({ type: 'indicator', name: 'Stochastic', params: { k: 14, d: 3, period: 14 }, property: 'k' });
+    expect(v).toBeCloseTo(expected, 4);
+    // и это НЕ SMA закрытий (регрессия старого дефолта)
+    expect(v).not.toBeCloseTo(last(indicators.calculateSMA(closesC, 14)), 1);
+  });
+
+  it('BollingerBands property lower совпадает с IndicatorsService', async () => {
+    const expected = last(indicators.calculateBollingerBands(closesC, 20, 2)).lower;
+    const v = await ev({ type: 'indicator', name: 'BollingerBands', params: { period: 20, stdDev: 2 }, property: 'lower' });
+    expect(v).toBeCloseTo(expected, 4);
+  });
+
+  it('MACD property histogram совпадает с IndicatorsService', async () => {
+    const expected = last(indicators.calculateMACD(closesC, 12, 26, 9)).histogram;
+    const v = await ev({ type: 'indicator', name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'histogram' });
+    expect(v).toBeCloseTo(expected, 4);
+  });
+});
 
 describe('AstEvaluatorService — input node source (backtest)', () => {
   let service: AstEvaluatorService;

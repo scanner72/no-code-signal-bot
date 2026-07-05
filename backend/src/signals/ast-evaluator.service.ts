@@ -98,9 +98,11 @@ export class AstEvaluatorService {
         const period = node.period || node.params?.period || 14;
         const source = node.source || node.params?.source || 'close';
 
-        // Fast path: precomputed series from backtest (O(1) lookup instead of O(n) recompute)
+        // Fast path: precomputed series from backtest (O(1) lookup instead of O(n) recompute).
+        // Ключ включает property — object-индикаторы (MACD/BB/Stoch/ADX) кэшируются как
+        // готовая числовая серия выбранного поля.
         if (context?.indicatorCache && typeof context.candleIndex === 'number') {
-          const cached = context.indicatorCache.get(`${indicatorName}:${period}:${source}`);
+          const cached = context.indicatorCache.get(`${indicatorName}:${period}:${source}:${node.property || ''}`);
           if (cached) {
             const pos = context.candleIndex - cached.offset;
             if (getHistory) {
@@ -111,21 +113,32 @@ export class AstEvaluatorService {
           }
         }
 
+        // Хронологические серии (candles — newest-first, .reverse() → по времени вперёд)
+        const chrono = (f: string) => candles.map(c => parseFloat(c[f])).reverse();
         const values = candles.map(c => parseFloat(c[source] || c.close)).reverse();
+        const params = node.params || {};
         let result: number[];
+        let objResult: any[] | null = null;
 
         switch (indicatorName) {
           case 'RSI': result = this.indicatorsService.calculateRSI(values, period); break;
           case 'SMA': result = this.indicatorsService.calculateSMA(values, period); break;
           case 'EMA': result = this.indicatorsService.calculateEMA(values, period); break;
-          case 'ATR': {
-            const highs = candles.map(c => parseFloat(c.high)).reverse();
-            const lows = candles.map(c => parseFloat(c.low)).reverse();
-            result = this.indicatorsService.calculateATR(highs, lows, values, period);
-            break;
-          }
+          case 'ATR': result = this.indicatorsService.calculateATR(chrono('high'), chrono('low'), values, period); break;
+          case 'ZScore': result = this.indicatorsService.calculateZScore(values, params.period || period); break;
+          case 'MACD': objResult = this.indicatorsService.calculateMACD(values, params.fast || 12, params.slow || 26, params.signal || 9); break;
+          case 'BollingerBands': objResult = this.indicatorsService.calculateBollingerBands(values, params.period || period, params.stdDev || 2); break;
+          case 'Stochastic': objResult = this.indicatorsService.calculateStochastic(chrono('high'), chrono('low'), values, params.period || period, params.signalPeriod || 3); break;
+          case 'ADX': objResult = this.indicatorsService.calculateADX(chrono('high'), chrono('low'), values, params.period || period) as any; break;
           default: result = this.indicatorsService.calculateSMA(values, period);
         }
+
+        // object-индикаторы: извлекаем поле (property) в числовую серию
+        if (objResult) {
+          const defProp = indicatorName === 'MACD' ? 'histogram' : indicatorName === 'Stochastic' ? 'k' : indicatorName === 'ADX' ? 'adx' : 'middle';
+          result = objResult.map(r => r?.[node.property || defProp]);
+        }
+
         if (!result || result.length === 0) return getHistory ? [0] : 0;
         return getHistory ? result : result[result.length - 1];
       }

@@ -135,19 +135,32 @@ export class BacktestService {
         if (node.type === 'indicator') {
           // Компилированный AST хранит {name, params:{period,source}}, optimizer-путь — {indicator, period, source}
           const indicatorName = node.indicator || node.name;
-          const period = node.period || node.params?.period || 14;
-          const source = node.source || node.params?.source || 'close';
-          const key = `${indicatorName}:${period}:${source}`;
+          const p = node.params || {};
+          const period = node.period || p.period || 14;
+          const source = node.source || p.source || 'close';
+          // Ключ включает property — object-индикаторы (MACD/BB/Stoch/ADX) кэшируем
+          // как готовую числовую серию выбранного поля (паритет с ast-evaluator).
+          const key = `${indicatorName}:${period}:${source}:${node.property || ''}`;
           if (!indicatorCache.has(key)) {
             let series: number[];
+            let obj: any[] | null = null;
             switch (indicatorName) {
               case 'RSI': series = this.indicatorsService.calculateRSI(srcArr(source), period); break;
               case 'SMA': series = this.indicatorsService.calculateSMA(srcArr(source), period); break;
               case 'EMA': series = this.indicatorsService.calculateEMA(srcArr(source), period); break;
               case 'ATR': series = this.indicatorsService.calculateATR(highsChrono, lowsChrono, closesChrono, period); break;
+              case 'ZScore': series = this.indicatorsService.calculateZScore(srcArr(source), p.period || period); break;
+              case 'MACD': obj = this.indicatorsService.calculateMACD(srcArr(source), p.fast || 12, p.slow || 26, p.signal || 9); break;
+              case 'BollingerBands': obj = this.indicatorsService.calculateBollingerBands(srcArr(source), p.period || period, p.stdDev || 2); break;
+              case 'Stochastic': obj = this.indicatorsService.calculateStochastic(highsChrono, lowsChrono, closesChrono, p.period || period, p.signalPeriod || 3); break;
+              case 'ADX': obj = this.indicatorsService.calculateADX(highsChrono, lowsChrono, closesChrono, p.period || period) as any; break;
               default:    series = this.indicatorsService.calculateSMA(srcArr(source), period);
             }
-            indicatorCache.set(key, { series, offset: n - series.length });
+            if (obj) {
+              const defProp = indicatorName === 'MACD' ? 'histogram' : indicatorName === 'Stochastic' ? 'k' : indicatorName === 'ADX' ? 'adx' : 'middle';
+              series = obj.map((r: any) => r?.[node.property || defProp]);
+            }
+            indicatorCache.set(key, { series: series!, offset: n - series!.length });
           }
         }
         for (const k of ['condition', 'left', 'right', 'a', 'b']) collect(node[k]);
