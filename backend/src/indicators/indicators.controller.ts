@@ -46,8 +46,12 @@ export class IndicatorsController {
     @Query('params') paramsJson: string,
   ) {
     const params = paramsJson ? JSON.parse(paramsJson) : {};
-    const candles = await this.candlesService.getLatestCandles(pair || 'BTCUSDT', timeframe || '1h', 200);
-    
+    // getLatestCandles возвращает newest-first (DESC). График (lightweight-charts) и
+    // расчёт индикаторов ждут ХРОНОЛОГИЮ (ASC) — иначе индикатор считается задом наперёд
+    // и превью выглядит «рваным». Разворачиваем один раз.
+    const candlesDesc = await this.candlesService.getLatestCandles(pair || 'BTCUSDT', timeframe || '1h', 200);
+    const candles = [...candlesDesc].reverse();
+
     let indicators: any = [];
     let status = 'Neutral';
     let currentValue = 0;
@@ -55,7 +59,7 @@ export class IndicatorsController {
     if (type === 'indicator') {
         indicators = this.indicatorsService.calculateGeneric(name, candles, params);
         if (indicators.length > 0) {
-            currentValue = indicators[indicators.length - 1];
+            currentValue = indicators[indicators.length - 1]; // последний = свежайшая свеча
             // Simple logic for status
             if (name === 'RSI') {
                 if (currentValue > 70) status = 'Overbought';
@@ -64,14 +68,15 @@ export class IndicatorsController {
         }
     } else if (type === 'smc') {
         const lookback = params.lookback || 100;
-        const fvg = this.indicatorsService.detectFVG(candles, lookback);
-        const ob = this.indicatorsService.detectOrderBlocks(candles, lookback);
-        const structure = this.indicatorsService.detectMarketStructure(candles, lookback);
+        // SMC-детекторы ждут newest-first (как их зовёт боевой движок) — им отдаём DESC
+        const fvg = this.indicatorsService.detectFVG(candlesDesc, lookback);
+        const ob = this.indicatorsService.detectOrderBlocks(candlesDesc, lookback);
+        const structure = this.indicatorsService.detectMarketStructure(candlesDesc, lookback);
         indicators = { fvg, ob, structure };
     }
 
     return {
-      candles,
+      candles, // ASC — для графика
       indicators,
       status,
       currentValue
