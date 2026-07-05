@@ -204,10 +204,21 @@ export class MLService {
       }
       const testAccuracy = testX.length > 0 ? correct / testX.length : 0;
 
+      // Baseline: точность «всегда предсказывать мажоритарный класс» на тесте.
+      // Если accuracy модели не выше baseline — реального эджа нет, число обманчиво.
+      const posCount = testY.filter((v) => v === 1).length;
+      const baselineAccuracy = testY.length ? Math.max(posCount, testY.length - posCount) / testY.length : 0;
+
       this.trainedModels.set(modelId, trained);
 
       model.features = featureNames;
-      model.weights = { ...trained, trainSamples: trainX.length, testSamples: testX.length };
+      model.weights = {
+        ...trained,
+        trainSamples: trainX.length,
+        testSamples: testX.length,
+        baselineAccuracy: parseFloat(baselineAccuracy.toFixed(4)),
+        positiveRate: parseFloat((testY.length ? posCount / testY.length : 0).toFixed(4)),
+      };
       model.accuracy = parseFloat(testAccuracy.toFixed(4));
       model.status = 'READY';
       await this.modelRepo.save(model);

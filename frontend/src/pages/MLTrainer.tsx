@@ -301,6 +301,20 @@ const MLTrainer = () => {
                                             <CheckCircle2 size={32} color="var(--success)" />
                                         </div>
                                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>Based on {dataset.length * 100}+ historical samples</div>
+                                        {activeModel.weights?.baselineAccuracy != null && (() => {
+                                            const base = activeModel.weights.baselineAccuracy;
+                                            const edge = activeModel.accuracy - base;
+                                            return (
+                                                <div style={{ fontSize: '11px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>
+                                                        {language === 'ru' ? 'Baseline (мажоритарный класс)' : 'Baseline (majority class)'}: <b style={{ color: 'var(--text-primary)' }}>{(base * 100).toFixed(1)}%</b>
+                                                    </span>
+                                                    <span style={{ fontWeight: 800, color: edge > 0.02 ? 'var(--success)' : edge > 0 ? 'var(--text-primary)' : 'var(--danger)' }}>
+                                                        {language === 'ru' ? 'эдж' : 'edge'} {edge >= 0 ? '+' : ''}{(edge * 100).toFixed(1)} {language === 'ru' ? 'пп' : 'pp'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     <h4 style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -367,13 +381,16 @@ const MLTrainer = () => {
                                                 <AlertCircle size={14} /> Recommendation
                                             </div>
                                             <div style={{ fontSize: '13px', lineHeight: 1.5 }}>
-                                                {activeModel.accuracy > 0.6
-                                                    ? (language === 'ru' 
-                                                        ? 'Точность >60% — модель готова к использованию как ML Filter в Strategy Builder.' 
-                                                        : 'Accuracy >60% — model is ready for use as ML Filter in Strategy Builder.')
-                                                    : (language === 'ru' 
-                                                        ? 'Точность <60% — рекомендуется увеличить период тренировки или сменить таймфрейм на 4h/1d.' 
-                                                        : 'Accuracy <60% — recommended to increase training period or change timeframe to 4h/1d.')}
+                                                {(() => {
+                                                    const base = activeModel.weights?.baselineAccuracy ?? 0.5;
+                                                    const edge = activeModel.accuracy - base;
+                                                    if (edge >= 0.03) return language === 'ru'
+                                                        ? `Модель обходит baseline на +${(edge * 100).toFixed(1)} пп — есть реальный сигнал, можно использовать как ML Filter.`
+                                                        : `Model beats baseline by +${(edge * 100).toFixed(1)} pp — real signal, usable as ML Filter.`;
+                                                    return language === 'ru'
+                                                        ? `Точность почти не превышает baseline (${(base * 100).toFixed(1)}%) — реального эджа нет. Смените таймфрейм на 4h/1d, увеличьте период или добавьте фичи.`
+                                                        : `Accuracy barely exceeds baseline (${(base * 100).toFixed(1)}%) — no real edge. Try 4h/1d timeframe, longer period, or more features.`;
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
