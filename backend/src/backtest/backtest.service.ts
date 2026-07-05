@@ -138,9 +138,11 @@ export class BacktestService {
           const p = node.params || {};
           const period = node.period || p.period || 14;
           const source = node.source || p.source || 'close';
+          // VWAP: в ключ идёт anchor (нет period), чтобы разные anchor не коллизили
+          const keyPeriod = indicatorName === 'VWAP' ? (p.anchor || 'D') : period;
           // Ключ включает property — object-индикаторы (MACD/BB/Stoch/ADX) кэшируем
           // как готовую числовую серию выбранного поля (паритет с ast-evaluator).
-          const key = `${indicatorName}:${period}:${source}:${node.property || ''}`;
+          const key = `${indicatorName}:${keyPeriod}:${source}:${node.property || ''}`;
           if (!indicatorCache.has(key)) {
             let series: number[];
             let obj: any[] | null = null;
@@ -150,6 +152,8 @@ export class BacktestService {
               case 'EMA': series = this.indicatorsService.calculateEMA(srcArr(source), period); break;
               case 'ATR': series = this.indicatorsService.calculateATR(highsChrono, lowsChrono, closesChrono, period); break;
               case 'ZScore': series = this.indicatorsService.calculateZScore(srcArr(source), p.period || period); break;
+              // VWAP берёт свечи newest-first (внутри разворачивает в ASC) → серия длиной n
+              case 'VWAP': series = this.indicatorsService.calculateVWAP(reversedCandles, p.anchor || 'D'); break;
               case 'MACD': obj = this.indicatorsService.calculateMACD(srcArr(source), p.fast || 12, p.slow || 26, p.signal || 9); break;
               case 'BollingerBands': obj = this.indicatorsService.calculateBollingerBands(srcArr(source), p.period || period, p.stdDev || 2); break;
               case 'Stochastic': obj = this.indicatorsService.calculateStochastic(highsChrono, lowsChrono, closesChrono, p.period || period, p.signalPeriod || 3); break;

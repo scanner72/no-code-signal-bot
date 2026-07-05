@@ -37,6 +37,21 @@ describe('AstEvaluatorService — indicator property (backtest standalone)', () 
     const v = await ev({ type: 'indicator', name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'histogram' });
     expect(v).toBeCloseTo(expected, 4);
   });
+
+  // VWAP: берёт массив свечей (newest-first) с time/volume, не серию значений
+  const t0 = Date.UTC(2026, 0, 1);
+  const vwapChrono = Array.from({ length: 48 }, (_, i) => {
+    const base = 100 + Math.sin(i / 4) * 4 + i * 0.15;
+    return { time: new Date(t0 + i * 3600_000).toISOString(), close: String(base), high: String(base + 1), low: String(base - 1), volume: String(1000 + i * 25) };
+  });
+  const vwapCandles = [...vwapChrono].reverse(); // newest-first
+
+  it('VWAP anchor D совпадает с IndicatorsService, а не SMA', async () => {
+    const expected = last(indicators.calculateVWAP(vwapCandles, 'D'));
+    const v = await service.evaluateNode({ type: 'indicator', name: 'VWAP', params: { anchor: 'D' } }, vwapCandles, false, {}, { backtestMode: true });
+    expect(v).toBeCloseTo(expected, 4);
+    expect(v).not.toBeCloseTo(last(indicators.calculateSMA(vwapChrono.map((c) => parseFloat(c.close)), 14)), 1);
+  });
 });
 
 describe('AstEvaluatorService — input node source (backtest)', () => {

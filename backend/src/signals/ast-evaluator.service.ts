@@ -97,12 +97,14 @@ export class AstEvaluatorService {
         const indicatorName = node.indicator || node.name;
         const period = node.period || node.params?.period || 14;
         const source = node.source || node.params?.source || 'close';
+        // VWAP не имеет period — в ключ кэша идёт anchor, чтобы разные anchor не коллизили
+        const keyPeriod = indicatorName === 'VWAP' ? (node.params?.anchor || 'D') : period;
 
         // Fast path: precomputed series from backtest (O(1) lookup instead of O(n) recompute).
         // Ключ включает property — object-индикаторы (MACD/BB/Stoch/ADX) кэшируются как
         // готовая числовая серия выбранного поля.
         if (context?.indicatorCache && typeof context.candleIndex === 'number') {
-          const cached = context.indicatorCache.get(`${indicatorName}:${period}:${source}:${node.property || ''}`);
+          const cached = context.indicatorCache.get(`${indicatorName}:${keyPeriod}:${source}:${node.property || ''}`);
           if (cached) {
             const pos = context.candleIndex - cached.offset;
             if (getHistory) {
@@ -126,6 +128,8 @@ export class AstEvaluatorService {
           case 'EMA': result = this.indicatorsService.calculateEMA(values, period); break;
           case 'ATR': result = this.indicatorsService.calculateATR(chrono('high'), chrono('low'), values, period); break;
           case 'ZScore': result = this.indicatorsService.calculateZScore(values, params.period || period); break;
+          // VWAP берёт свечи newest-first (внутри разворачивает в ASC), не серию close
+          case 'VWAP': result = this.indicatorsService.calculateVWAP(candles, params.anchor || 'D'); break;
           case 'MACD': objResult = this.indicatorsService.calculateMACD(values, params.fast || 12, params.slow || 26, params.signal || 9); break;
           case 'BollingerBands': objResult = this.indicatorsService.calculateBollingerBands(values, params.period || period, params.stdDev || 2); break;
           case 'Stochastic': objResult = this.indicatorsService.calculateStochastic(chrono('high'), chrono('low'), values, params.period || period, params.signalPeriod || 3); break;
