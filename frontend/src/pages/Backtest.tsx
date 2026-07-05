@@ -124,6 +124,20 @@ const Backtest = () => {
           }
         });
       }
+      if (n.type === 'comparison' && typeof n.right === 'number') {
+        const val = n.right;
+        const isFraction = val >= 0 && val <= 1;
+        const thresholdName = language === 'ru' ? `Порог (${n.operator})` : `Threshold (${n.operator})`;
+        params.push({
+          nodeId: n.id,
+          nodeName: thresholdName,
+          paramName: 'value',
+          value: val,
+          min: isFraction ? Number(Math.max(0, val - 0.2).toFixed(2)) : Math.max(0, Math.floor(val - 20)),
+          max: isFraction ? Number(Math.min(1, val + 0.2).toFixed(2)) : Math.ceil(val + 20),
+          step: isFraction ? 0.01 : 1,
+        });
+      }
       if (n.condition) traverse(n.condition);
       if (n.left) traverse(n.left);
       if (n.right) traverse(n.right);
@@ -132,6 +146,27 @@ const Backtest = () => {
       if (n.b) traverse(n.b);
     };
     traverse(node);
+
+    // Add Strategy-level TP & SL
+    params.push({
+      nodeId: 'strategy',
+      nodeName: language === 'ru' ? 'Стратегия' : 'Strategy',
+      paramName: 'tp',
+      value: form.tpPercent,
+      min: 0.1,
+      max: 10,
+      step: 0.1,
+    });
+    params.push({
+      nodeId: 'strategy',
+      nodeName: language === 'ru' ? 'Стратегия' : 'Strategy',
+      paramName: 'sl',
+      value: form.slPercent,
+      min: 0.1,
+      max: 10,
+      step: 0.1,
+    });
+
     return params;
   };
 
@@ -330,6 +365,14 @@ const Backtest = () => {
     const s = strategies.find((st) => st.id.toString() === selectedStrategyId);
     if (!s) return;
 
+    // Apply strategy-level TP/SL if they are optimized
+    if (bestParams['strategy:tp'] !== undefined) {
+      setForm((f: any) => ({ ...f, tpPercent: Number((bestParams['strategy:tp'] * 100).toFixed(2)) }));
+    }
+    if (bestParams['strategy:sl'] !== undefined) {
+      setForm((f: any) => ({ ...f, slPercent: Number((bestParams['strategy:sl'] * 100).toFixed(2)) }));
+    }
+
     const newAst = JSON.parse(JSON.stringify(s.ast));
     const traverseNode = (n: any) => {
       if (!n || typeof n !== 'object') return;
@@ -341,6 +384,12 @@ const Backtest = () => {
           }
         });
       }
+      if (n.type === 'comparison' && typeof n.right === 'number') {
+        const key = `${n.id}:value`;
+        if (bestParams[key] !== undefined) {
+          n.right = bestParams[key];
+        }
+      }
       if (n.condition) traverseNode(n.condition);
       if (n.left) traverseNode(n.left);
       if (n.right) traverseNode(n.right);
@@ -351,14 +400,49 @@ const Backtest = () => {
     traverseNode(newAst);
 
     try {
-      await strategiesApi.update(Number(selectedStrategyId), { ast: newAst });
+      // Re-compile canvas nodes to keep DB nodes and AST in sync
+      const updatedNodes = s.nodes.map((node: any) => {
+        const updatedParams = { ...(node.data?.params || {}) };
+        let modified = false;
+
+        Object.keys(updatedParams).forEach(key => {
+          const lookupKey = `${node.id}:${key}`;
+          if (bestParams[lookupKey] !== undefined) {
+            updatedParams[key] = bestParams[lookupKey];
+            modified = true;
+          }
+        });
+
+        let updatedValue = node.data?.value;
+        if (node.type === 'comparison') {
+          const lookupKey = `${node.id}:value`;
+          if (bestParams[lookupKey] !== undefined) {
+            updatedValue = bestParams[lookupKey];
+            modified = true;
+          }
+        }
+
+        if (modified) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              params: updatedParams,
+              value: updatedValue
+            }
+          };
+        }
+        return node;
+      });
+
+      await strategiesApi.update(Number(selectedStrategyId), { nodes: updatedNodes, ast: newAst });
       toast.success(language === 'ru' ? 'Параметры успешно применены!' : 'Parameters applied successfully!');
       useNotificationStore.getState().addNotification(
         language === 'ru' ? 'Оптимизатор' : 'Optimizer',
         language === 'ru' ? `Применены новые параметры для "${s.name}".` : `Applied new parameters for "${s.name}".`,
         'success',
       );
-      setStrategies(strategies.map((st) => (st.id.toString() === selectedStrategyId ? { ...st, ast: newAst } : st)));
+      setStrategies(strategies.map((st) => (st.id.toString() === selectedStrategyId ? { ...st, nodes: updatedNodes, ast: newAst } : st)));
     } catch (e) {
       toast.error(language === 'ru' ? 'Ошибка при сохранении параметров' : 'Failed to save parameters');
     }

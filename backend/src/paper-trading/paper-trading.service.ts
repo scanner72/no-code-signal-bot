@@ -70,6 +70,7 @@ export class PaperTradingService {
     volume = 100,
     correlation = 0,
     riskMultiplier = 1.0,
+    abVariant = 'NONE',
   ) {
     const existing = await this.virtualTradeRepository.findOne({
       where: { strategy_id: strategyId, status: TradeStatus.OPEN },
@@ -98,6 +99,7 @@ export class PaperTradingService {
       volume,
       correlation,
       risk_multiplier: riskMultiplier,
+      ab_variant: abVariant,
       status: TradeStatus.OPEN,
     });
 

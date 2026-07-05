@@ -88,6 +88,7 @@ const NodePreviewChart: React.FC<NodePreviewChartProps> = ({ node, onClose, defa
                                 data={data.candles} 
                                 signals={data.signals || []}
                                 onLevelsChange={onLevelsChange}
+                                smc={data.indicators}
                             />
 
                             

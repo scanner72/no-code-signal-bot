@@ -190,8 +190,15 @@ export class AstEvaluatorService {
       case 'ai_forecast':
         return getHistory ? [0] : 0;
 
-      case 'ml_filter':
-        return getHistory ? [true] : true;
+      case 'ml_filter': {
+        const modelId = node.params?.modelId || node.modelId;
+        const minScore = node.params?.minScore || node.minScore || 0.7;
+        if (!modelId || !context?.mlService) return getHistory ? [true] : true;
+
+        const score = await context.mlService.predict(modelId, candles, context);
+        const passed = score >= minScore;
+        return getHistory ? [passed] : passed;
+      }
 
       // ── Order flow (computable from candle data) ──
       case 'order_flow': {
@@ -254,6 +261,23 @@ export class AstEvaluatorService {
       case 'market_structure': {
         const s = this.indicatorsService.detectMarketStructure(candles, node.params?.lookback);
         return node.property ? (s as any)[node.property] : s.trend;
+      }
+
+      case 'fib_ote': {
+        const fib = this.indicatorsService.calculateFibLevels(candles, {
+          direction: node.params?.direction ?? 'auto',
+          lookback: node.params?.lookback ?? 50,
+          zoneFrom: node.params?.zoneFrom ?? 0.618,
+          zoneTo: node.params?.zoneTo ?? 0.786,
+        });
+        if (!fib) return false;
+        const p = parseFloat(candles[0].close);
+        return p <= fib.oteZone.top && p >= fib.oteZone.bottom;
+      }
+
+      case 'premium_discount': {
+        const pd = this.indicatorsService.calculatePremiumDiscount(candles, node.params?.lookback || 100);
+        return node.property ? pd === node.property : pd;
       }
 
       case 'liquidity_sweep': {

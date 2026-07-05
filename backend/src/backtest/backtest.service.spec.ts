@@ -43,10 +43,25 @@ describe('BacktestService', () => {
       ensureHistoricalData: jest.fn().mockResolvedValue(undefined)
     };
     mockSignalsEngine = { evaluateNode: jest.fn().mockResolvedValue(false) };
-    const mockIndicatorsService = { calculateATR: jest.fn().mockReturnValue([2]) };
+    const mockIndicatorsService = { 
+      calculateATR: jest.fn().mockReturnValue([2]), 
+      calculateFibLevels: jest.fn().mockReturnValue({ levels: { '1.618': 250 } }) 
+    };
     const mockSignalsGateway = { broadcastProgress: jest.fn().mockResolvedValue(undefined) };
+    const mockMLService = { predict: jest.fn().mockResolvedValue(0.8) };
+    const mockRiskSizingService = {
+      computeNotional: jest.fn().mockImplementation((method, params) => params.equity * (DEFAULT_OPTS.positionSize || 0.9))
+    };
  
-    service = new BacktestService(mockStrategyRepo, mockCandlesService, mockSignalsEngine, mockIndicatorsService as any, mockSignalsGateway as any);
+    service = new BacktestService(
+      mockStrategyRepo,
+      mockCandlesService,
+      mockSignalsEngine,
+      mockIndicatorsService as any,
+      mockSignalsGateway as any,
+      mockMLService as any,
+      mockRiskSizingService as any,
+    );
   });
 
   it('throws when strategy not found', async () => {
@@ -117,9 +132,18 @@ describe('BacktestService', () => {
     const realIndicators = new IndicatorsService(null as any);
     const realEvaluator = new AstEvaluatorService(null as any, realIndicators);
     const mockSignalsGateway = { broadcastProgress: jest.fn().mockResolvedValue(undefined) };
+    const mockMLService = { predict: jest.fn().mockResolvedValue(0.8) };
+    const mockRiskSizingService = {
+      computeNotional: jest.fn().mockImplementation((method, params) => params.equity * 0.9)
+    };
     const realService = new BacktestService(
-      mockStrategyRepo, mockCandlesService, realEvaluator as any,
-      realIndicators as any, mockSignalsGateway as any,
+      mockStrategyRepo,
+      mockCandlesService,
+      realEvaluator as any,
+      realIndicators as any,
+      mockSignalsGateway as any,
+      mockMLService as any,
+      mockRiskSizingService as any,
     );
 
     // AST ровно в той форме, что выдаёт ast-compiler для builder-стратегий
@@ -292,5 +316,58 @@ describe('BacktestService', () => {
     const first = parseFloat(candles[0].close);
     const last = parseFloat(candles[candles.length - 1].close);
     expect(result.benchmark[result.benchmark.length - 1].v).toBeCloseTo((1000 * last) / first, 1);
+  });
+
+  it('wires RiskSizingService to compute dynamic notional during entries', async () => {
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 110; i++) candles[i].close = '205';
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    const customStrategy = {
+      ...strategy,
+      nodes: [
+        { id: 'sizing-node', data: { action: 'sizing', method: 'fixed_notional', fixedNotional: 500 } }
+      ]
+    };
+    mockStrategyRepo.findOneBy.mockResolvedValue(customStrategy);
+
+    const result = await service.run(1, DEFAULT_OPTS);
+    expect(result.totalTrades).toBeGreaterThan(0);
+    // Since mockRiskSizingService returns equity * 0.9 = 900 notional:
+    expect(result.trades[0].pnl).toBeGreaterThan(0);
+  });
+
+  it('exits at calculated Fibonacci extension TP price', async () => {
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 110; i++) candles[i].close = '260'; // Price goes to 260
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    const customStrategy = {
+      ...strategy,
+      nodes: [
+        { id: 'sltp-node', data: { action: 'sltp', tpMode: 'fib_extension', tpFibLevel: 1.618 } }
+      ]
+    };
+    mockStrategyRepo.findOneBy.mockResolvedValue(customStrategy);
+
+    const result = await service.run(1, DEFAULT_OPTS);
+    expect(result.totalTrades).toBeGreaterThan(0);
+    // Exit price must be the fib level target 250
+    expect(result.trades[0].exitPrice).toBe(250);
+    expect(result.trades[0].exitReason).toBe('TP');
   });
 });

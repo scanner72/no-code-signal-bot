@@ -12,6 +12,9 @@ import { BacktestRun } from './backtest-run.entity';
 import { CandlesModule } from '../candles/candles.module';
 import { IndicatorsModule } from '../indicators/indicators.module';
 import { AstEvaluatorModule } from '../signals/ast-evaluator.module';
+import { StrategiesModule } from '../strategies/strategies.module';
+import { MLModule } from '../ml/ml.module';
+import { RiskModule } from '../risk/risk.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { AstEvaluatorModule } from '../signals/ast-evaluator.module';
     CandlesModule,
     IndicatorsModule,
     AstEvaluatorModule,
+    StrategiesModule,
+    MLModule,
+    RiskModule,
   ],
   providers: [BacktestService, BacktestProgressService, OptimizerService, BacktestRunsService],
   controllers: [BacktestController, OptimizerController],

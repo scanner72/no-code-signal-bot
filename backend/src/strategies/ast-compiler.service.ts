@@ -18,6 +18,14 @@ export class AstCompilerService {
   }
 
   private buildNodeAst(currentNode: any, allNodes: any[], allEdges: any[]): any {
+    const ast = this.buildNodeAstRaw(currentNode, allNodes, allEdges);
+    if (ast && typeof ast === 'object' && !Array.isArray(ast)) {
+      ast.id = currentNode.id;
+    }
+    return ast;
+  }
+
+  private buildNodeAstRaw(currentNode: any, allNodes: any[], allEdges: any[]): any {
     const nodeType = currentNode.type || 'unknown';
 
     // Get input edges to this node

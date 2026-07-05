@@ -20,6 +20,7 @@ import { BacktestRunsService } from './backtest/backtest-runs.service';
 import { OptimizerService } from './backtest/optimizer.service';
 import { StrategiesModule } from './strategies/strategies.module';
 import { AstEvaluatorModule } from './signals/ast-evaluator.module';
+import { RiskModule } from './risk/risk.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { AstEvaluatorModule } from './signals/ast-evaluator.module';
     StrategiesModule,
     SettingsModule,
     AstEvaluatorModule,
+    RiskModule,
   ],
   providers: [BacktestService, BacktestProcessor, BacktestProgressService, BacktestRunsService, OptimizerService],
 })

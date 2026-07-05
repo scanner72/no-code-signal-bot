@@ -57,8 +57,9 @@ export class TelegramService implements OnModuleInit {
 
     const isLong = signal.type === 'LONG';
     const price: number = parseFloat(signal.price);
-    const tp = isLong ? price * 1.02 : price * 0.98;
-    const sl = isLong ? price * 0.99 : price * 1.01;
+    const md = signal.metadata || {};
+    const tp = typeof md.tp === 'number' ? md.tp : (isLong ? price * 1.02 : price * 0.98);
+    const sl = typeof md.sl === 'number' ? md.sl : (isLong ? price * 0.99 : price * 1.01);
 
     const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const pct = (a: number, b: number) => (((a - b) / b) * 100).toFixed(2);

@@ -27,6 +27,8 @@ import { CCXTQueueService } from '../orders/ccxt-queue.service';
 import { AlgoExecutionService } from '../orders/algo-execution.service';
 import { PaperAccountsService } from '../paper-trading/paper-accounts.service';
 import { findPaperNodesForSignal } from '../paper-trading/paper-node-finder';
+import { CrossExchangeService } from '../cross-exchange/cross-exchange.service';
+import { RiskSizingService } from '../risk/risk-sizing.service';
 
 /** Parse a percent/ATR string to a numeric fraction ("2%" → 0.02) */
 function parsePct(val: any): number | null {
@@ -89,6 +91,8 @@ export class SignalsEngineService {
     private ccxtQueueService: CCXTQueueService,
     private algoExecutionService: AlgoExecutionService,
     private paperAccountsService: PaperAccountsService,
+    private crossExchangeService: CrossExchangeService,
+    private riskSizing: RiskSizingService,
   ) { }
 
   public getExecutionTrace(strategyId: number) {
@@ -423,6 +427,17 @@ export class SignalsEngineService {
           (signal.metadata.indicators as any).rsi = parseFloat(rsiValue.toFixed(1));
       }
 
+      // 3b. Compute real TP/SL from sltp node and attach to signal metadata
+      const sltpNodeForAlert = findAstNode(strategy.ast, 'trade_action', 'sltp');
+      if (sltpNodeForAlert && signal.metadata) {
+        const tpPct = parsePct(sltpNodeForAlert.tp);
+        const slPct = parsePct(sltpNodeForAlert.sl);
+        const p = signal.price;
+        const isLong = signal.type === 'LONG';
+        if (tpPct) signal.metadata.tp = isLong ? p * (1 + tpPct) : p * (1 - tpPct);
+        if (slPct) signal.metadata.sl = isLong ? p * (1 - slPct) : p * (1 + slPct);
+      }
+
       let customMessage: string | undefined;
       const telegramNode = findAstNode(strategy.ast, 'trade_action', 'telegram');
       if (telegramNode && telegramNode.telegramMessage) {
@@ -433,7 +448,12 @@ export class SignalsEngineService {
           .replace(/\{\{strategy\}\}/gi, strategy.name);
       }
 
-      await this.telegramService.sendSignal(signal, candles, rsiAll.filter(v => v > 0), customMessage);
+      // Per-strategy routing: chatId → sendSignalOverride; otherwise global
+      if (telegramNode?.chatId) {
+        await this.telegramService.sendSignalOverride(signal, String(telegramNode.chatId));
+      } else {
+        await this.telegramService.sendSignal(signal, candles, rsiAll.filter(v => v > 0), customMessage);
+      }
       await this.discordService.sendSignal(signal);
       // 4. Broadcast WS
       this.signalsGateway.broadcastSignal(signal);
@@ -444,6 +464,7 @@ export class SignalsEngineService {
         const volume = pr.volume ?? 100;
         const correlation = pr.maxCorrelation ?? 0;
         const riskMultiplier = pr.riskMultiplier ?? 1.0;
+        const abVariant = (context.metadata as any)?.abVariant || 'NONE';
 
         await this.paperTradingService.openTrade(
           strategy.id,
@@ -452,7 +473,8 @@ export class SignalsEngineService {
           signal.price,
           volume,
           correlation,
-          riskMultiplier
+          riskMultiplier,
+          abVariant
         );
       }
 
@@ -473,23 +495,135 @@ export class SignalsEngineService {
         this.logger.error(`Paper account execution error: ${(e as Error).message}`);
       }
 
-      // 6. Live execution
-      await this.executeLiveEntry(strategy, pair, signal.price, signal.type);
-      await this.placeSltpOco(strategy, pair, signal.price, signal.type);
+      // 6. Live execution — skipped when alertOnly is set
+      if (telegramNode?.alertOnly) {
+        this.logger.log(`[alertOnly] Skipping live execution for strategy ${strategy.name}`);
+      } else {
+        const { amount, tpPrice, slPrice } = await this.getLiveNotionalAndExits(strategy, pair, signal.price, signal.type, candles);
+        await this.executeLiveEntry(strategy, pair, signal.price, signal.type, amount);
+        await this.placeSltpOco(strategy, pair, signal.price, signal.type, amount, tpPrice, slPrice);
+      }
     }
+  }
+
+  /**
+   * Helper to calculate dynamic sizing and exits (standard percent or Fib extension) for live execution.
+   */
+  private async getLiveNotionalAndExits(
+    strategy: Strategy,
+    pair: string,
+    entryPrice: number,
+    signalType: string,
+    candles: any[]
+  ): Promise<{ amount: number; tpPrice: number; slPrice: number }> {
+    const execSettings = strategy.execution_settings || {};
+    const defaultPositionSize = execSettings.positionSize || 100;
+    let notional = defaultPositionSize;
+
+    // 1. Check for sizing node
+    let sizingNode = strategy.nodes?.find((n: any) => n.data?.action === 'sizing');
+    if (!sizingNode && strategy.ast) {
+      sizingNode = findAstNode(strategy.ast, 'trade_action', 'sizing');
+    }
+
+    // Determine stopPct/ATR for risk sizing
+    let slPct = 0.01;
+    let sltpNode = strategy.nodes?.find((n: any) => n.data?.action === 'sltp');
+    if (!sltpNode && strategy.ast) {
+      sltpNode = findAstNode(strategy.ast, 'trade_action', 'sltp');
+    }
+
+    if (sltpNode) {
+      const parsedSl = parsePct(sltpNode.sl || sltpNode.data?.sl);
+      if (parsedSl) slPct = parsedSl;
+    }
+
+    let atr = 0;
+    if (candles && candles.length >= 20) {
+      const prices = candles.map(c => Number(c.close)).reverse();
+      const high = candles.map(c => Number(c.high)).reverse();
+      const low = candles.map(c => Number(c.low)).reverse();
+      const atrValues = this.indicatorsService.calculateATR(high, low, prices, 14);
+      if (atrValues && atrValues.length > 0) {
+        atr = atrValues[atrValues.length - 1];
+      }
+    }
+
+    if (sizingNode) {
+      // Fetch live equity from exchange or fallback to settings/1000
+      let equity = 1000;
+      try {
+        const exchangeId = execSettings.exchangeId || 'binance';
+        const creds = execSettings.creds;
+        if (creds && creds.apiKey) {
+          const client = this.crossExchangeService.getExchange(exchangeId, creds);
+          if (typeof client.fetchBalance === 'function') {
+            const balanceObj = await client.fetchBalance();
+            equity = (balanceObj.total as any)?.USDT ?? (balanceObj.free as any)?.USDT ?? 1000;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to fetch exchange balance for risk sizing: ${err.message}`);
+      }
+
+      const method = (sizingNode.data?.method || sizingNode.method || 'fixed_notional') as any;
+      const data = sizingNode.data || sizingNode;
+      notional = this.riskSizing.computeNotional(method, {
+        equity,
+        entryPrice,
+        stopPct: slPct,
+        atr,
+        riskPercent: parseFloat(data.riskPercent) || 1,
+        atrMultiplier: parseFloat(data.atrMultiplier) || 2,
+        equityPct: (parseFloat(data.equityPct) || 10) / 100,
+        fixedNotional: parseFloat(data.fixedNotional) || 100,
+        maxKelly: parseFloat(data.maxKelly) || 0.25,
+        stats: data.stats || { winRate: 0.5, avgWin: 1, avgLoss: 1 }
+      });
+    }
+
+    const amount = notional / entryPrice;
+
+    // 2. Determine SL/TP price levels
+    let tpPct = 0.02;
+    if (sltpNode) {
+      const parsedTp = parsePct(sltpNode.tp || sltpNode.data?.tp);
+      if (parsedTp) tpPct = parsedTp;
+    }
+
+    let tpPrice = signalType === 'LONG'
+      ? entryPrice * (1 + tpPct)
+      : entryPrice * (1 - tpPct);
+
+    const isFibTp = sltpNode?.tpMode === 'fib_extension' || sltpNode?.data?.tpMode === 'fib_extension';
+    if (isFibTp && candles && candles.length >= 50) {
+      const tpFibLevel = parseFloat(sltpNode.tpFibLevel || sltpNode.data?.tpFibLevel) || 1.272;
+      const fibObj = this.indicatorsService.calculateFibLevels(candles, {
+        direction: signalType.toLowerCase() as any,
+        levels: [tpFibLevel]
+      });
+      if (fibObj && fibObj.levels[String(tpFibLevel)]) {
+        tpPrice = fibObj.levels[String(tpFibLevel)];
+      }
+    }
+
+    const slPrice = signalType === 'LONG'
+      ? entryPrice * (1 - slPct)
+      : entryPrice * (1 + slPct);
+
+    return { amount, tpPrice, slPrice };
   }
 
   /**
    * Executes the entry order for a live strategy based on configured executionAlgo (MARKET, LIMIT, TWAP, VWAP)
    */
-  private async executeLiveEntry(strategy: Strategy, pair: string, entryPrice: number, signalType: string): Promise<void> {
+  private async executeLiveEntry(strategy: Strategy, pair: string, entryPrice: number, signalType: string, amount: number): Promise<void> {
     try {
       const execSettings = strategy.execution_settings || {};
       if (!execSettings.enableLiveExecution) return; // live execution disabled
 
       const exchangeId = execSettings.exchangeId || 'binance';
       const creds      = execSettings.creds;
-      const amount     = (execSettings.positionSize || 100) / entryPrice; // size in base asset
       const side       = signalType === 'LONG' ? 'buy' : 'sell';
 
       const algo = execSettings.executionAlgo || 'MARKET';
@@ -524,30 +658,21 @@ export class SignalsEngineService {
    * Extracts the sltp/trade_action node from AST and places an OCO bracket order
    * via OcoManagerService when a live signal fires.
    */
-  private async placeSltpOco(strategy: Strategy, pair: string, entryPrice: number, signalType: string): Promise<void> {
+  private async placeSltpOco(
+    strategy: Strategy,
+    pair: string,
+    entryPrice: number,
+    signalType: string,
+    amount: number,
+    tpPrice: number,
+    slPrice: number
+  ): Promise<void> {
     try {
       const execSettings = strategy.execution_settings || {};
       if (!execSettings.enableLiveExecution) return; // live execution disabled
 
-      // Find sltp node in AST
-      const sltpNode = findAstNode(strategy.ast, 'trade_action', 'sltp');
-      if (!sltpNode) return;
-
-      const sl = parsePct(sltpNode.sl);
-      const tp = parsePct(sltpNode.tp);
-      if (!sl || !tp) return;
-
-      // Calculate price levels
-      const tpPrice = signalType === 'LONG'
-        ? entryPrice * (1 + tp)
-        : entryPrice * (1 - tp);
-      const slPrice = signalType === 'LONG'
-        ? entryPrice * (1 - sl)
-        : entryPrice * (1 + sl);
-
       const exchangeId = execSettings.exchangeId || 'binance';
       const creds      = execSettings.creds;
-      const amount     = (execSettings.positionSize || 100) / entryPrice; // size in base asset
 
       // Place TP limit order
       const tpSide = signalType === 'LONG' ? 'sell' : 'buy';
@@ -838,7 +963,7 @@ export class SignalsEngineService {
         const minScore = node.params?.minScore || node.minScore || 0.7;
         if (!modelId) return getHistory ? [true] : true; // No model = no filter
         
-        const score = await this.mlService.predict(modelId, currentCandles);
+        const score = await this.mlService.predict(modelId, currentCandles, context);
         const passed = score >= minScore;
         return getHistory ? [passed] : passed;
       }
@@ -855,6 +980,18 @@ export class SignalsEngineService {
         const structure = this.indicatorsService.detectMarketStructure(currentCandles, node.params.lookback);
         if (node.property) return structure[node.property];
         return structure.trend;
+
+      case 'fib_ote': {
+        const fib = this.indicatorsService.calculateFibLevels(currentCandles, {
+          direction: node.params?.direction ?? 'auto',
+          lookback: node.params?.lookback ?? 50,
+          zoneFrom: node.params?.zoneFrom ?? 0.618,
+          zoneTo: node.params?.zoneTo ?? 0.786,
+        });
+        if (!fib) return false;
+        const fibP = parseFloat(currentCandles[0].close.toString());
+        return fibP <= fib.oteZone.top && fibP >= fib.oteZone.bottom;
+      }
 
       case 'liquidity_sweep':
         const sweeps = this.indicatorsService.detectLiquiditySweeps(currentCandles, node.params.lookback);

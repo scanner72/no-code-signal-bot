@@ -46,6 +46,7 @@ export const registry: Record<string, BlockConfig> = {
   smc_bias: { type: 'smc', id: 'smc_bias', name: 'Daily Bias', category: 'Smart Money', dotColor: '#F59E0B', defaultData: { type: 'daily_bias', params: { lookback: 50 } } },
   smc_po3: { type: 'smc', id: 'smc_po3', name: 'Power of 3', category: 'Smart Money', dotColor: '#F59E0B', defaultData: { type: 'power_of_3', params: { lookback: 50 } } },
   smc_pd: { type: 'smc', id: 'smc_pd', name: 'Premium/Discount', category: 'Smart Money', dotColor: '#F59E0B', defaultData: { type: 'premium_discount', params: { lookback: 50 } } },
+  smc_fib: { type: 'smc', id: 'smc_fib', name: 'Fib / OTE', category: 'Smart Money', dotColor: '#F59E0B', defaultData: { type: 'fib_ote', params: { direction: 'auto', preset: 'OTE', zoneFrom: 0.618, zoneTo: 0.786, lookback: 50, levels: [0.236, 0.382, 0.5, 0.618, 0.705, 0.786, 1.272, 1.618] } } },
   smc_killzone: { type: 'smc', id: 'smc_killzone', name: 'ICT Killzone', category: 'Smart Money', dotColor: '#F59E0B', defaultData: { type: 'ict_killzone', params: { lookback: 50 } } },
 
   // Order Flow
@@ -135,6 +136,7 @@ export const registry: Record<string, BlockConfig> = {
   },
 
   trade_risk:         { type: 'trade_action', id: 'trade_risk',         name: 'Risk Guard',   category: '🚀 Торговля', dotColor: '#ef4444', defaultData: { action: 'risk', maxDrawdown: '5%', maxExposure: '20%' } },
+  risk_sizing:        { type: 'trade_action', id: 'risk_sizing',        name: 'Risk Sizing',  category: '🚀 Торговля', dotColor: '#ef4444', defaultData: { action: 'sizing', type: 'sizing', method: 'fixed_notional', riskPercent: 1, atrMultiplier: 2, atrPeriod: 14, equityPct: 0.1, fixedNotional: 100, maxKelly: 0.25 } },
   trade_webhook:      { type: 'trade_action', id: 'trade_webhook',      name: 'Webhook',      category: '🚀 Торговля', dotColor: '#8b5cf6', defaultData: { action: 'webhook', url: '', method: 'POST' } },
   trade_telegram:     { type: 'trade_action', id: 'trade_telegram',     name: 'Telegram Alert', category: '🚀 Торговля', dotColor: '#0088cc', defaultData: { action: 'telegram', telegramMessage: 'Сигнал: {{signal}} на {{pair}} по цене {{price}}' } },
   trade_grid:         { type: 'trade_action', id: 'trade_grid',         name: 'Grid Bot',     category: '🚀 Торговля', dotColor: '#ec4899', defaultData: { action: 'grid', lowerPrice: '60000', upperPrice: '70000', grids: 20, gridType: 'ARITHMETIC', volume: '50%' } },

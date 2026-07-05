@@ -84,6 +84,9 @@ export class VirtualTrade {
   @Column('decimal', { precision: 20, scale: 8, nullable: true })
   remaining_volume: number; // remaining position size in USD after partial closes
 
+  @Column({ default: 'NONE' })
+  ab_variant: string; // NONE, A, B
+
   @CreateDateColumn({ type: 'timestamptz' })
   opened_at: Date;
 

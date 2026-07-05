@@ -341,8 +341,25 @@ export const NodeInlineParams: React.FC<Props> = ({ nodeId, nodeType: originalNo
             { value: 'power_of_3', label: 'Power of 3' },
             { value: 'premium_discount', label: 'Premium/Disc.' },
             { value: 'ict_killzone', label: 'ICT Killzone' },
+            { value: 'fib_ote', label: 'Fib / OTE' },
           ]}
         />
+        {data.type === 'fib_ote' && (
+          <>
+            <SelField label="Direction" value={data.params?.direction || 'auto'}
+              onChange={v => setParam('direction', v)}
+              options={[
+                { value: 'auto', label: 'Auto' }, { value: 'long', label: 'Long' }, { value: 'short', label: 'Short' },
+              ]}
+            />
+            <NumField label="Lookback" value={data.params?.lookback ?? 50} min={10} max={300} step={5}
+              onChange={v => setParam('lookback', Math.round(v))} />
+            <NumField label="OTE from" value={data.params?.zoneFrom ?? 0.618} min={0.2} max={0.9} step={0.01}
+              onChange={v => setParam('zoneFrom', v)} />
+            <NumField label="OTE to" value={data.params?.zoneTo ?? 0.786} min={0.5} max={0.95} step={0.01}
+              onChange={v => setParam('zoneTo', v)} />
+          </>
+        )}
         {['fvg', 'order_block', 'liquidity_sweep', 'market_structure', 'premium_discount'].includes(data.type || 'fvg') && (
           <NumField label="Lookback" value={data.params?.lookback ?? 100} min={5} max={500} step={5}
             onChange={v => setParam('lookback', Math.round(v))} />
@@ -903,8 +920,18 @@ export const NodeInlineParams: React.FC<Props> = ({ nodeId, nodeType: originalNo
               {/* ── Fixed SL / TP ────────────────────────── */}
               <div style={SECTION_LABEL}>SL / TP</div>
               <TextField label={t('node_stop_loss')} value={data.sl || '1%'} onChange={v => set('sl', v)} placeholder="1%" />
-              {partialTPs.length === 0 && (
-                <TextField label={t('node_take_profit')} value={data.tp || '3%'} onChange={v => set('tp', v)} placeholder="3%" />
+              <SelField label="TP Mode" value={data.tpMode || 'percent'} onChange={v => set('tpMode', v)}
+                options={[
+                  { value: 'percent', label: 'Percent %' },
+                  { value: 'fib_extension', label: 'Fib Ext' },
+                ]}
+              />
+              {data.tpMode === 'fib_extension' ? (
+                <NumField label="Fib Level" value={data.tpFibLevel ?? 1.272} min={0.1} max={5.0} step={0.001} onChange={v => set('tpFibLevel', v)} />
+              ) : (
+                partialTPs.length === 0 && (
+                  <TextField label={t('node_take_profit')} value={data.tp || '3%'} onChange={v => set('tp', v)} placeholder="3%" />
+                )
               )}
 
               {/* ── Partial TP levels ─────────────────────── */}
@@ -1002,6 +1029,45 @@ export const NodeInlineParams: React.FC<Props> = ({ nodeId, nodeType: originalNo
             <TextField label="Max Exp" value={data.maxExposure || '20%'} onChange={v => set('maxExposure', v)} placeholder="20%" />
           </>
         )}
+        {(data.action === 'sizing' || data.type === 'sizing') && (
+          <>
+            <div style={SECTION_LABEL}>RISK SIZING</div>
+            <SelField label={language === 'ru' ? 'Метод' : 'Method'} value={data.method || 'fixed_notional'}
+              onChange={v => set('method', v)}
+              options={[
+                { value: 'fixed_notional', label: 'Fixed Notional' },
+                { value: 'equity_percent', label: 'Equity %' },
+                { value: 'risk_percent', label: 'Risk %' },
+                { value: 'atr_based', label: 'ATR-based' },
+                { value: 'kelly', label: 'Kelly' },
+              ]}
+            />
+            {data.method === 'fixed_notional' && (
+              <NumField label="Notional $" value={data.fixedNotional ?? 100} min={1} step={10}
+                onChange={v => set('fixedNotional', v)} />
+            )}
+            {data.method === 'equity_percent' && (
+              <NumField label="Equity %" value={(data.equityPct ?? 0.1) * 100} min={0.5} max={100} step={0.5}
+                onChange={v => set('equityPct', v / 100)} />
+            )}
+            {(data.method === 'risk_percent' || data.method === 'atr_based') && (
+              <NumField label="Risk %" value={data.riskPercent ?? 1} min={0.1} max={20} step={0.1}
+                onChange={v => set('riskPercent', v)} />
+            )}
+            {data.method === 'atr_based' && (
+              <>
+                <NumField label="ATR ×" value={data.atrMultiplier ?? 2} min={0.5} max={10} step={0.5}
+                  onChange={v => set('atrMultiplier', v)} />
+                <NumField label="ATR Period" value={data.atrPeriod ?? 14} min={2} max={100}
+                  onChange={v => set('atrPeriod', Math.round(v))} />
+              </>
+            )}
+            {data.method === 'kelly' && (
+              <NumField label="Max Kelly" value={data.maxKelly ?? 0.25} min={0.05} max={0.5} step={0.05}
+                onChange={v => set('maxKelly', v)} />
+            )}
+          </>
+        )}
         {data.action === 'webhook' && (
           <>
             <SelField label={t('http_method_label') || "Метод"} value={data.method || 'POST'}
@@ -1020,6 +1086,23 @@ export const NodeInlineParams: React.FC<Props> = ({ nodeId, nodeType: originalNo
               placeholder="Сигнал: {{signal}}"
               style={{ width: '120px' }}
             />
+            <TextField
+              label="Chat ID"
+              value={data.chatId || ''}
+              onChange={v => set('chatId', v)}
+              placeholder={language === 'ru' ? 'Глобальный' : 'Global'}
+              style={{ width: '100px' }}
+            />
+            <div style={{ ...ROW, marginTop: 4 }}>
+              <span style={LABEL}>Alert Only</span>
+              <input
+                type="checkbox"
+                checked={data.alertOnly ?? false}
+                onChange={e => { e.stopPropagation(); set('alertOnly', e.target.checked); }}
+                style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#0088cc' }}
+                onClick={e => e.stopPropagation()}
+              />
+            </div>
             <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', lineHeight: '1.3' }}>
               {language === 'ru'
                 ? 'Используйте плейсхолдеры: {{pair}}, {{signal}}, {{price}}.'

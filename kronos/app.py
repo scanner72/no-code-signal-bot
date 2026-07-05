@@ -15,6 +15,12 @@ import torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+try:
+    from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+except ImportError:
+    RandomForestClassifier = None
+    GradientBoostingClassifier = None
+
 from model import Kronos, KronosTokenizer, KronosPredictor
 
 # ─── Logger ───────────────────────────────────────────────────────────────────
@@ -263,8 +269,140 @@ class PredictResponse(BaseModel):
     model: str
     device: str
 
+class TrainRequest(BaseModel):
+    X: list[list[float]] = Field(..., description="Feature matrix")
+    y: list[int] = Field(..., description="Target labels")
+    feature_names: list[str] = Field(..., description="Feature names")
+    model_type: str = Field(default="random_forest", description="random_forest or gradient_boosting")
+    n_estimators: int = Field(default=50, ge=1, le=500)
+    max_depth: int = Field(default=6, ge=1, le=20)
+    min_samples_split: int = Field(default=5, ge=2, le=50)
+
+class TrainResponse(BaseModel):
+    status: str
+    accuracy: float
+    feature_importance: dict[str, float]
+    weights: dict
+
+
+def serialize_sklearn_tree_classifier(tree, node_idx=0):
+    if tree.feature[node_idx] == -2:
+        val = tree.value[node_idx][0]
+        prob = float(val[1] / val.sum()) if val.sum() > 0 else 0.5
+        return {"isLeaf": True, "value": prob}
+    return {
+        "isLeaf": False,
+        "featureIndex": int(tree.feature[node_idx]),
+        "threshold": float(tree.threshold[node_idx]),
+        "left": serialize_sklearn_tree_classifier(tree, tree.children_left[node_idx]),
+        "right": serialize_sklearn_tree_classifier(tree, tree.children_right[node_idx]),
+        "value": float(tree.value[node_idx][0][1] / tree.value[node_idx][0].sum()) if tree.value[node_idx][0].sum() > 0 else 0.5
+    }
+
+
+def serialize_sklearn_tree_regressor(tree, node_idx=0):
+    if tree.feature[node_idx] == -2:
+        val = float(tree.value[node_idx][0][0])
+        return {"isLeaf": True, "value": val}
+    return {
+        "isLeaf": False,
+        "featureIndex": int(tree.feature[node_idx]),
+        "threshold": float(tree.threshold[node_idx]),
+        "left": serialize_sklearn_tree_regressor(tree, tree.children_left[node_idx]),
+        "right": serialize_sklearn_tree_regressor(tree, tree.children_right[node_idx]),
+        "value": float(tree.value[node_idx][0][0])
+    }
+
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
+@app.post("/train-model", response_model=TrainResponse)
+async def train_model(req: TrainRequest):
+    if RandomForestClassifier is None or GradientBoostingClassifier is None:
+        raise HTTPException(500, "scikit-learn is not installed in Kronos container")
+
+    if not req.X or not req.y:
+        raise HTTPException(400, "Empty dataset provided")
+
+    X_arr = np.array(req.X)
+    y_arr = np.array(req.y)
+
+    if req.model_type == "random_forest":
+        clf = RandomForestClassifier(
+            n_estimators=req.n_estimators,
+            max_depth=req.max_depth,
+            min_samples_split=req.min_samples_split,
+            random_state=42
+        )
+        clf.fit(X_arr, y_arr)
+        
+        # Calculate train accuracy
+        preds = clf.predict(X_arr)
+        accuracy = float((preds == y_arr).mean())
+
+        # Serialize trees
+        trees = []
+        for est in clf.estimators_:
+            trees.append(serialize_sklearn_tree_classifier(est.tree_))
+
+        # Feature importances
+        importance = {}
+        for name, imp in zip(req.feature_names, clf.feature_importances_):
+            importance[name] = float(imp)
+
+        weights = {
+            "trees": trees,
+            "featureNames": req.feature_names,
+            "accuracy": accuracy,
+            "featureImportance": importance
+        }
+
+    elif req.model_type == "gradient_boosting":
+        clf = GradientBoostingClassifier(
+            n_estimators=req.n_estimators,
+            max_depth=req.max_depth,
+            min_samples_split=req.min_samples_split,
+            random_state=42
+        )
+        clf.fit(X_arr, y_arr)
+
+        # Calculate train accuracy
+        preds = clf.predict(X_arr)
+        accuracy = float((preds == y_arr).mean())
+
+        # Serialize trees (GB uses Regressors internally)
+        trees = []
+        for est in clf.estimators_:
+            # est is a 1-element list for binary classification
+            trees.append(serialize_sklearn_tree_regressor(est[0].tree_))
+
+        # Calculate initValue
+        p = sum(req.y) / len(req.y) if len(req.y) > 0 else 0.5
+        init_value = float(np.log((p + 1e-7) / (1 - p + 1e-7)))
+
+        # Feature importances
+        importance = {}
+        for name, imp in zip(req.feature_names, clf.feature_importances_):
+            importance[name] = float(imp)
+
+        weights = {
+            "trees": trees,
+            "initValue": init_value,
+            "learningRate": 0.1,
+            "featureNames": req.feature_names,
+            "accuracy": accuracy,
+            "featureImportance": importance,
+            "type": "gradient_boosting"
+        }
+    else:
+        raise HTTPException(400, f"Unsupported model type: {req.model_type}")
+
+    return TrainResponse(
+        status="success",
+        accuracy=accuracy,
+        feature_importance=importance,
+        weights=weights
+    )
 
 @app.get("/health")
 async def health():

@@ -246,6 +246,90 @@ export class IndicatorsService {
   }
 
   /**
+   * Extracts fractal swing highs and lows from chronological (ASC) candle data.
+   * A swing at position i requires i+leftRight < asc.length, so the last leftRight
+   * bars never produce swings (non-lookahead guarantee).
+   */
+  getSwingPoints(asc: any[], leftRight = 2): {
+    highs: { price: number; time: any; index: number }[];
+    lows: { price: number; time: any; index: number }[];
+  } {
+    const highs: { price: number; time: any; index: number }[] = [];
+    const lows: { price: number; time: any; index: number }[] = [];
+    for (let i = leftRight; i < asc.length - leftRight; i++) {
+      const h = parseFloat(asc[i].high);
+      const l = parseFloat(asc[i].low);
+      let isHigh = true, isLow = true;
+      for (let k = 1; k <= leftRight; k++) {
+        if (!(h > parseFloat(asc[i - k].high) && h > parseFloat(asc[i + k].high))) isHigh = false;
+        if (!(l < parseFloat(asc[i - k].low) && l < parseFloat(asc[i + k].low))) isLow = false;
+      }
+      if (isHigh) highs.push({ price: h, time: asc[i].time, index: i });
+      if (isLow) lows.push({ price: l, time: asc[i].time, index: i });
+    }
+    return { highs, lows };
+  }
+
+  /**
+   * Calculates Fibonacci retracement/extension levels and OTE zone from the last swing leg.
+   * candles: newest-first (like other detect* methods). Returns null when swings are insufficient.
+   */
+  calculateFibLevels(
+    candles: any[],
+    opts: { direction?: 'auto' | 'long' | 'short'; lookback?: number; zoneFrom?: number; zoneTo?: number; levels?: number[] } = {},
+  ): {
+    swingHigh: { price: number; time: any };
+    swingLow: { price: number; time: any };
+    direction: 'long' | 'short';
+    levels: Record<string, number>;
+    oteZone: { top: number; bottom: number };
+  } | null {
+    const lookback = opts.lookback ?? 50;
+    const zoneFrom = opts.zoneFrom ?? 0.618;
+    const zoneTo = opts.zoneTo ?? 0.786;
+    const wanted = opts.levels ?? [0.236, 0.382, 0.5, 0.618, 0.705, 0.786, 1.272, 1.618];
+
+    const asc = [...candles.slice(0, lookback)].reverse();
+    const { highs, lows } = this.getSwingPoints(asc, 2);
+    if (highs.length === 0 || lows.length === 0) return null;
+
+    const lastHigh = highs[highs.length - 1];
+    const lastLow = lows[lows.length - 1];
+
+    let direction: 'long' | 'short' = (opts.direction && opts.direction !== 'auto') ? opts.direction : 'long';
+    if (!opts.direction || opts.direction === 'auto') {
+      direction = lastHigh.index > lastLow.index ? 'long' : 'short';
+    }
+
+    const H = lastHigh.price;
+    const L = lastLow.price;
+    const range = H - L;
+    if (range <= 0) return null;
+
+    const priceAt = (f: number): number => {
+      if (direction === 'long') {
+        return f <= 1 ? H - f * range : H + (f - 1) * range;
+      }
+      return f <= 1 ? L + f * range : L - (f - 1) * range;
+    };
+
+    const levels: Record<string, number> = {};
+    for (const f of wanted) levels[String(f)] = priceAt(f);
+
+    const zoneA = priceAt(zoneFrom);
+    const zoneB = priceAt(zoneTo);
+    const oteZone = { top: Math.max(zoneA, zoneB), bottom: Math.min(zoneA, zoneB) };
+
+    return {
+      swingHigh: { price: H, time: lastHigh.time },
+      swingLow: { price: L, time: lastLow.time },
+      direction,
+      levels,
+      oteZone,
+    };
+  }
+
+  /**
    * Detects Market Structure (BOS, CHoCH)
    */
   detectMarketStructure(candles: any[], lookback = 150): {
@@ -256,21 +340,7 @@ export class IndicatorsService {
     const asc = [...candles.slice(0, lookback)].reverse();
     if (asc.length < 20) return { trend: 'ranging', lastBOS: null, lastCHoCH: null };
 
-    const highs = [];
-    const lows = [];
-    
-    // 1. Identify Swing Points (using simple 3-candle fractal)
-    for (let i = 2; i < asc.length - 2; i++) {
-        const p2 = asc[i-2], p1 = asc[i-1], curr = asc[i], n1 = asc[i+1], n2 = asc[i+2];
-        const h = parseFloat(curr.high), l = parseFloat(curr.low);
-
-        if (h > parseFloat(p1.high) && h > parseFloat(p2.high) && h > parseFloat(n1.high) && h > parseFloat(n2.high)) {
-            highs.push({ price: h, time: curr.time });
-        }
-        if (l < parseFloat(p1.low) && l < parseFloat(p2.low) && l < parseFloat(n1.low) && l < parseFloat(n2.low)) {
-            lows.push({ price: l, time: curr.time });
-        }
-    }
+    const { highs, lows } = this.getSwingPoints(asc, 2);
 
     if (highs.length < 2 || lows.length < 2) return { trend: 'ranging', lastBOS: null, lastCHoCH: null };
 

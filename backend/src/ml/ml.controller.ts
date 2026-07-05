@@ -30,6 +30,26 @@ export class MLController {
     return this.mlService.getFeatureImportance(+id);
   }
 
+  @Post('create-version/:id')
+  async createVersion(@Param('id') id: string) {
+    return this.mlService.createModelVersion(+id);
+  }
+
+  @Get('strategy-config/:strategyId')
+  async getStrategyConfig(@Param('strategyId') strategyId: string) {
+    return this.mlService.getStrategyModelsConfig(+strategyId);
+  }
+
+  @Post('ab-test/:strategyId')
+  async setAbTestConfig(@Param('strategyId') strategyId: string, @Body() config: any) {
+    return this.mlService.setAbTestConfig(+strategyId, config);
+  }
+
+  @Get('ab-test/stats/:strategyId')
+  async getAbTestStats(@Param('strategyId') strategyId: string) {
+    return this.mlService.getAbTestStats(+strategyId);
+  }
+
   @Delete(':id')
   async deleteModel(@Param('id') id: string) {
     return this.mlService.deleteModel(+id);

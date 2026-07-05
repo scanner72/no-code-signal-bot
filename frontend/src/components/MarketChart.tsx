@@ -272,6 +272,52 @@ const MarketChart = ({ data, signals, smc, onLevelsChange, nodes, openTrade }: {
         if (line) priceLinesRef.current.push(line);
       });
     }
+
+    if (smc?.fib) {
+      const fib = smc.fib;
+      if (fib.levels) {
+        Object.entries(fib.levels).forEach(([lvl, priceVal]) => {
+          const price = priceVal as number;
+          const isOte = ['0.618', '0.705', '0.786'].includes(lvl);
+          const color = isOte ? 'rgba(16, 185, 129, 0.65)' : 'rgba(148, 163, 184, 0.4)';
+          const width = isOte ? 2 : 1;
+          const title = isOte ? `OTE ${lvl}` : `Fib ${lvl}`;
+          
+          const line = seriesRef.current?.createPriceLine({
+            price: price,
+            color: color,
+            lineWidth: width,
+            lineStyle: isOte ? 0 : 2, // Solid for OTE, dashed for others
+            axisLabelVisible: true,
+            title: title,
+          });
+          if (line) priceLinesRef.current.push(line);
+        });
+      }
+
+      if (fib.swingHigh) {
+        const shLine = seriesRef.current?.createPriceLine({
+          price: fib.swingHigh.price,
+          color: 'rgba(239, 68, 68, 0.5)',
+          lineWidth: 1,
+          lineStyle: 0,
+          axisLabelVisible: true,
+          title: 'Swing High',
+        });
+        if (shLine) priceLinesRef.current.push(shLine);
+      }
+      if (fib.swingLow) {
+        const slLine = seriesRef.current?.createPriceLine({
+          price: fib.swingLow.price,
+          color: 'rgba(16, 185, 129, 0.5)',
+          lineWidth: 1,
+          lineStyle: 0,
+          axisLabelVisible: true,
+          title: 'Swing Low',
+        });
+        if (slLine) priceLinesRef.current.push(slLine);
+      }
+    }
   }, [data, signals, smc]);
 
   const clearLevels = () => {

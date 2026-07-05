@@ -16,23 +16,22 @@ export class OptimizerController {
   async optimize(
     @Param('strategyId', ParseIntPipe) strategyId: number,
     @Body() body: {
-        options: {
-            pair: string;
-            timeframe: string;
-            days: number;
-        };
+        options: any;
         params: any[];
     },
   ) {
     const strategy = await this.strategyRepo.findOneBy({ id: strategyId });
     if (!strategy) throw new Error('Strategy not found');
 
-    return this.optimizerService.optimize(strategy, {
-        pair: body.options.pair || strategy.pair,
-        timeframe: body.options.timeframe || strategy.timeframe,
-        days: body.options.days || 30,
+    const options = {
+        ...body.options,
+        pair: body.options?.pair || strategy.pair,
+        timeframe: body.options?.timeframe || strategy.timeframe,
+        days: body.options?.days || 30,
         iterations: 10,
         populationSize: 20
-    });
+    };
+
+    return this.optimizerService.optimize(strategy, options, body.params);
   }
 }

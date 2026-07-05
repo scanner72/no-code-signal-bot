@@ -35,6 +35,7 @@ import { HermesModule } from './hermes/hermes.module';
 import { LdrModule } from './ldr/ldr.module';
 import { PaperTradingModule } from './paper-trading/paper-trading.module';
 import { OrdersModule } from './orders/orders.module';
+import { RiskModule } from './risk/risk.module';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { OrdersModule } from './orders/orders.module';
     LdrModule,
     PaperTradingModule,
     OrdersModule,
+    RiskModule,
   ],
 })
 export class AppModule {}

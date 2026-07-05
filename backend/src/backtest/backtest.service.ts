@@ -33,7 +33,12 @@ export interface BacktestOptions {
   useAtrSl?: boolean;
   /** Multiplier for ATR-based SL (default: 2) */
   atrSLMultiplier?: number;
+  userLevels?: any[];
 }
+
+import { MLService } from '../ml/ml.service';
+
+import { RiskSizingService } from '../risk/risk-sizing.service';
 
 const round = (n: number, decimals: number) => parseFloat(n.toFixed(decimals));
 
@@ -56,6 +61,8 @@ export class BacktestService {
     private astEvaluator: AstEvaluatorService,
     private indicatorsService: IndicatorsService,
     private progressService: BacktestProgressService,
+    private mlService: MLService,
+    private riskSizing: RiskSizingService,
   ) {}
 
   async run(strategyId: number, options: BacktestOptions, onProgress?: (percent: number) => Promise<void>) {
@@ -90,9 +97,12 @@ export class BacktestService {
     // Auto-detect ATR Stop Loss settings from strategy nodes
     let useAtrSl = options.useAtrSl;
     let atrSLMultiplier = options.atrSLMultiplier || 2;
+    let sizingNode: any = null;
+    let sltpNode: any = null;
 
     if (strategy && Array.isArray(strategy.nodes)) {
-      const sltpNode = strategy.nodes.find((n: any) => n.data?.action === 'sltp');
+      sltpNode = strategy.nodes.find((n: any) => n.data?.action === 'sltp');
+      sizingNode = strategy.nodes.find((n: any) => n.data?.action === 'sizing');
       if (sltpNode) {
         if (sltpNode.data?.slMode === 'atr') {
           useAtrSl = true;
@@ -225,13 +235,46 @@ export class BacktestService {
         isBacktest: true,
         indicatorCache,   // precomputed indicator series (O(1) lookup)
         candleIndex: i,   // current chronological candle index
+        mlService: this.mlService,
+        strategyId: strategy.id,
       };
       context.cache.set(strategy.timeframe, currentCandles);
 
       const isTriggered = await this.astEvaluator.evaluateNode(ast, currentCandles, false, context, { backtestMode: !options.useAiNodes });
 
       if (isTriggered && !position) {
-        const notional = balance * positionSize;
+        let notional = balance * positionSize;
+        if (sizingNode) {
+          let stopPct: number | undefined;
+          if (sltpNode?.data?.sl) {
+            const slStr = String(sltpNode.data.sl);
+            stopPct = slStr.endsWith('%') ? parseFloat(slStr) / 100 : parseFloat(slStr);
+          }
+          
+          let atr: number | undefined;
+          if (sizingNode.data?.method === 'atr_based') {
+            const atrPeriod = sizingNode.data?.atrPeriod || 14;
+            const recentHighs = simCandles.slice(Math.max(0, i - atrPeriod * 2), i + 1).map((c: any) => parseFloat(c.high.toString()));
+            const recentLows  = simCandles.slice(Math.max(0, i - atrPeriod * 2), i + 1).map((c: any) => parseFloat(c.low.toString()));
+            const recentClose = simCandles.slice(Math.max(0, i - atrPeriod * 2), i + 1).map((c: any) => parseFloat(c.close.toString()));
+            const atrArr = this.indicatorsService.calculateATR(recentHighs, recentLows, recentClose, atrPeriod);
+            atr = atrArr.length > 0 ? atrArr[atrArr.length - 1] : undefined;
+          }
+
+          notional = this.riskSizing.computeNotional(sizingNode.data.method, {
+            equity: balance,
+            entryPrice: currentPrice,
+            stopPct,
+            atr,
+            riskPercent: sizingNode.data.riskPercent,
+            atrMultiplier: sizingNode.data.atrMultiplier,
+            equityPct: sizingNode.data.equityPct,
+            fixedNotional: sizingNode.data.fixedNotional,
+            maxKelly: sizingNode.data.maxKelly,
+            stats: sizingNode.data.stats,
+          });
+        }
+
         const entryFee = notional * fee;
         balance -= entryFee;
         
@@ -284,6 +327,18 @@ export class BacktestService {
           stopPriceFinal = (ast?.signalType === 'LONG') ? executionPrice * (1 - sl) : executionPrice * (1 + sl);
         }
 
+        let tpPriceFinal: number | undefined;
+        if (sltpNode?.data?.tpMode === 'fib_extension') {
+          const tpFibLevel = sltpNode.data?.tpFibLevel ?? 1.272;
+          const fibObj = this.indicatorsService.calculateFibLevels(currentCandles, {
+            direction: (ast?.signalType || 'LONG').toLowerCase() as any,
+            levels: [tpFibLevel]
+          });
+          if (fibObj && fibObj.levels[String(tpFibLevel)]) {
+            tpPriceFinal = fibObj.levels[String(tpFibLevel)];
+          }
+        }
+
         position = {
           type: ast?.signalType || 'LONG',
           entryPrice: executionPrice,
@@ -291,12 +346,17 @@ export class BacktestService {
           amount: notional / currentPrice,
           entryIndex: i,
           stopPrice: stopPriceFinal,
+          tpPrice: tpPriceFinal,
           peakPrice: currentPrice,
           activatedTrailing: false,
         } as any;
         (position as any).entryFee = entryFee;
         (position as any).partialTpHits = 0;
         (position as any).remainingAmount = notional / currentPrice;
+        if (context.metadata) {
+          (position as any).abVariant = context.metadata.abVariant;
+          (position as any).modelUsedId = context.metadata.modelUsedId;
+        }
 
       } else if (position) {
         // Trailing Stop Logic
@@ -342,7 +402,7 @@ export class BacktestService {
                 // Simulate SL/TP hit inside the 1m candle
                 // We check SL first (pessimistic)
                 const slPrice = position.stopPrice || (position.type === 'LONG' ? position.entryPrice * (1 - sl) : position.entryPrice * (1 + sl));
-                const tpPrice = position.type === 'LONG' ? position.entryPrice * (1 + tp) : position.entryPrice * (1 - tp);
+                const tpPrice = (position as any).tpPrice || (position.type === 'LONG' ? position.entryPrice * (1 + tp) : position.entryPrice * (1 - tp));
 
                 let hitSL = position.type === 'LONG' ? low <= slPrice : high >= slPrice;
                 let hitTP = position.type === 'LONG' ? high >= tpPrice : low <= tpPrice;
@@ -439,15 +499,14 @@ export class BacktestService {
               }
             }
 
-            const pnlFraction = position.type === 'LONG'
-                ? (currentPrice - position.entryPrice) / position.entryPrice
-                : (position.entryPrice - currentPrice) / position.entryPrice;
-
             const slPrice = position.stopPrice || (position.type === 'LONG' ? position.entryPrice * (1 - sl) : position.entryPrice * (1 + sl));
             const hitSL = position.type === 'LONG' ? currentPrice <= slPrice : currentPrice >= slPrice;
 
-            if ((sortedPTPs.length === 0 && pnlFraction >= tp) || hitSL) {
-                let exitPrice = hitSL ? slPrice : currentPrice;
+            const tpPrice = (position as any).tpPrice || (position.type === 'LONG' ? position.entryPrice * (1 + tp) : position.entryPrice * (1 - tp));
+            const hitTP = position.type === 'LONG' ? currentPrice >= tpPrice : currentPrice <= tpPrice;
+
+            if ((sortedPTPs.length === 0 && hitTP) || hitSL) {
+                let exitPrice = hitSL ? slPrice : tpPrice;
                 
                 // Apply Slippage on Exit
                 if (options.slippagePct) {
@@ -472,6 +531,8 @@ export class BacktestService {
                     pnlPercent: round(((exitPrice - position.entryPrice) / position.entryPrice) * (position.type === 'LONG' ? 1 : -1) * 100, 2),
                     fees: round(totalFees, 4),
                     exitReason: hitSL ? 'SL/Trailing' : 'TP',
+                    abVariant: (position as any).abVariant,
+                    modelUsedId: (position as any).modelUsedId,
                 });
 
                 if (balance > peakBalance) peakBalance = balance;
@@ -508,6 +569,8 @@ export class BacktestService {
         pnlPercent: round(pnlFraction * 100, 2),
         fees: round(totalFees, 4),
         forceClosed: true,  // Mark as force-closed at period end
+        abVariant: (position as any).abVariant,
+        modelUsedId: (position as any).modelUsedId,
       });
 
       if (balance > peakBalance) peakBalance = balance;
@@ -623,7 +686,37 @@ export class BacktestService {
       await new Promise(r => setImmediate(r));
     }
 
+    const abTrades = trades.filter(t => t.abVariant && t.abVariant !== 'NONE');
+    let abStats = null;
+    if (abTrades.length > 0) {
+      const tradesA = abTrades.filter(t => t.abVariant === 'A');
+      const tradesB = abTrades.filter(t => t.abVariant === 'B');
+      
+      const winsA = tradesA.filter(t => t.pnl > 0);
+      const winsB = tradesB.filter(t => t.pnl > 0);
+      
+      const profitA = tradesA.reduce((s, t) => s + t.pnl, 0);
+      const profitB = tradesB.reduce((s, t) => s + t.pnl, 0);
+
+      abStats = {
+        abEnabled: true,
+        variantA: {
+          total: tradesA.length,
+          wins: winsA.length,
+          winRate: tradesA.length ? round(winsA.length / tradesA.length * 100, 1) : 0,
+          profit: round(profitA, 4)
+        },
+        variantB: {
+          total: tradesB.length,
+          wins: winsB.length,
+          winRate: tradesB.length ? round(winsB.length / tradesB.length * 100, 1) : 0,
+          profit: round(profitB, 4)
+        }
+      };
+    }
+
     return {
+      abStats,
       strategyName: strategy.name,
       pair: strategy.pair,
       timeframe: strategy.timeframe,

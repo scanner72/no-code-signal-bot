@@ -2224,11 +2224,52 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
                                         )}
                                     </div>
 
-                                    {partialTPs.length === 0 && (
-                                        <Row label="Take Profit">
-                                            <input type="text" value={data.tp || '3%'} onChange={(e) => set('tp', e.target.value)} style={inputStyle} placeholder={t('eg_3pct')} />
-                                        </Row>
-                                    )}
+                                    {/* TAKE PROFIT MODE SWITCHER */}
+                                    <div style={{ marginBottom: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '15px' }}>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                                            Take Profit Mode
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                                            {(['percent', 'fib_extension'] as const).map(mode => (
+                                                <button
+                                                    key={mode}
+                                                    onClick={() => set('tpMode', mode)}
+                                                    style={{
+                                                        flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer',
+                                                        fontWeight: 700, fontSize: '11px', textTransform: 'uppercase',
+                                                        border: (data.tpMode || 'percent') === mode ? '1.5px solid #10b981' : '1px solid var(--border-color)',
+                                                        background: (data.tpMode || 'percent') === mode ? 'rgba(16,185,129,0.15)' : 'var(--bg-accent)',
+                                                        color: (data.tpMode || 'percent') === mode ? '#10b981' : 'var(--text-secondary)',
+                                                    }}
+                                                >
+                                                    {mode === 'percent' ? '% ' + (language === 'ru' ? 'Процент' : 'Percent') : 'Fib Extension'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {(data.tpMode || 'percent') === 'percent' ? (
+                                            partialTPs.length === 0 && (
+                                                <Row label="Take Profit">
+                                                    <input type="text" value={data.tp || '3%'} onChange={(e) => set('tp', e.target.value)} style={inputStyle} placeholder={t('eg_3pct')} />
+                                                </Row>
+                                            )
+                                        ) : (
+                                            <>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <input
+                                                        type="number" min={0.1} max={5} step={0.001}
+                                                        value={data.tpFibLevel ?? 1.272}
+                                                        onChange={(e) => set('tpFibLevel', parseFloat(e.target.value) || 1.272)}
+                                                        style={inputStyle}
+                                                    />
+                                                </div>
+                                                <div style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(16,185,129,0.8)', lineHeight: 1.5 }}>
+                                                    💡 {language === 'ru'
+                                                        ? `TP = Цена по уровню расширения Фибоначчи ${data.tpFibLevel ?? 1.272}. Требует ноду Fib / OTE.`
+                                                        : `TP = Price at Fib extension level ${data.tpFibLevel ?? 1.272}. Requires Fib / OTE node.`}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
 
                                     {/* Partial TP Section */}
                                     <div style={{ marginBottom: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '15px' }}>

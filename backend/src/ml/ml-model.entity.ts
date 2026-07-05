@@ -33,6 +33,18 @@ export class MLModel {
   @Column({ default: 'DRAFT' }) // DRAFT, TRAINING, READY, FAILED
   status: string;
 
+  @Column({ default: 1 })
+  version: number;
+
+  @Column({ nullable: true })
+  parentId: number;
+
+  @Column({ default: false })
+  isActive: boolean;
+
+  @Column({ default: 'NONE' }) // NONE, A, B
+  abVariant: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

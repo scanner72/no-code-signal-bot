@@ -26,6 +26,7 @@ describe('SignalsEngineService.evaluateNode', () => {
       calculateBollingerBands: jest.fn().mockReturnValue([{ upper: 110, middle: 100, lower: 90 }]),
       calculateStochastic: jest.fn().mockReturnValue([{ k: 80, d: 75 }]),
       calculateVolume: jest.fn().mockReturnValue(1000),
+      calculateATR: jest.fn().mockReturnValue([2]),
       checkCrossover: jest.fn().mockReturnValue(false),
       detectPumpDump: jest.fn().mockReturnValue({ isPump: false, isDump: false }),
       detectFVG: jest.fn().mockReturnValue([]),
@@ -44,6 +45,15 @@ describe('SignalsEngineService.evaluateNode', () => {
           { ticker: 'NVDA', company: 'NVIDIA Corp', price: '925.30', volume: '42,105,300', change: '+6.42%' },
         ]
       })
+    };
+
+    const mockCrossExchange = {
+      getExchange: jest.fn().mockReturnValue({
+        fetchBalance: jest.fn().mockResolvedValue({ total: { USDT: 5000 }, free: { USDT: 5000 } })
+      })
+    };
+    const mockRiskSizing = {
+      computeNotional: jest.fn().mockReturnValue(1000)
     };
 
     service = new SignalsEngineService(
@@ -70,6 +80,8 @@ describe('SignalsEngineService.evaluateNode', () => {
       null as any, // ccxtQueueService
       null as any, // algoExecutionService
       null as any, // paperAccountsService
+      mockCrossExchange as any,
+      mockRiskSizing as any,
     );
   });
 
@@ -293,6 +305,43 @@ describe('SignalsEngineService.evaluateNode', () => {
       const context = { pair: 'BTCUSDT', timeframe: '1h', isBacktest: false, signalType: 'LONG' };
       const result = await service.evaluateNode(node, candles, false, context);
       expect(result).toBe(true);
+    });
+  });
+
+  describe('getLiveNotionalAndExits', () => {
+    const candles = makeCandles(60, 100);
+
+    it('calculates position size using RiskSizingService if a sizing node is present', async () => {
+      const mockStrategy = {
+        id: 1,
+        pair: 'BTCUSDT',
+        timeframe: '1h',
+        execution_settings: { enableLiveExecution: true, positionSize: 100 },
+        nodes: [
+          { data: { action: 'sizing', method: 'fixed_notional', fixedNotional: 500 } }
+        ]
+      } as any;
+
+      const result = await (service as any).getLiveNotionalAndExits(mockStrategy, 'BTCUSDT', 100, 'LONG', candles);
+      expect(result.amount).toBe(10); // 1000 / 100 (from mockRiskSizing mock returning 1000)
+    });
+
+    it('uses Fibonacci extension level for TP price if tpMode is fib_extension', async () => {
+      mockIndicators.calculateFibLevels = jest.fn().mockReturnValue({ levels: { '1.618': 161.8 } });
+
+      const mockStrategy = {
+        id: 1,
+        pair: 'BTCUSDT',
+        timeframe: '1h',
+        execution_settings: { enableLiveExecution: true, positionSize: 100 },
+        nodes: [
+          { data: { action: 'sltp', tpMode: 'fib_extension', tpFibLevel: 1.618, sl: '1%', tp: '2%' } }
+        ]
+      } as any;
+
+      const result = await (service as any).getLiveNotionalAndExits(mockStrategy, 'BTCUSDT', 100, 'LONG', candles);
+      expect(result.tpPrice).toBe(161.8);
+      expect(result.slPrice).toBe(99); // 100 * (1 - 0.01)
     });
   });
 });

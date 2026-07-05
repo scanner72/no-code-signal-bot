@@ -246,4 +246,35 @@ export class KronosService implements OnModuleInit {
       return { status: 'error', data: [] };
     }
   }
+
+  async trainModel(
+    X: number[][],
+    y: number[],
+    featureNames: string[],
+    modelType: string,
+    options?: { nEstimators?: number; maxDepth?: number }
+  ): Promise<any> {
+    const payload = {
+      X,
+      y,
+      feature_names: featureNames,
+      model_type: modelType,
+      n_estimators: options?.nEstimators ?? 50,
+      max_depth: options?.maxDepth ?? 6,
+    };
+
+    const res = await fetch(`${this.kronosUrl}/train-model`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(60000), // 60s timeout for model training
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(`Kronos training failed: ${error}`);
+    }
+
+    return await res.json();
+  }
 }

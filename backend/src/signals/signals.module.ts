@@ -20,6 +20,8 @@ import { PaperTradingModule } from '../paper-trading/paper-trading.module';
 import { KronosModule } from '../kronos/kronos.module';
 import { OrderbookModule } from '../orderbook/orderbook.module';
 import { OrdersModule } from '../orders/orders.module';
+import { CrossExchangeModule } from '../cross-exchange/cross-exchange.module';
+import { RiskModule } from '../risk/risk.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { OrdersModule } from '../orders/orders.module';
     KronosModule,
     OrderbookModule,
     OrdersModule,
+    CrossExchangeModule,
+    RiskModule,
   ],
   controllers: [SignalsController],
   providers: [SignalsService, SignalsEngineService, SignalsGateway, RiskManagerService],

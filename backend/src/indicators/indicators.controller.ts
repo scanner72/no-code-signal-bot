@@ -68,11 +68,23 @@ export class IndicatorsController {
         }
     } else if (type === 'smc') {
         const lookback = params.lookback || 100;
-        // SMC-детекторы ждут newest-first (как их зовёт боевой движок) — им отдаём DESC
-        const fvg = this.indicatorsService.detectFVG(candlesDesc, lookback);
-        const ob = this.indicatorsService.detectOrderBlocks(candlesDesc, lookback);
-        const structure = this.indicatorsService.detectMarketStructure(candlesDesc, lookback);
-        indicators = { fvg, ob, structure };
+        if (name === 'fib_ote' || name === 'fib') {
+            const fib = this.indicatorsService.calculateFibLevels(candlesDesc, {
+                direction: params.direction ?? 'auto',
+                lookback: params.lookback ?? 50,
+                zoneFrom: params.zoneFrom ?? 0.618,
+                zoneTo: params.zoneTo ?? 0.786,
+                levels: params.levels,
+            });
+            indicators = { fib };
+            currentValue = fib ? fib.oteZone.top : 0;
+        } else {
+            // SMC-детекторы ждут newest-first (как их зовёт боевой движок) — им отдаём DESC
+            const fvg = this.indicatorsService.detectFVG(candlesDesc, lookback);
+            const ob = this.indicatorsService.detectOrderBlocks(candlesDesc, lookback);
+            const structure = this.indicatorsService.detectMarketStructure(candlesDesc, lookback);
+            indicators = { fvg, ob, structure };
+        }
     }
 
     return {

@@ -22,6 +22,13 @@ const MLTrainer = () => {
     const [featureImportance, setFeatureImportance] = useState<Record<string, number>>({});
     const [modelType, setModelType] = useState('random_forest');
 
+    // A/B Testing states
+    const [abEnabled, setAbEnabled] = useState(false);
+    const [modelAId, setModelAId] = useState<string>('');
+    const [modelBId, setModelBId] = useState<string>('');
+    const [abStats, setAbStats] = useState<any>(null);
+    const [savingAb, setSavingAb] = useState(false);
+
     // Пробиваемся к бэкенду по хосту текущей страницы, а не localhost пользователя
     // (иначе на прод-деплое /ml/* уходит в localhost:3000 браузера → Network Error).
     const apiBase = import.meta.env.VITE_API_URL || `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000/api`;
@@ -45,6 +52,50 @@ const MLTrainer = () => {
         }
     };
 
+    const loadABConfig = async (stratId: number) => {
+        try {
+            const [configRes, statsRes] = await Promise.all([
+                axios.get(`${apiBase}/ml/ab-test/config/${stratId}`),
+                axios.get(`${apiBase}/ml/ab-test/stats/${stratId}`)
+            ]);
+            if (configRes.data) {
+                setAbEnabled(configRes.data.abEnabled);
+                setModelAId(configRes.data.modelA?.id?.toString() || '');
+                setModelBId(configRes.data.modelB?.id?.toString() || '');
+            } else {
+                setAbEnabled(false);
+                setModelAId('');
+                setModelBId('');
+            }
+            if (statsRes.data) {
+                setAbStats(statsRes.data);
+            } else {
+                setAbStats(null);
+            }
+        } catch (e) {
+            console.error('Failed to load A/B config/stats', e);
+            setAbStats(null);
+        }
+    };
+
+    const saveABConfig = async () => {
+        if (!selectedStrategy) return;
+        setSavingAb(true);
+        try {
+            await axios.post(`${apiBase}/ml/ab-test/toggle`, {
+                strategyId: Number(selectedStrategy),
+                abEnabled,
+                modelAId: modelAId ? Number(modelAId) : undefined,
+                modelBId: modelBId ? Number(modelBId) : undefined,
+            });
+            await loadABConfig(Number(selectedStrategy));
+        } catch (e) {
+            console.error('Failed to save A/B configuration', e);
+        } finally {
+            setSavingAb(false);
+        }
+    };
+
     const handleStrategyChange = (id: string) => {
         setSelectedStrategy(id);
         const strat = strategies.find(s => s.id === Number(id));
@@ -57,6 +108,9 @@ const MLTrainer = () => {
                 ['indicator', 'smc', 'order_flow', 'input', 'scanner'].includes(n.type)
             );
             setFeatures(featNodes.map((n: any) => n.data?.name || n.type || n.id));
+            loadABConfig(Number(id));
+        } else {
+            setAbStats(null);
         }
     };
 
@@ -407,6 +461,171 @@ const MLTrainer = () => {
                             </div>
                         )}
                     </div>
+
+                    {selectedStrategy && (
+                        <div className="bento-card" style={{ padding: '32px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <h3 style={{ fontSize: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <FlaskConical size={22} color="var(--accent-color)" />
+                                    {language === 'ru' ? 'A/B Тестирование Моделей' : 'Model A/B Testing'}
+                                </h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        {abEnabled ? (language === 'ru' ? 'Активно' : 'Active') : (language === 'ru' ? 'Выключено' : 'Inactive')}
+                                    </span>
+                                    <button
+                                        onClick={() => setAbEnabled(!abEnabled)}
+                                        style={{
+                                            width: '44px',
+                                            height: '24px',
+                                            borderRadius: '12px',
+                                            background: abEnabled ? 'var(--accent-color)' : 'var(--bg-secondary)',
+                                            border: '1px solid var(--border-color)',
+                                            cursor: 'pointer',
+                                            position: 'relative',
+                                            transition: 'background 0.2s',
+                                            padding: 0
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '18px',
+                                            height: '18px',
+                                            borderRadius: '50%',
+                                            background: '#fff',
+                                            position: 'absolute',
+                                            top: '2px',
+                                            left: abEnabled ? '22px' : '2px',
+                                            transition: 'left 0.2s'
+                                        }} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                                <div>
+                                    <label style={labelStyle}>{language === 'ru' ? 'Вариант A (Модель)' : 'Variant A (Model)'}</label>
+                                    <select
+                                        value={modelAId}
+                                        onChange={e => setModelAId(e.target.value)}
+                                        style={inputStyle}
+                                        disabled={!abEnabled}
+                                    >
+                                        <option value="">{language === 'ru' ? 'Выберите модель A...' : 'Select model A...'}</option>
+                                        {models
+                                            .filter(m => m.strategy?.id === Number(selectedStrategy) && m.status === 'READY')
+                                            .map(m => (
+                                                <option key={m.id} value={m.id}>{m.name} (Acc: {(m.accuracy * 100).toFixed(0)}%)</option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>{language === 'ru' ? 'Вариант B (Модель)' : 'Variant B (Model)'}</label>
+                                    <select
+                                        value={modelBId}
+                                        onChange={e => setModelBId(e.target.value)}
+                                        style={inputStyle}
+                                        disabled={!abEnabled}
+                                    >
+                                        <option value="">{language === 'ru' ? 'Выберите модель B...' : 'Select model B...'}</option>
+                                        {models
+                                            .filter(m => m.strategy?.id === Number(selectedStrategy) && m.status === 'READY')
+                                            .map(m => (
+                                                <option key={m.id} value={m.id}>{m.name} (Acc: {(m.accuracy * 100).toFixed(0)}%)</option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: abStats ? '32px' : '0' }}>
+                                <button
+                                    onClick={saveABConfig}
+                                    disabled={savingAb}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: 'var(--accent-color)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    {savingAb && <Loader2 size={14} className="animate-spin" />}
+                                    {language === 'ru' ? 'Применить настройки A/B' : 'Save A/B Settings'}
+                                </button>
+                            </div>
+
+                            {abStats && abStats.abEnabled && (
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
+                                    <h4 style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px' }}>
+                                        {language === 'ru' ? 'Результаты Живого A/B Тестирования' : 'Live A/B Test Performance'}
+                                    </h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                        {/* Variant A Stats */}
+                                        <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: 900, color: 'var(--accent-color)', textTransform: 'uppercase', marginBottom: '12px' }}>
+                                                {language === 'ru' ? 'Вариант A (Модель)' : 'Variant A'}
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>{language === 'ru' ? 'Сделки' : 'Trades'}</span>
+                                                    <span style={{ fontWeight: 700 }}>{abStats.variantA.total}</span>
+                                                </div>
+                                                <div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                                        <span style={{ color: 'var(--text-secondary)' }}>{language === 'ru' ? 'Винрейт' : 'Win Rate'}</span>
+                                                        <span style={{ fontWeight: 700 }}>{abStats.variantA.winRate}%</span>
+                                                    </div>
+                                                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ width: `${abStats.variantA.winRate}%`, height: '100%', background: 'var(--success)' }} />
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>PnL</span>
+                                                    <span style={{ fontWeight: 800, color: abStats.variantA.profit > 0 ? 'var(--success)' : abStats.variantA.profit < 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+                                                        {abStats.variantA.profit > 0 ? '+' : ''}{abStats.variantA.profit.toFixed(4)} USDT
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Variant B Stats */}
+                                        <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: 900, color: '#f59e0b', textTransform: 'uppercase', marginBottom: '12px' }}>
+                                                {language === 'ru' ? 'Вариант B (Модель)' : 'Variant B'}
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>{language === 'ru' ? 'Сделки' : 'Trades'}</span>
+                                                    <span style={{ fontWeight: 700 }}>{abStats.variantB.total}</span>
+                                                </div>
+                                                <div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                                        <span style={{ color: 'var(--text-secondary)' }}>{language === 'ru' ? 'Винрейт' : 'Win Rate'}</span>
+                                                        <span style={{ fontWeight: 700 }}>{abStats.variantB.winRate}%</span>
+                                                    </div>
+                                                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ width: `${abStats.variantB.winRate}%`, height: '100%', background: 'var(--success)' }} />
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>PnL</span>
+                                                    <span style={{ fontWeight: 800, color: abStats.variantB.profit > 0 ? 'var(--success)' : abStats.variantB.profit < 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+                                                        {abStats.variantB.profit > 0 ? '+' : ''}{abStats.variantB.profit.toFixed(4)} USDT
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

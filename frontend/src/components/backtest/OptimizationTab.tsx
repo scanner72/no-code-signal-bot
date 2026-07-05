@@ -95,11 +95,16 @@ const OptimizationTab: React.FC<OptimizationTabProps> = ({
                         {optResults.map((r, i) => (
                             <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 100px 80px', padding: '14px 20px', borderBottom: '1px solid var(--border-color)', fontSize: '12px', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                    {Object.entries(r.params).map(([k, v]: [any, any], j) => (
-                                        <span key={j} style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-                                            {k.split(':')[1]}: <b>{v}</b>
-                                        </span>
-                                    ))}
+                                    {Object.entries(r.params).map(([k, v]: [any, any], j) => {
+                                        const paramName = k.split(':')[1];
+                                        const isRatio = k.startsWith('strategy:') && (paramName === 'tp' || paramName === 'sl' || paramName.startsWith('trailing'));
+                                        const displayValue = isRatio ? `${(v * 100).toFixed(2)}%` : v;
+                                        return (
+                                            <span key={j} style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
+                                                {paramName}: <b>{displayValue}</b>
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                                 <span style={{ fontWeight: 700, color: r.profitFactor >= 1.5 ? 'var(--success)' : 'var(--text-primary)' }}>{r.profitFactor === Infinity ? '∞' : r.profitFactor}</span>
                                 <span style={{ fontWeight: 600 }}>{r.winRate}%</span>
