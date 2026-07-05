@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { CandlesService } from '../candles/candles.service';
 import { AstEvaluatorService } from '../signals/ast-evaluator.service';
 import { Strategy } from '../strategies/strategy.entity';
@@ -61,7 +61,9 @@ export class BacktestService {
     private astEvaluator: AstEvaluatorService,
     private indicatorsService: IndicatorsService,
     private progressService: BacktestProgressService,
-    private mlService: MLService,
+    // MLService зависит от SignalsEngineService+Kronos — их нет в лёгком WorkerModule.
+    // В воркере mlService = undefined; ast-evaluator ml_filter деградирует в pass-through.
+    @Optional() private mlService: MLService,
     private riskSizing: RiskSizingService,
   ) {}
 
