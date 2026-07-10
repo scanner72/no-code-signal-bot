@@ -1631,6 +1631,142 @@ export const STRATEGY_TEMPLATES: StrategyTemplate[] = [
       { id: 'tbwe2_6', source: 'tbw2_and', target: 'tbw2_sig' },
     ],
   },
+
+  // ─── 47. Multi-Setup Ensemble LONG ──────────────────────────────────────────
+  // Идея: не одна цепочка AND (как во всех остальных 46 шаблонах), а три
+  // НЕЗАВИСИМЫХ мини-сетапа, объединённых через OR — срабатывает любой из
+  // них. Архитектурный паттерн (не код/пороги) навеян тем, как устроены
+  // крупные community-стратегии freqtrade вроде NostalgiaForInfinity:
+  // множество независимых "режимов входа" под разные рыночные условия,
+  // а не один универсальный фильтр. Пороги — свои, не позаимствованы.
+  {
+    id: 'multi-setup-ensemble-long',
+    name: 'Ансамбль Сетапов (OR) LONG',
+    category: 'Импульс',
+    difficulty: 'Продвинутая',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Вместо одного универсального набора условий использует три независимых сетапа, объединённых через OR — входит, если сработал ЛЮБОЙ из них. Один фильтр редко подходит для всех рыночных условий: здесь тренд-продолжение, свежий пробой и импульсный всплеск ловятся отдельно, каждый своей комбинацией индикаторов.',
+    logic: [
+      'Сетап A (продолжение тренда): EMA(20) > EMA(50) И RSI(14) > 55',
+      'Сетап B (свежий пробой): цена пересекает EMA(20) снизу вверх И ADX(14) > 20',
+      'Сетап C (импульсный всплеск): гистограмма MACD > 0 И Stochastic %K > 50',
+      'Итог: срабатывает A ИЛИ B ИЛИ C',
+    ],
+    nodes: [
+      { id: 'tens1_ema20', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tens1_ema50', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tens1_rsi', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'RSI', params: { period: 14 } } },
+      { id: 'tens1_price', type: 'input', position: { x: 0, y: 270 }, data: { source: 'markPrice' } },
+      { id: 'tens1_adx', type: 'indicator', position: { x: 0, y: 360 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tens1_macd', type: 'indicator', position: { x: 0, y: 450 }, data: { name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'histogram' } },
+      { id: 'tens1_stoch', type: 'indicator', position: { x: 0, y: 540 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'k' } },
+
+      { id: 'tens1_cmp_ema', type: 'comparison', position: { x: 240, y: 20 }, data: { operator: '>' } },
+      { id: 'tens1_cmp_rsi', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 55 } },
+      { id: 'tens1_setupA', type: 'logic', position: { x: 480, y: 100 }, data: { operator: 'AND' } },
+
+      { id: 'tens1_cross', type: 'cross', position: { x: 240, y: 300 }, data: { direction: 'above' } },
+      { id: 'tens1_cmp_adx', type: 'comparison', position: { x: 240, y: 380 }, data: { operator: '>', value: 20 } },
+      { id: 'tens1_setupB', type: 'logic', position: { x: 480, y: 340 }, data: { operator: 'AND' } },
+
+      { id: 'tens1_cmp_macd', type: 'comparison', position: { x: 240, y: 450 }, data: { operator: '>', value: 0 } },
+      { id: 'tens1_cmp_stoch', type: 'comparison', position: { x: 240, y: 540 }, data: { operator: '>', value: 50 } },
+      { id: 'tens1_setupC', type: 'logic', position: { x: 480, y: 500 }, data: { operator: 'AND' } },
+
+      { id: 'tens1_or', type: 'logic', position: { x: 720, y: 300 }, data: { operator: 'OR' } },
+      { id: 'tens1_sig', type: 'signal', position: { x: 960, y: 300 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'tense1_1', source: 'tens1_ema20', target: 'tens1_cmp_ema', targetHandle: 'a' },
+      { id: 'tense1_2', source: 'tens1_ema50', target: 'tens1_cmp_ema', targetHandle: 'b' },
+      { id: 'tense1_3', source: 'tens1_rsi', target: 'tens1_cmp_rsi', targetHandle: 'a' },
+      { id: 'tense1_4', source: 'tens1_cmp_ema', target: 'tens1_setupA' },
+      { id: 'tense1_5', source: 'tens1_cmp_rsi', target: 'tens1_setupA' },
+
+      { id: 'tense1_6', source: 'tens1_price', target: 'tens1_cross', targetHandle: 'a' },
+      { id: 'tense1_7', source: 'tens1_ema20', target: 'tens1_cross', targetHandle: 'b' },
+      { id: 'tense1_8', source: 'tens1_adx', target: 'tens1_cmp_adx', targetHandle: 'a' },
+      { id: 'tense1_9', source: 'tens1_cross', target: 'tens1_setupB' },
+      { id: 'tense1_10', source: 'tens1_cmp_adx', target: 'tens1_setupB' },
+
+      { id: 'tense1_11', source: 'tens1_macd', target: 'tens1_cmp_macd', targetHandle: 'a' },
+      { id: 'tense1_12', source: 'tens1_stoch', target: 'tens1_cmp_stoch', targetHandle: 'a' },
+      { id: 'tense1_13', source: 'tens1_cmp_macd', target: 'tens1_setupC' },
+      { id: 'tense1_14', source: 'tens1_cmp_stoch', target: 'tens1_setupC' },
+
+      { id: 'tense1_15', source: 'tens1_setupA', target: 'tens1_or' },
+      { id: 'tense1_16', source: 'tens1_setupB', target: 'tens1_or' },
+      { id: 'tense1_17', source: 'tens1_setupC', target: 'tens1_or' },
+      { id: 'tense1_18', source: 'tens1_or', target: 'tens1_sig' },
+    ],
+  },
+
+  // ─── 48. Multi-Setup Ensemble SHORT ─────────────────────────────────────────
+  {
+    id: 'multi-setup-ensemble-short',
+    name: 'Ансамбль Сетапов (OR) SHORT',
+    category: 'Импульс',
+    difficulty: 'Продвинутая',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Зеркальная версия: три независимых медвежьих сетапа (продолжение тренда / свежий пробой вниз / импульсный всплеск), объединённых через OR — входит в шорт при срабатывании любого из них.',
+    logic: [
+      'Сетап A (продолжение тренда): EMA(20) < EMA(50) И RSI(14) < 45',
+      'Сетап B (свежий пробой): цена пересекает EMA(20) сверху вниз И ADX(14) > 20',
+      'Сетап C (импульсный всплеск): гистограмма MACD < 0 И Stochastic %K < 50',
+      'Итог: срабатывает A ИЛИ B ИЛИ C',
+    ],
+    nodes: [
+      { id: 'tens2_ema20', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tens2_ema50', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tens2_rsi', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'RSI', params: { period: 14 } } },
+      { id: 'tens2_price', type: 'input', position: { x: 0, y: 270 }, data: { source: 'markPrice' } },
+      { id: 'tens2_adx', type: 'indicator', position: { x: 0, y: 360 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tens2_macd', type: 'indicator', position: { x: 0, y: 450 }, data: { name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'histogram' } },
+      { id: 'tens2_stoch', type: 'indicator', position: { x: 0, y: 540 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'k' } },
+
+      { id: 'tens2_cmp_ema', type: 'comparison', position: { x: 240, y: 20 }, data: { operator: '<' } },
+      { id: 'tens2_cmp_rsi', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '<', value: 45 } },
+      { id: 'tens2_setupA', type: 'logic', position: { x: 480, y: 100 }, data: { operator: 'AND' } },
+
+      { id: 'tens2_cross', type: 'cross', position: { x: 240, y: 300 }, data: { direction: 'below' } },
+      { id: 'tens2_cmp_adx', type: 'comparison', position: { x: 240, y: 380 }, data: { operator: '>', value: 20 } },
+      { id: 'tens2_setupB', type: 'logic', position: { x: 480, y: 340 }, data: { operator: 'AND' } },
+
+      { id: 'tens2_cmp_macd', type: 'comparison', position: { x: 240, y: 450 }, data: { operator: '<', value: 0 } },
+      { id: 'tens2_cmp_stoch', type: 'comparison', position: { x: 240, y: 540 }, data: { operator: '<', value: 50 } },
+      { id: 'tens2_setupC', type: 'logic', position: { x: 480, y: 500 }, data: { operator: 'AND' } },
+
+      { id: 'tens2_or', type: 'logic', position: { x: 720, y: 300 }, data: { operator: 'OR' } },
+      { id: 'tens2_sig', type: 'signal', position: { x: 960, y: 300 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'tense2_1', source: 'tens2_ema20', target: 'tens2_cmp_ema', targetHandle: 'a' },
+      { id: 'tense2_2', source: 'tens2_ema50', target: 'tens2_cmp_ema', targetHandle: 'b' },
+      { id: 'tense2_3', source: 'tens2_rsi', target: 'tens2_cmp_rsi', targetHandle: 'a' },
+      { id: 'tense2_4', source: 'tens2_cmp_ema', target: 'tens2_setupA' },
+      { id: 'tense2_5', source: 'tens2_cmp_rsi', target: 'tens2_setupA' },
+
+      { id: 'tense2_6', source: 'tens2_price', target: 'tens2_cross', targetHandle: 'a' },
+      { id: 'tense2_7', source: 'tens2_ema20', target: 'tens2_cross', targetHandle: 'b' },
+      { id: 'tense2_8', source: 'tens2_adx', target: 'tens2_cmp_adx', targetHandle: 'a' },
+      { id: 'tense2_9', source: 'tens2_cross', target: 'tens2_setupB' },
+      { id: 'tense2_10', source: 'tens2_cmp_adx', target: 'tens2_setupB' },
+
+      { id: 'tense2_11', source: 'tens2_macd', target: 'tens2_cmp_macd', targetHandle: 'a' },
+      { id: 'tense2_12', source: 'tens2_stoch', target: 'tens2_cmp_stoch', targetHandle: 'a' },
+      { id: 'tense2_13', source: 'tens2_cmp_macd', target: 'tens2_setupC' },
+      { id: 'tense2_14', source: 'tens2_cmp_stoch', target: 'tens2_setupC' },
+
+      { id: 'tense2_15', source: 'tens2_setupA', target: 'tens2_or' },
+      { id: 'tense2_16', source: 'tens2_setupB', target: 'tens2_or' },
+      { id: 'tense2_17', source: 'tens2_setupC', target: 'tens2_or' },
+      { id: 'tense2_18', source: 'tens2_or', target: 'tens2_sig' },
+    ],
+  },
 ];
 
 export const CATEGORY_COLORS: Record<string, { bg: string; color: string; border: string }> = {
