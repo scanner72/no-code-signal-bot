@@ -1178,6 +1178,233 @@ export const STRATEGY_TEMPLATES: StrategyTemplate[] = [
       { id: 'te34_1', source: 't34_wh', target: 't34_sig' },
     ],
   },
+
+  // ─── 35. ADX Trend Filter LONG ──────────────────────────────────────────────
+  // Идея: не входить по тренду, пока ADX не подтвердит его силу — классический
+  // фильтр против «пилы» на боковике (обобщённая концепция, независимая реализация).
+  {
+    id: 'adx-trend-filter-long',
+    name: 'ADX Фильтр Тренда LONG',
+    category: 'Тренд',
+    difficulty: 'Простая',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Трендовая стратегия с фильтром силы тренда по ADX — открывает лонг только когда рынок реально трендовый (ADX > 25), а не в боковике. Без этого фильтра EMA-кроссоверы часто дают ложные сигналы на флэте.',
+    logic: [
+      'EMA(20) > EMA(50) — восходящая структура',
+      'ADX(14) > 25 — тренд достаточно силён, рынок не боковой',
+      'RSI(14) > 50 — бычий импульс подтверждён',
+    ],
+    nodes: [
+      { id: 'tadx1_ema20', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tadx1_ema50', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tadx1_adx', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tadx1_rsi', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'RSI', params: { period: 14 } } },
+      { id: 'tadx1_cmp_ema', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '>' } },
+      { id: 'tadx1_cmp_adx', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 25 } },
+      { id: 'tadx1_cmp_rsi', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '>', value: 50 } },
+      { id: 'tadx1_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'tadx1_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'teadx1_1', source: 'tadx1_ema20', target: 'tadx1_cmp_ema', targetHandle: 'a' },
+      { id: 'teadx1_2', source: 'tadx1_ema50', target: 'tadx1_cmp_ema', targetHandle: 'b' },
+      { id: 'teadx1_3', source: 'tadx1_adx', target: 'tadx1_cmp_adx', targetHandle: 'a' },
+      { id: 'teadx1_4', source: 'tadx1_rsi', target: 'tadx1_cmp_rsi', targetHandle: 'a' },
+      { id: 'teadx1_5', source: 'tadx1_cmp_ema', target: 'tadx1_and' },
+      { id: 'teadx1_6', source: 'tadx1_cmp_adx', target: 'tadx1_and' },
+      { id: 'teadx1_7', source: 'tadx1_cmp_rsi', target: 'tadx1_and' },
+      { id: 'teadx1_8', source: 'tadx1_and', target: 'tadx1_sig' },
+    ],
+  },
+
+  // ─── 36. ADX Trend Filter SHORT ─────────────────────────────────────────────
+  {
+    id: 'adx-trend-filter-short',
+    name: 'ADX Фильтр Тренда SHORT',
+    category: 'Тренд',
+    difficulty: 'Простая',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Зеркальная версия ADX-фильтра для шортов. ADX не показывает направление — только силу тренда, поэтому порог > 25 остаётся тем же, меняется лишь направление EMA и RSI.',
+    logic: [
+      'EMA(20) < EMA(50) — нисходящая структура',
+      'ADX(14) > 25 — тренд достаточно силён, рынок не боковой',
+      'RSI(14) < 50 — медвежий импульс подтверждён',
+    ],
+    nodes: [
+      { id: 'tadx2_ema20', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tadx2_ema50', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tadx2_adx', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tadx2_rsi', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'RSI', params: { period: 14 } } },
+      { id: 'tadx2_cmp_ema', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '<' } },
+      { id: 'tadx2_cmp_adx', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 25 } },
+      { id: 'tadx2_cmp_rsi', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '<', value: 50 } },
+      { id: 'tadx2_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'tadx2_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'teadx2_1', source: 'tadx2_ema20', target: 'tadx2_cmp_ema', targetHandle: 'a' },
+      { id: 'teadx2_2', source: 'tadx2_ema50', target: 'tadx2_cmp_ema', targetHandle: 'b' },
+      { id: 'teadx2_3', source: 'tadx2_adx', target: 'tadx2_cmp_adx', targetHandle: 'a' },
+      { id: 'teadx2_4', source: 'tadx2_rsi', target: 'tadx2_cmp_rsi', targetHandle: 'a' },
+      { id: 'teadx2_5', source: 'tadx2_cmp_ema', target: 'tadx2_and' },
+      { id: 'teadx2_6', source: 'tadx2_cmp_adx', target: 'tadx2_and' },
+      { id: 'teadx2_7', source: 'tadx2_cmp_rsi', target: 'tadx2_and' },
+      { id: 'teadx2_8', source: 'tadx2_and', target: 'tadx2_sig' },
+    ],
+  },
+
+  // ─── 37. Stochastic K/D Reversal LONG ───────────────────────────────────────
+  // Идея: не статичный порог перепроданности (уже есть в "Откат в аптренде"), а
+  // момент самого пересечения %K/%D внутри зоны перепроданности — точнее по таймингу.
+  {
+    id: 'stoch-kd-reversal-long',
+    name: 'Stochastic K/D Разворот LONG',
+    category: 'Откат',
+    difficulty: 'Средняя',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '15m',
+    description: 'Ловит момент разворота, а не просто перепроданность: входит в лонг когда %K пересекает %D снизу вверх внутри зоны < 20, при этом старший тренд (EMA20/50) остаётся бычьим — точнее по таймингу, чем статичный порог Stochastic.',
+    logic: [
+      'Stochastic %K пересекает %D снизу вверх — момент разворота',
+      'Stochastic %K < 20 на момент пересечения — зона перепроданности',
+      'EMA(20) > EMA(50) — общий тренд остаётся бычьим',
+    ],
+    nodes: [
+      { id: 'tsk1_k', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'k' } },
+      { id: 'tsk1_d', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'd' } },
+      { id: 'tsk1_ema20', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tsk1_ema50', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tsk1_cross', type: 'cross', position: { x: 240, y: 40 }, data: { direction: 'above' } },
+      { id: 'tsk1_cmp_k', type: 'comparison', position: { x: 240, y: 150 }, data: { operator: '<', value: 20 } },
+      { id: 'tsk1_cmp_ema', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '>' } },
+      { id: 'tsk1_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'tsk1_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'tske1_1', source: 'tsk1_k', target: 'tsk1_cross', targetHandle: 'a' },
+      { id: 'tske1_2', source: 'tsk1_d', target: 'tsk1_cross', targetHandle: 'b' },
+      { id: 'tske1_3', source: 'tsk1_k', target: 'tsk1_cmp_k', targetHandle: 'a' },
+      { id: 'tske1_4', source: 'tsk1_ema20', target: 'tsk1_cmp_ema', targetHandle: 'a' },
+      { id: 'tske1_5', source: 'tsk1_ema50', target: 'tsk1_cmp_ema', targetHandle: 'b' },
+      { id: 'tske1_6', source: 'tsk1_cross', target: 'tsk1_and' },
+      { id: 'tske1_7', source: 'tsk1_cmp_k', target: 'tsk1_and' },
+      { id: 'tske1_8', source: 'tsk1_cmp_ema', target: 'tsk1_and' },
+      { id: 'tske1_9', source: 'tsk1_and', target: 'tsk1_sig' },
+    ],
+  },
+
+  // ─── 38. Stochastic K/D Reversal SHORT ──────────────────────────────────────
+  {
+    id: 'stoch-kd-reversal-short',
+    name: 'Stochastic K/D Разворот SHORT',
+    category: 'Откат',
+    difficulty: 'Средняя',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '15m',
+    description: 'Зеркальная версия: входит в шорт когда %K пересекает %D сверху вниз внутри зоны > 80 (перекупленность), при сохраняющемся медвежьем тренде по EMA20/50.',
+    logic: [
+      'Stochastic %K пересекает %D сверху вниз — момент разворота',
+      'Stochastic %K > 80 на момент пересечения — зона перекупленности',
+      'EMA(20) < EMA(50) — общий тренд остаётся медвежьим',
+    ],
+    nodes: [
+      { id: 'tsk2_k', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'k' } },
+      { id: 'tsk2_d', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'd' } },
+      { id: 'tsk2_ema20', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tsk2_ema50', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tsk2_cross', type: 'cross', position: { x: 240, y: 40 }, data: { direction: 'below' } },
+      { id: 'tsk2_cmp_k', type: 'comparison', position: { x: 240, y: 150 }, data: { operator: '>', value: 80 } },
+      { id: 'tsk2_cmp_ema', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '<' } },
+      { id: 'tsk2_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'tsk2_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'tske2_1', source: 'tsk2_k', target: 'tsk2_cross', targetHandle: 'a' },
+      { id: 'tske2_2', source: 'tsk2_d', target: 'tsk2_cross', targetHandle: 'b' },
+      { id: 'tske2_3', source: 'tsk2_k', target: 'tsk2_cmp_k', targetHandle: 'a' },
+      { id: 'tske2_4', source: 'tsk2_ema20', target: 'tsk2_cmp_ema', targetHandle: 'a' },
+      { id: 'tske2_5', source: 'tsk2_ema50', target: 'tsk2_cmp_ema', targetHandle: 'b' },
+      { id: 'tske2_6', source: 'tsk2_cross', target: 'tsk2_and' },
+      { id: 'tske2_7', source: 'tsk2_cmp_k', target: 'tsk2_and' },
+      { id: 'tske2_8', source: 'tsk2_cmp_ema', target: 'tsk2_and' },
+      { id: 'tske2_9', source: 'tsk2_and', target: 'tsk2_sig' },
+    ],
+  },
+
+  // ─── 39. MACD Signal-Line Cross LONG ────────────────────────────────────────
+  // Идея: не статичный фильтр "гистограмма > 0" (уже есть в "EMA Тренд"), а сам
+  // момент пересечения линии MACD и сигнальной линии, с ADX-фильтром против
+  // ложных кроссов на боковике — известная слабость чистого MACD-кросса.
+  {
+    id: 'macd-signal-cross-long',
+    name: 'MACD Пересечение Сигнальной LONG',
+    category: 'Импульс',
+    difficulty: 'Средняя',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Входит в момент пересечения линии MACD и сигнальной линии снизу вверх — раньше, чем простой фильтр по гистограмме. ADX-фильтр отсекает типичную слабость MACD-кросса: ложные срабатывания на боковике.',
+    logic: [
+      'Линия MACD пересекает сигнальную линию снизу вверх',
+      'ADX(14) > 20 — минимальное подтверждение тренда, не полный боковик',
+    ],
+    nodes: [
+      { id: 'tmc1_macd', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'MACD' } },
+      { id: 'tmc1_signal', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'signal' } },
+      { id: 'tmc1_adx', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tmc1_cross', type: 'cross', position: { x: 240, y: 40 }, data: { direction: 'above' } },
+      { id: 'tmc1_cmp_adx', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 20 } },
+      { id: 'tmc1_and', type: 'logic', position: { x: 480, y: 110 }, data: { operator: 'AND' } },
+      { id: 'tmc1_sig', type: 'signal', position: { x: 720, y: 110 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'temc1_1', source: 'tmc1_macd', target: 'tmc1_cross', targetHandle: 'a' },
+      { id: 'temc1_2', source: 'tmc1_signal', target: 'tmc1_cross', targetHandle: 'b' },
+      { id: 'temc1_3', source: 'tmc1_adx', target: 'tmc1_cmp_adx', targetHandle: 'a' },
+      { id: 'temc1_4', source: 'tmc1_cross', target: 'tmc1_and' },
+      { id: 'temc1_5', source: 'tmc1_cmp_adx', target: 'tmc1_and' },
+      { id: 'temc1_6', source: 'tmc1_and', target: 'tmc1_sig' },
+    ],
+  },
+
+  // ─── 40. MACD Signal-Line Cross SHORT ───────────────────────────────────────
+  {
+    id: 'macd-signal-cross-short',
+    name: 'MACD Пересечение Сигнальной SHORT',
+    category: 'Импульс',
+    difficulty: 'Средняя',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Зеркальная версия: входит в шорт в момент пересечения линии MACD и сигнальной линии сверху вниз, с тем же ADX-фильтром против ложных кроссов на боковике.',
+    logic: [
+      'Линия MACD пересекает сигнальную линию сверху вниз',
+      'ADX(14) > 20 — минимальное подтверждение тренда, не полный боковик',
+    ],
+    nodes: [
+      { id: 'tmc2_macd', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'MACD' } },
+      { id: 'tmc2_signal', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'MACD', params: { fast: 12, slow: 26, signal: 9 }, property: 'signal' } },
+      { id: 'tmc2_adx', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tmc2_cross', type: 'cross', position: { x: 240, y: 40 }, data: { direction: 'below' } },
+      { id: 'tmc2_cmp_adx', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 20 } },
+      { id: 'tmc2_and', type: 'logic', position: { x: 480, y: 110 }, data: { operator: 'AND' } },
+      { id: 'tmc2_sig', type: 'signal', position: { x: 720, y: 110 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'temc2_1', source: 'tmc2_macd', target: 'tmc2_cross', targetHandle: 'a' },
+      { id: 'temc2_2', source: 'tmc2_signal', target: 'tmc2_cross', targetHandle: 'b' },
+      { id: 'temc2_3', source: 'tmc2_adx', target: 'tmc2_cmp_adx', targetHandle: 'a' },
+      { id: 'temc2_4', source: 'tmc2_cross', target: 'tmc2_and' },
+      { id: 'temc2_5', source: 'tmc2_cmp_adx', target: 'tmc2_and' },
+      { id: 'temc2_6', source: 'tmc2_and', target: 'tmc2_sig' },
+    ],
+  },
 ];
 
 export const CATEGORY_COLORS: Record<string, { bg: string; color: string; border: string }> = {
