@@ -1405,6 +1405,232 @@ export const STRATEGY_TEMPLATES: StrategyTemplate[] = [
       { id: 'temc2_6', source: 'tmc2_and', target: 'tmc2_sig' },
     ],
   },
+
+  // ─── 41. Asian Session Momentum LONG ────────────────────────────────────────
+  // Идея: в отличие от London/NY Killzone (вход по факту открытия ликвидной
+  // сессии), здесь торгуется продолжение тренда в тихие азиатские часы —
+  // цена чаще идёт по инерции предыдущей сессии, а не разворачивается.
+  {
+    id: 'asian-session-long',
+    name: 'Азиатская Сессия LONG',
+    category: 'Сессия',
+    difficulty: 'Средняя',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '15m',
+    description: 'Торгует продолжение тренда в тихие азиатские часы (00:00–07:00 UTC), пока Лондон и Нью-Йорк закрыты. В отличие от Killzone-стратегий (вход на открытии ликвидной сессии), здесь ставка на то, что цена по инерции продолжает движение предыдущего дня, а не разворачивается на низком объёме.',
+    logic: [
+      'TimeFilter 00:00–07:00 UTC — азиатские торговые часы',
+      'EMA(20) > EMA(50) — тренд с предыдущей сессии остаётся бычьим',
+      'Stochastic %K > 50 — умеренный бычий импульс, без входа в затухающем боковике',
+    ],
+    nodes: [
+      { id: 'tas1_time', type: 'timeFilter', position: { x: 0, y: 0 }, data: { from: '00:00', to: '07:00', timezone: 'UTC' } },
+      { id: 'tas1_ema20', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tas1_ema50', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tas1_stoch', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'k' } },
+      { id: 'tas1_cmp_ema', type: 'comparison', position: { x: 240, y: 130 }, data: { operator: '>' } },
+      { id: 'tas1_cmp_stoch', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '>', value: 50 } },
+      { id: 'tas1_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'tas1_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'tase1_1', source: 'tas1_time', target: 'tas1_and' },
+      { id: 'tase1_2', source: 'tas1_ema20', target: 'tas1_cmp_ema', targetHandle: 'a' },
+      { id: 'tase1_3', source: 'tas1_ema50', target: 'tas1_cmp_ema', targetHandle: 'b' },
+      { id: 'tase1_4', source: 'tas1_stoch', target: 'tas1_cmp_stoch', targetHandle: 'a' },
+      { id: 'tase1_5', source: 'tas1_cmp_ema', target: 'tas1_and' },
+      { id: 'tase1_6', source: 'tas1_cmp_stoch', target: 'tas1_and' },
+      { id: 'tase1_7', source: 'tas1_and', target: 'tas1_sig' },
+    ],
+  },
+
+  // ─── 42. Asian Session Momentum SHORT ───────────────────────────────────────
+  {
+    id: 'asian-session-short',
+    name: 'Азиатская Сессия SHORT',
+    category: 'Сессия',
+    difficulty: 'Средняя',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '15m',
+    description: 'Зеркальная версия: продолжение медвежьего тренда предыдущей сессии в тихие азиатские часы.',
+    logic: [
+      'TimeFilter 00:00–07:00 UTC — азиатские торговые часы',
+      'EMA(20) < EMA(50) — тренд с предыдущей сессии остаётся медвежьим',
+      'Stochastic %K < 50 — умеренный медвежий импульс',
+    ],
+    nodes: [
+      { id: 'tas2_time', type: 'timeFilter', position: { x: 0, y: 0 }, data: { from: '00:00', to: '07:00', timezone: 'UTC' } },
+      { id: 'tas2_ema20', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'tas2_ema50', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'tas2_stoch', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'Stochastic', params: { period: 14, signalPeriod: 3 }, property: 'k' } },
+      { id: 'tas2_cmp_ema', type: 'comparison', position: { x: 240, y: 130 }, data: { operator: '<' } },
+      { id: 'tas2_cmp_stoch', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '<', value: 50 } },
+      { id: 'tas2_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'tas2_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'tase2_1', source: 'tas2_time', target: 'tas2_and' },
+      { id: 'tase2_2', source: 'tas2_ema20', target: 'tas2_cmp_ema', targetHandle: 'a' },
+      { id: 'tase2_3', source: 'tas2_ema50', target: 'tas2_cmp_ema', targetHandle: 'b' },
+      { id: 'tase2_4', source: 'tas2_stoch', target: 'tas2_cmp_stoch', targetHandle: 'a' },
+      { id: 'tase2_5', source: 'tas2_cmp_ema', target: 'tas2_and' },
+      { id: 'tase2_6', source: 'tas2_cmp_stoch', target: 'tas2_and' },
+      { id: 'tase2_7', source: 'tas2_and', target: 'tas2_sig' },
+    ],
+  },
+
+  // ─── 43. EMA Ribbon Alignment LONG ──────────────────────────────────────────
+  // Идея: не пара EMA (как в остальных трендовых шаблонах), а тройное
+  // выравнивание — более строгий фильтр силы тренда за счёт согласия трёх MA.
+  {
+    id: 'ema-ribbon-long',
+    name: 'EMA Лента (Ribbon) LONG',
+    category: 'Тренд',
+    difficulty: 'Простая',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '4h',
+    description: 'Использует три EMA вместо обычной пары — вход только когда EMA(10), EMA(20) и EMA(50) выстроены строго по возрастанию. Такое тройное согласие отсекает большинство ложных сигналов, которые проходят через простой двойной кросс.',
+    logic: [
+      'EMA(10) > EMA(20) — краткосрочный импульс бычий',
+      'EMA(20) > EMA(50) — среднесрочный тренд бычий',
+      'RSI(14) > 50 — общий бычий момент подтверждён',
+    ],
+    nodes: [
+      { id: 'ter1_ema10', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'EMA', params: { period: 10 } } },
+      { id: 'ter1_ema20', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'ter1_ema50', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'ter1_rsi', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'RSI', params: { period: 14 } } },
+      { id: 'ter1_cmp_10_20', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '>' } },
+      { id: 'ter1_cmp_20_50', type: 'comparison', position: { x: 240, y: 150 }, data: { operator: '>' } },
+      { id: 'ter1_cmp_rsi', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '>', value: 50 } },
+      { id: 'ter1_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'ter1_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'tere1_1', source: 'ter1_ema10', target: 'ter1_cmp_10_20', targetHandle: 'a' },
+      { id: 'tere1_2', source: 'ter1_ema20', target: 'ter1_cmp_10_20', targetHandle: 'b' },
+      { id: 'tere1_3', source: 'ter1_ema20', target: 'ter1_cmp_20_50', targetHandle: 'a' },
+      { id: 'tere1_4', source: 'ter1_ema50', target: 'ter1_cmp_20_50', targetHandle: 'b' },
+      { id: 'tere1_5', source: 'ter1_rsi', target: 'ter1_cmp_rsi', targetHandle: 'a' },
+      { id: 'tere1_6', source: 'ter1_cmp_10_20', target: 'ter1_and' },
+      { id: 'tere1_7', source: 'ter1_cmp_20_50', target: 'ter1_and' },
+      { id: 'tere1_8', source: 'ter1_cmp_rsi', target: 'ter1_and' },
+      { id: 'tere1_9', source: 'ter1_and', target: 'ter1_sig' },
+    ],
+  },
+
+  // ─── 44. EMA Ribbon Alignment SHORT ─────────────────────────────────────────
+  {
+    id: 'ema-ribbon-short',
+    name: 'EMA Лента (Ribbon) SHORT',
+    category: 'Тренд',
+    difficulty: 'Простая',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '4h',
+    description: 'Зеркальная версия: вход только когда EMA(10), EMA(20) и EMA(50) выстроены строго по убыванию — тройное медвежье согласие.',
+    logic: [
+      'EMA(10) < EMA(20) — краткосрочный импульс медвежий',
+      'EMA(20) < EMA(50) — среднесрочный тренд медвежий',
+      'RSI(14) < 50 — общий медвежий момент подтверждён',
+    ],
+    nodes: [
+      { id: 'ter2_ema10', type: 'indicator', position: { x: 0, y: 0 }, data: { name: 'EMA', params: { period: 10 } } },
+      { id: 'ter2_ema20', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'EMA', params: { period: 20 } } },
+      { id: 'ter2_ema50', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'EMA', params: { period: 50 } } },
+      { id: 'ter2_rsi', type: 'indicator', position: { x: 0, y: 270 }, data: { name: 'RSI', params: { period: 14 } } },
+      { id: 'ter2_cmp_10_20', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '<' } },
+      { id: 'ter2_cmp_20_50', type: 'comparison', position: { x: 240, y: 150 }, data: { operator: '<' } },
+      { id: 'ter2_cmp_rsi', type: 'comparison', position: { x: 240, y: 270 }, data: { operator: '<', value: 50 } },
+      { id: 'ter2_and', type: 'logic', position: { x: 480, y: 150 }, data: { operator: 'AND' } },
+      { id: 'ter2_sig', type: 'signal', position: { x: 720, y: 150 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'tere2_1', source: 'ter2_ema10', target: 'ter2_cmp_10_20', targetHandle: 'a' },
+      { id: 'tere2_2', source: 'ter2_ema20', target: 'ter2_cmp_10_20', targetHandle: 'b' },
+      { id: 'tere2_3', source: 'ter2_ema20', target: 'ter2_cmp_20_50', targetHandle: 'a' },
+      { id: 'tere2_4', source: 'ter2_ema50', target: 'ter2_cmp_20_50', targetHandle: 'b' },
+      { id: 'tere2_5', source: 'ter2_rsi', target: 'ter2_cmp_rsi', targetHandle: 'a' },
+      { id: 'tere2_6', source: 'ter2_cmp_10_20', target: 'ter2_and' },
+      { id: 'tere2_7', source: 'ter2_cmp_20_50', target: 'ter2_and' },
+      { id: 'tere2_8', source: 'ter2_cmp_rsi', target: 'ter2_and' },
+      { id: 'tere2_9', source: 'ter2_and', target: 'ter2_sig' },
+    ],
+  },
+
+  // ─── 45. Bollinger Band Walk LONG ───────────────────────────────────────────
+  // Идея: цена «едет» вдоль верхней полосы Боллинджера во время сильного
+  // тренда — сознательно БЕЗ RSI-фильтра перекупленности (это и есть суть
+  // band walk: не выходить из сделки на "перекупленности", пока тренд силён).
+  // Отличается от bb-squeeze-long (пробой после сжатия) и bb-bounce-long
+  // (отскок от полосы, mean-reversion) — здесь противоположная логика.
+  {
+    id: 'bb-band-walk-long',
+    name: 'Bollinger Band Walk LONG',
+    category: 'Тренд',
+    difficulty: 'Средняя',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Ловит сильный тренд, «едущий» вдоль верхней полосы Боллинджера — цена держится выше BB Upper несколько свечей подряд, что типично для сильных импульсных движений. Намеренно не использует RSI-фильтр перекупленности: в band walk «перекупленность» — это нормальное состояние, а не сигнал к выходу.',
+    logic: [
+      'Цена > BB(20) Upper — движение вдоль верхней полосы',
+      'ADX(14) > 25 — подтверждение, что это тренд, а не разовый выброс',
+    ],
+    nodes: [
+      { id: 'tbw1_price', type: 'input', position: { x: 0, y: 0 }, data: { source: 'markPrice' } },
+      { id: 'tbw1_bbu', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'BollingerBands', params: { period: 20, stdDev: 2 }, property: 'upper' } },
+      { id: 'tbw1_adx', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tbw1_cmp_bb', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '>' } },
+      { id: 'tbw1_cmp_adx', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 25 } },
+      { id: 'tbw1_and', type: 'logic', position: { x: 480, y: 110 }, data: { operator: 'AND' } },
+      { id: 'tbw1_sig', type: 'signal', position: { x: 720, y: 110 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'tbwe1_1', source: 'tbw1_price', target: 'tbw1_cmp_bb', targetHandle: 'a' },
+      { id: 'tbwe1_2', source: 'tbw1_bbu', target: 'tbw1_cmp_bb', targetHandle: 'b' },
+      { id: 'tbwe1_3', source: 'tbw1_adx', target: 'tbw1_cmp_adx', targetHandle: 'a' },
+      { id: 'tbwe1_4', source: 'tbw1_cmp_bb', target: 'tbw1_and' },
+      { id: 'tbwe1_5', source: 'tbw1_cmp_adx', target: 'tbw1_and' },
+      { id: 'tbwe1_6', source: 'tbw1_and', target: 'tbw1_sig' },
+    ],
+  },
+
+  // ─── 46. Bollinger Band Walk SHORT ──────────────────────────────────────────
+  {
+    id: 'bb-band-walk-short',
+    name: 'Bollinger Band Walk SHORT',
+    category: 'Тренд',
+    difficulty: 'Средняя',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '1h',
+    description: 'Зеркальная версия: цена «едет» вдоль нижней полосы Боллинджера во время сильного медвежьего тренда, без RSI-фильтра перепроданности.',
+    logic: [
+      'Цена < BB(20) Lower — движение вдоль нижней полосы',
+      'ADX(14) > 25 — подтверждение, что это тренд, а не разовый выброс',
+    ],
+    nodes: [
+      { id: 'tbw2_price', type: 'input', position: { x: 0, y: 0 }, data: { source: 'markPrice' } },
+      { id: 'tbw2_bbl', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'BollingerBands', params: { period: 20, stdDev: 2 }, property: 'lower' } },
+      { id: 'tbw2_adx', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'ADX', params: { period: 14 }, property: 'adx' } },
+      { id: 'tbw2_cmp_bb', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '<' } },
+      { id: 'tbw2_cmp_adx', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 25 } },
+      { id: 'tbw2_and', type: 'logic', position: { x: 480, y: 110 }, data: { operator: 'AND' } },
+      { id: 'tbw2_sig', type: 'signal', position: { x: 720, y: 110 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'tbwe2_1', source: 'tbw2_price', target: 'tbw2_cmp_bb', targetHandle: 'a' },
+      { id: 'tbwe2_2', source: 'tbw2_bbl', target: 'tbw2_cmp_bb', targetHandle: 'b' },
+      { id: 'tbwe2_3', source: 'tbw2_adx', target: 'tbw2_cmp_adx', targetHandle: 'a' },
+      { id: 'tbwe2_4', source: 'tbw2_cmp_bb', target: 'tbw2_and' },
+      { id: 'tbwe2_5', source: 'tbw2_cmp_adx', target: 'tbw2_and' },
+      { id: 'tbwe2_6', source: 'tbw2_and', target: 'tbw2_sig' },
+    ],
+  },
 ];
 
 export const CATEGORY_COLORS: Record<string, { bg: string; color: string; border: string }> = {
