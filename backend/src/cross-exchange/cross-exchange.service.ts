@@ -8,6 +8,7 @@ export type DataType = 'price' | 'volume' | 'funding_rate' | 'open_interest' | '
 export interface ApiCredentials {
   apiKey?: string;
   secret?: string;
+  sandbox?: boolean;
 }
 
 export interface ScannerFilter {
@@ -153,6 +154,9 @@ export class CrossExchangeService {
         secret: creds.secret,
         enableRateLimit: true,
       });
+      if (creds.sandbox) {
+        inst.setSandboxMode(true);
+      }
       this.authedExchanges.set(cacheKey, inst);
     }
     return this.authedExchanges.get(cacheKey)!;

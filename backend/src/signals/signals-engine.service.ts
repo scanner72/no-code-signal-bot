@@ -495,6 +495,73 @@ export class SignalsEngineService {
         this.logger.error(`Paper account execution error: ${(e as Error).message}`);
       }
 
+      // 5c. Testnet Trading Output nodes — реальные сделки на биржевом тестнете (Bybit/Binance Testnet)
+      try {
+        const testnetNodeIds = (strategy.nodes || [])
+          .filter((n: any) => n.type === 'testnet_trading_output')
+          .map((n: any) => n.id);
+
+        const signalIds = (strategy.nodes || [])
+          .filter((n: any) => n.type === 'signal' && (n.data?.signalType || 'LONG') === signal.type)
+          .map((n: any) => n.id);
+
+        if (signalIds.length && testnetNodeIds.length) {
+          const adjacency = new Map<string, string[]>();
+          for (const e of strategy.edges || []) {
+            if (!adjacency.has(e.source)) adjacency.set(e.source, []);
+            adjacency.get(e.source)!.push(e.target);
+          }
+
+          const visited = new Set<string>();
+          const queue = [...signalIds];
+          while (queue.length) {
+            const id = queue.shift()!;
+            if (visited.has(id)) continue;
+            visited.add(id);
+            for (const next of adjacency.get(id) || []) queue.push(next);
+          }
+
+          const connectedTestnetNodes = (strategy.nodes || []).filter(
+            (n: any) => n.type === 'testnet_trading_output' && visited.has(n.id)
+          );
+
+          for (const node of connectedTestnetNodes) {
+            const exchangeId = node.data?.exchangeId || 'binance';
+            const apiKey = node.data?.apiKey;
+            const secret = node.data?.secret;
+            const riskPercent = parseFloat(node.data?.riskPercent || '1') || 1;
+            const startingCapital = parseFloat(node.data?.startingCapital || '1000') || 1000;
+
+            if (apiKey && secret) {
+              const creds = { apiKey, secret, sandbox: true };
+              const riskAmount = (startingCapital * riskPercent) / 100;
+              const slPct = 0.01;
+              const notional = riskAmount / slPct;
+              const amount = notional / signal.price;
+              const side = signal.type === 'LONG' ? 'buy' : 'sell';
+
+              await this.ccxtQueueService.enqueueOrder({
+                exchangeId: exchangeId as any,
+                creds,
+                type: 'market',
+                side,
+                pair,
+                amount,
+                strategyId: strategy.id,
+              });
+
+              this.logger.log(
+                `[Testnet Execution] Enqueued testnet order for node ${node.id} on ${exchangeId} testnet | Amount: ${amount}`
+              );
+            } else {
+              this.logger.warn(`[Testnet Execution] Missing API credentials for testnet node ${node.id}`);
+            }
+          }
+        }
+      } catch (e) {
+        this.logger.error(`Testnet execution error: ${(e as Error).message}`);
+      }
+
       // 6. Live execution — skipped when alertOnly is set
       if (telegramNode?.alertOnly) {
         this.logger.log(`[alertOnly] Skipping live execution for strategy ${strategy.name}`);

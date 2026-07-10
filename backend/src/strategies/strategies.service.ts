@@ -24,6 +24,16 @@ export class StrategiesService {
     return this.strategyRepository.find();
   }
 
+  findAllByUser(userId: string) {
+    return this.strategyRepository.find({
+      where: [
+        { user_id: userId },
+        { user_id: null }
+      ]
+    });
+  }
+
+
   findOne(id: number) {
     return this.strategyRepository.findOneByOrFail({ id });
   }
@@ -32,7 +42,13 @@ export class StrategiesService {
     const nodes = data.nodes ?? [];
     const edges = data.edges ?? [];
     const ast = nodes.length ? this.astCompiler.compile(nodes, edges) : null;
-    const strategy: any = this.strategyRepository.create({ ...data, nodes, edges, ast } as any);
+    const strategy: any = this.strategyRepository.create({
+      ...data,
+      nodes,
+      edges,
+      ast,
+      owner_id: data.owner_id || data.user_id || null,
+    } as any);
     const saved: any = await this.strategyRepository.save(strategy);
 
     // Create initial version (v1)
@@ -49,6 +65,17 @@ export class StrategiesService {
 
     await this.paperAccountsService.syncPaperAccounts(saved);
 
+    return saved;
+  }
+
+  async publish(id: number) {
+    const strategy = await this.strategyRepository.findOneByOrFail({ id });
+    strategy.visibility = 'public';
+    strategy.published_at = new Date();
+    strategy.is_active = true;
+    strategy.is_paper_trading = true;
+    const saved = await this.strategyRepository.save(strategy);
+    await this.paperAccountsService.syncPaperAccounts(saved);
     return saved;
   }
 

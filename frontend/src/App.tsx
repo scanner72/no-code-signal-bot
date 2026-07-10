@@ -8,6 +8,8 @@ import ToastContainer from './components/ToastContainer';
 import VersionChecker from './components/VersionChecker';
 import ChunkErrorBoundary from './components/ChunkErrorBoundary';
 
+import { cloudRoutes, CloudLanding, CLOUD_HOME } from './cloud';
+
 const StrategyBuilder = lazy(() => import('./pages/StrategyBuilder'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const SignalHistory = lazy(() => import('./pages/SignalHistory'));
@@ -20,6 +22,7 @@ const CrossExchange = lazy(() => import('./pages/CrossExchange'));
 const Documentation = lazy(() => import('./pages/Documentation'));
 const PaperTrading = lazy(() => import('./pages/PaperTrading'));
 const PineImport = lazy(() => import('./pages/PineImport'));
+
 
 function PageLoader() {
   return (
@@ -52,7 +55,7 @@ function PrivateRoutes() {
           <Route path="/*" element={
             <Layout>
               <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<Navigate to={CLOUD_HOME} replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/strategies" element={<StrategiesPage />} />
                 <Route path="/pine-import" element={<PineImport />} />
@@ -64,7 +67,10 @@ function PrivateRoutes() {
                 <Route path="/cross" element={<CrossExchange />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/docs" element={<Documentation />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                {cloudRoutes.map(({ path, Component }) => (
+                  <Route key={path} path={path} element={<Component />} />
+                ))}
+                <Route path="*" element={<Navigate to={CLOUD_HOME} replace />} />
               </Routes>
             </Layout>
           } />
@@ -84,10 +90,37 @@ function StrategiesPage() {
   return <Strategies />;
 }
 
+function LandingPage() {
+  const { data: session, isPending } = useSession();
+
+  if (isPending) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+        Загрузка...
+      </div>
+    );
+  }
+
+  if (session) {
+    return <Navigate to={CLOUD_HOME} replace />;
+  }
+
+  if (!CloudLanding) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <CloudLanding />
+    </Suspense>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage page="login" />} />
         <Route path="/signup" element={<AuthPage page="signup" />} />
         <Route path="/*" element={<PrivateRoutes />} />
@@ -110,7 +143,7 @@ function AuthPage({ page }: { page: 'login' | 'signup' }) {
   }
 
   if (session) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={CLOUD_HOME} replace />;
   }
 
   if (page === 'signup') {

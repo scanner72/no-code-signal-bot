@@ -14,7 +14,16 @@ import { PaperTradingModule } from '../paper-trading/paper-trading.module';
     forwardRef(() => PaperTradingModule),
   ],
   controllers: [StrategiesController],
-  providers: [StrategiesService, AstCompilerService, ValidationService],
-  exports: [TypeOrmModule, StrategiesService, AstCompilerService, ValidationService],
+  providers: [
+    StrategiesService,
+    AstCompilerService,
+    ValidationService,
+  ],
+  exports: [
+    TypeOrmModule,
+    StrategiesService,
+    AstCompilerService,
+    ValidationService,
+  ],
 })
 export class StrategiesModule {}

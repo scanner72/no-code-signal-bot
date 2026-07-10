@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, PencilRuler, History, Settings, BarChart2, X, Globe, Zap, Brain, LineChart, Book, HelpCircle, Activity, Bell, Sun, Moon, Menu, Plus, FileCode } from 'lucide-react';
+import { getCloudNavSections } from '../cloud';
+
 import { systemApi } from '../api/dashboard';
 import HelpDrawer from './HelpDrawer';
 import { OnboardingWizard } from './OnboardingWizard';
@@ -131,7 +133,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { id: 'ml',        icon: <Brain size={18} />,           label: t('ml_trainer') },
       ],
     },
+    ...getCloudNavSections(t),
   ];
+
 
   const allOk = Object.values(health).every(v => v === 'ok');
 

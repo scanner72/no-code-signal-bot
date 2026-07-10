@@ -166,59 +166,72 @@ const Sidebar = ({ isOpen = false, isPinned = true, onTogglePin, onMouseEnter, o
 
       {/* Category Tabs */}
       {groupedBlocks.length > 1 && (
-        <div
-          ref={categoryScrollRef}
-          style={{
-            padding: '4px 8px 8px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '4px',
-            marginBottom: '8px',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          {selectedCategory && (
-            <button
-              onClick={() => setSelectedCategory(null)}
-              style={{
-                padding: 'var(--space-1) var(--space-2)',
-                border: '1px solid var(--accent-color)',
-                background: 'rgba(124, 58, 237, 0.15)',
-                color: 'var(--accent-color)',
-                fontSize: 'var(--font-size-xs)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap' as const,
-                transition: 'all 0.2s',
-                fontWeight: 700,
-              }}
-            >
-              ← All ({filteredBlocks.length})
-            </button>
-          )}
-          {groupedBlocks.map(group => (
-            <button
-              key={group.category}
-              onClick={() => setSelectedCategory(
-                selectedCategory === group.category ? null : group.category
-              )}
-              style={{
-                padding: 'var(--space-1) var(--space-2)',
-                border: selectedCategory === group.category ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
-                background: selectedCategory === group.category ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-                color: selectedCategory === group.category ? 'var(--accent-color)' : 'var(--text-primary)',
-                fontSize: 'var(--font-size-xs)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap' as const,
-                transition: 'all 0.2s',
-                fontWeight: selectedCategory === group.category ? 700 : 500,
-              }}
-            >
-              {t(group.category)} ({group.blocks.length})
-            </button>
-          ))}
-        </div>
+        <>
+          <style dangerouslySetInnerHTML={{ __html: `
+            .category-scroll-container::-webkit-scrollbar {
+              display: none;
+            }
+          `}} />
+          <div
+            ref={categoryScrollRef}
+            className="category-scroll-container"
+            style={{
+              padding: '6px 8px',
+              display: 'flex',
+              flexWrap: 'nowrap',
+              overflowX: 'auto',
+              gap: '6px',
+              marginBottom: '6px',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            {selectedCategory && (
+              <button
+                onClick={() => setSelectedCategory(null)}
+                style={{
+                  padding: '4px 10px',
+                  border: '1px solid var(--accent-color)',
+                  background: 'rgba(124, 58, 237, 0.15)',
+                  color: 'var(--accent-color)',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap' as const,
+                  transition: 'all 0.2s',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                ← All ({filteredBlocks.length})
+              </button>
+            )}
+            {groupedBlocks.map(group => (
+              <button
+                key={group.category}
+                onClick={() => setSelectedCategory(
+                  selectedCategory === group.category ? null : group.category
+                )}
+                style={{
+                  padding: '4px 10px',
+                  border: selectedCategory === group.category ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.08)',
+                  background: selectedCategory === group.category ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+                  color: selectedCategory === group.category ? 'var(--accent-color)' : 'var(--text-primary)',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap' as const,
+                  transition: 'all 0.2s',
+                  fontWeight: selectedCategory === group.category ? 700 : 500,
+                  flexShrink: 0,
+                }}
+              >
+                {t(group.category)} ({group.blocks.length})
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Sections */}

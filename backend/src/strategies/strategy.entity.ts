@@ -11,6 +11,22 @@ export class Strategy {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @Column({ type: 'text', nullable: true })
+  user_id: string;
+
+  @Column({ type: 'text', nullable: true })
+  owner_id: string;
+
+  @Column({ type: 'text', default: 'private' })
+  visibility: 'private' | 'public' | 'unlisted';
+
+  @Column({ type: 'int', nullable: true })
+  fork_of: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  published_at: Date;
+
+
   @Column({ type: 'jsonb', nullable: true })
   nodes: any;
 

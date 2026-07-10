@@ -261,6 +261,15 @@ select:focus {
   gap: 8px;
   z-index: 100;
   box-shadow: var(--card-shadow);
+  overflow-y: auto;
+}
+
+.bento-nav > * {
+  flex-shrink: 0;
+}
+
+.bento-nav > .nav-spacer {
+  flex-shrink: 1;
 }
 
 .nav-logo-wrapper {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signIn } from '../../lib/auth-client';
 import { toast } from '../../stores/notificationStore';
+import { CLOUD_HOME } from '../../cloud';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ const Login = () => {
         toast.error(error.message || 'Неверный логин или пароль');
       } else {
         toast.success('Добро пожаловать!');
-        navigate('/dashboard');
+        navigate(CLOUD_HOME);
       }
     } catch (err: any) {
       toast.error('Ошибка сети. Проверьте соединение.');

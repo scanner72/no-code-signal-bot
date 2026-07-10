@@ -36,6 +36,7 @@ import { LdrModule } from './ldr/ldr.module';
 import { PaperTradingModule } from './paper-trading/paper-trading.module';
 import { OrdersModule } from './orders/orders.module';
 import { RiskModule } from './risk/risk.module';
+import { CLOUD_MODULES } from './cloud.modules';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { RiskModule } from './risk/risk.module';
     PaperTradingModule,
     OrdersModule,
     RiskModule,
+    ...CLOUD_MODULES,
   ],
 })
 export class AppModule {}

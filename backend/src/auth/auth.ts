@@ -76,3 +76,20 @@ export const getAuth = async () => {
     },
   });
 };
+
+export const getSessionUser = async (headers: any) => {
+  try {
+    const auth = await getAuth();
+    const session = await auth.api.getSession({
+      headers: {
+        cookie: headers.cookie || '',
+        authorization: headers.authorization || '',
+      },
+    });
+    return session?.user || null;
+  } catch (e) {
+    console.error('Error fetching session:', e);
+    return null;
+  }
+};
+

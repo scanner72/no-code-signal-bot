@@ -21,7 +21,7 @@ const Signup = () => {
         toast.error(error.message || 'Ошибка регистрации');
       } else {
         toast.success('Аккаунт создан!');
-        navigate('/dashboard');
+        navigate('/settings');
       }
     } catch (err: any) {
       toast.error('Ошибка сети. Проверьте соединение.');

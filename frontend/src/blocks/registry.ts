@@ -1,3 +1,5 @@
+import { cloudRegistry, cloudEdgeColors } from './cloudNodes';
+
 export type BlockCategory = 'Входные' | '🔌 Биржи' | 'Индикаторы' | 'Smart Money' | '📊 Order Flow' | '🧠 AI Прогноз' | '📈 Статистика' | 'Логика' | 'Фильтры' | 'Выходные' | '🚀 Торговля';
 
 export interface BlockConfig {
@@ -157,6 +159,17 @@ export const registry: Record<string, BlockConfig> = {
       partialTPs: [],
     },
   },
+  testnet_trading: {
+    type: 'testnet_trading_output', id: 'testnet_trading', name: '🔑 Testnet Trading', category: '🚀 Торговля', dotColor: '#3b82f6',
+    defaultData: {
+      exchangeId: 'binance',
+      apiKey: '',
+      secret: '',
+      startingCapital: 1000,
+      riskPercent: 1,
+    },
+  },
+  ...cloudRegistry,
 };
 
 export const CATEGORIES: BlockCategory[] = [
@@ -201,4 +214,6 @@ export const EDGE_COLORS: Record<string, string> = {
   deep_research: '#6366f1',
   portfolio_risk_sizer: '#f59e0b',
   paper_trading_output: '#22d3ee',
+  testnet_trading_output: '#3b82f6',
+  ...cloudEdgeColors,
 };

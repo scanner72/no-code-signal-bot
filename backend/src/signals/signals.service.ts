@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Signal } from './signal.entity';
 import { SettingsService } from '../settings/settings.service';
 import { MoreThanOrEqual } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
 
 @Injectable()
 export class SignalsService {
@@ -13,7 +15,9 @@ export class SignalsService {
     @InjectRepository(Signal)
     private readonly signalRepository: Repository<Signal>,
     private readonly settingsService: SettingsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
 
   async createSignal(signalData: Partial<Signal>) {
     try {
@@ -38,8 +42,11 @@ export class SignalsService {
       }
 
       const signal = this.signalRepository.create(signalData);
-      return await this.signalRepository.save(signal);
+      const saved = await this.signalRepository.save(signal);
+      this.eventEmitter.emit('signal.created', saved);
+      return saved;
     } catch (error) {
+
       this.logger.error(`Error saving signal: ${error.message}`);
       throw error;
     }

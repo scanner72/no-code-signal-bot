@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, ParseIntPipe, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, ParseIntPipe, Delete, Req } from '@nestjs/common';
 import { StrategiesService } from './strategies.service';
 import { ValidationService } from './validation.service';
 import { AstCompilerService } from './ast-compiler.service';
+import { Request } from 'express';
+import { getSessionUser } from '../auth/auth';
 
 @Controller('strategies')
 export class StrategiesController {
@@ -22,8 +24,10 @@ export class StrategiesController {
   }
 
   @Get()
-  findAll() {
-    return this.strategiesService.findAll();
+  async findAll(@Req() req: Request) {
+    const user = await getSessionUser(req.headers);
+    if (!user) return [];
+    return this.strategiesService.findAllByUser(user.id);
   }
 
   @Get(':id')
@@ -32,8 +36,10 @@ export class StrategiesController {
   }
 
   @Post()
-  create(@Body() data: any) {
-    return this.strategiesService.create(data);
+  async create(@Req() req: Request, @Body() data: any) {
+    const user = await getSessionUser(req.headers);
+    const userId = user?.id || null;
+    return this.strategiesService.create({ ...data, user_id: userId });
   }
 
   @Patch(':id')
@@ -44,6 +50,11 @@ export class StrategiesController {
   @Patch(':id/toggle')
   toggleActive(@Param('id', ParseIntPipe) id: number) {
     return this.strategiesService.toggleActive(id);
+  }
+
+  @Patch(':id/publish')
+  publish(@Param('id', ParseIntPipe) id: number) {
+    return this.strategiesService.publish(id);
   }
 
   @Delete(':id')
