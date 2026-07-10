@@ -76,6 +76,13 @@ describe('BacktestService', () => {
     expect(result.finalBalance).toBeCloseTo(1000, 1);
   });
 
+  it('defaults initialBalance/tp/sl instead of crashing when omitted (regression: undefined.toFixed)', async () => {
+    const { initialBalance, tp, sl, ...rest } = DEFAULT_OPTS;
+    const result = await service.run(1, rest as any);
+    expect(result.initialBalance).toBe(1000);
+    expect(result.finalBalance).toBeCloseTo(1000, 1);
+  });
+
   it('returns correct structure in result', async () => {
     const result = await service.run(1, DEFAULT_OPTS);
     expect(result).toMatchObject({

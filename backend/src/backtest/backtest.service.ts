@@ -90,6 +90,20 @@ export class BacktestService {
   }
 
   async runWithAst(ast: any, strategy: Strategy, options: BacktestOptions, candles?: any[]) {
+    // options.initialBalance/tp/sl are required downstream (e.g. round() at equityCurve
+    // construction) but callers outside the UI form (raw API calls, scripts) may omit them.
+    // Fall back to the same defaults as the Backtest.tsx form instead of crashing with a
+    // low-level TypeError on `undefined.toFixed()`.
+    if (options.initialBalance === undefined || options.initialBalance === null) {
+      options.initialBalance = 1000;
+    }
+    if (options.tp === undefined || options.tp === null) {
+      options.tp = 0.02;
+    }
+    if (options.sl === undefined || options.sl === null) {
+      options.sl = 0.02;
+    }
+
     const { tp, sl, positionSize, fee } = options;
 
     if (strategy && strategy.id) {
