@@ -6,6 +6,9 @@ on: [push, pull_request]
 
 jobs:
   guard:
+    # Reserved paths legitimately exist in downstream distributions —
+    # only enforce in the core repository.
+    if: github.repository == 'scanner72/no-code-signal-bot'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
