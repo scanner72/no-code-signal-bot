@@ -1,0 +1,21 @@
+name: path-guard
+
+# Fails if paths reserved for downstream distributions ever appear in this
+# repository's tree. Keep the pattern list in sync with .git/hooks/pre-push.
+on: [push, pull_request]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for reserved paths
+        run: |
+          FORBIDDEN='^(REPO_SPLIT\.md|backend/src/social/|backend/src/wallet/|backend/src/rating/|socnet/|frontend/src/pages/(Feed|Chat|Wallet|Leaderboard|Landing)\.tsx|frontend/src/stores/(socialStore|walletStore)\.ts|frontend/src/api/(social|wallet)\.ts|frontend/src/components/nodes/SignalPublisherNode\.tsx)'
+          HITS=$(git ls-files | grep -E "$FORBIDDEN" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::Reserved paths found in tree:"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "OK: no reserved paths in tree."
