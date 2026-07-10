@@ -100,7 +100,7 @@ export class CodegenService {
     this.copyTemplate(botDir, 'docker-compose.yml');
     this.copyTemplate(botDir, 'dashboard.py');
     this.copyTemplate(botDir, 'start.py');
-    this.writeEnvExample(botDir, config);
+    this.writeEnvExample(botDir, config, nodes, edges);
     this.writeReadme(botDir, config, strategy.name, botId);
 
     // 5a. Sandbox Test
@@ -187,13 +187,37 @@ export class CodegenService {
     return content;
   }
 
-  private writeEnvExample(botDir: string, config: CodegenConfig): void {
+  private writeEnvExample(botDir: string, config: CodegenConfig, nodes: any[] = [], edges: any[] = []): void {
     let tpl = fs.readFileSync(path.join(this.TEMPLATES_DIR, '.env.example'), 'utf8');
     tpl = tpl
       .replace('TRADING_PAIRS=BTCUSDT,ETHUSDT,SOLUSDT', `TRADING_PAIRS=${config.tradingPairs.join(',')}`)
       .replace('TIMEFRAME=15m',   `TIMEFRAME=${config.timeframe}`)
       .replace('CHECK_INTERVAL=30', `CHECK_INTERVAL=${config.checkIntervalSeconds}`)
       .replace('BOT_NAME=My Signal Bot', `BOT_NAME=${config.botName}`);
+
+    // Delivery nodes: routes and templates travel with the bot, secrets never
+    // do — the user fills in their own credentials.
+    const connected = (id: string) => edges.some((e: any) => e.target === id);
+    const deliveryLines: string[] = [];
+    for (const n of nodes) {
+      if (!connected(n.id)) continue;
+      const d = n.data || {};
+      if (n.type === 'telegram_output') {
+        deliveryLines.push(`# Telegram delivery node — insert YOUR bot token above (TELEGRAM_BOT_TOKEN)`);
+        if (d.chatId) deliveryLines.push(`TELEGRAM_CHAT_ID=${d.chatId}`);
+        if (d.template) deliveryLines.push(`TELEGRAM_TEMPLATE="${String(d.template).replace(/\n/g, '\\n')}"`);
+      } else if (n.type === 'discord_output') {
+        deliveryLines.push(`# Discord delivery node — insert YOUR webhook URL`, `DISCORD_WEBHOOK_URL=`);
+        if (d.template) deliveryLines.push(`DISCORD_TEMPLATE="${String(d.template).replace(/\n/g, '\\n')}"`);
+      } else if (n.type === 'webhook_output') {
+        deliveryLines.push(`# Generic webhook delivery node — insert YOUR endpoint`, `WEBHOOK_URL=`);
+        if (d.signPayload) deliveryLines.push(`WEBHOOK_HMAC_SECRET=`);
+        if (d.template) deliveryLines.push(`WEBHOOK_PAYLOAD_TEMPLATE='${String(d.template).replace(/\n/g, '\\n')}'`);
+      }
+    }
+    if (deliveryLines.length) {
+      tpl += `\n# ── Signal delivery (exported from canvas delivery nodes) ──\n${deliveryLines.join('\n')}\n`;
+    }
     this.writeFile(botDir, '.env.example', tpl);
   }
 

@@ -17,6 +17,9 @@ export class DiscordService {
   async sendSignal(signal: Signal, webhookUrl?: string) {
     let url = webhookUrl;
     if (!url) {
+      // Global broadcast path — honor the same kill-switch as Telegram.
+      const flag = await this.settingsRepo.findOneBy({ key: 'global_broadcast_enabled' });
+      if (flag?.value === 'false') return;
       const dbUrl = await this.settingsRepo.findOneBy({ key: 'discord_webhook_url' });
       url = dbUrl?.value || process.env.DISCORD_WEBHOOK_URL;
     }

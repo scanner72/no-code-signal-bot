@@ -36,6 +36,8 @@ import { LdrModule } from './ldr/ldr.module';
 import { PaperTradingModule } from './paper-trading/paper-trading.module';
 import { OrdersModule } from './orders/orders.module';
 import { RiskModule } from './risk/risk.module';
+import { ConnectionsModule } from './connections/connections.module';
+import { DeliveryModule } from './delivery/delivery.module';
 import { CLOUD_MODULES } from './cloud.modules';
 
 @Module({
@@ -103,6 +105,8 @@ import { CLOUD_MODULES } from './cloud.modules';
     PaperTradingModule,
     OrdersModule,
     RiskModule,
+    ConnectionsModule,
+    DeliveryModule,
     ...CLOUD_MODULES,
   ],
 })

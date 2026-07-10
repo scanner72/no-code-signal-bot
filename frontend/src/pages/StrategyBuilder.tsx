@@ -38,6 +38,7 @@ import PolymarketScannerNode from '../components/nodes/PolymarketScannerNode';
 import FinvizScannerNode from '../components/nodes/FinvizScannerNode';
 import PaperTradingNode from '../components/nodes/PaperTradingNode';
 import TestnetTradingNode from '../components/nodes/TestnetTradingNode';
+import DeliveryNode from '../components/nodes/DeliveryNode';
 import { cloudNodeTypes } from '../cloud';
 import { cloudSinkTypes } from '../blocks/cloudNodes';
 import DeribitPcrNode from '../components/nodes/DeribitPcrNode';
@@ -100,6 +101,9 @@ const nodeTypes = {
   finviz_scanner: FinvizScannerNode,
   paper_trading_output: PaperTradingNode,
   testnet_trading_output: TestnetTradingNode,
+  telegram_output: DeliveryNode,
+  discord_output: DeliveryNode,
+  webhook_output: DeliveryNode,
   ...cloudNodeTypes,
   deribit_pcr: DeribitPcrNode,
   fusion_combiner: FusionCombinerNode,
@@ -117,7 +121,7 @@ const nodeTypes = {
   position_sizing: PositionSizingNode,
 };
 
-const SINK_NODE_TYPES = ['trade_action', 'signal', 'paper_trading_output', 'testnet_trading_output', ...cloudSinkTypes];
+const SINK_NODE_TYPES = ['trade_action', 'signal', 'paper_trading_output', 'testnet_trading_output', 'telegram_output', 'discord_output', 'webhook_output', ...cloudSinkTypes];
 
 
 

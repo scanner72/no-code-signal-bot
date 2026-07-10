@@ -64,6 +64,9 @@ services:
       # BETTER_AUTH_URL=http://YOUR_HOST/api/auth and TRUSTED_ORIGINS=http://YOUR_HOST
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost/api/auth}
       TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost}
+      # 32 bytes (base64 or hex) — encrypts delivery connection secrets at rest.
+      # Generate: openssl rand -base64 32
+      CONNECTIONS_ENC_KEY: ${CONNECTIONS_ENC_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { settingsApi } from '../api/settings';
 import { signalsApi } from '../api/signals';
 import { useLanguageStore } from '../stores/useLanguageStore';
+import ConnectionsSettings from '../components/ConnectionsSettings';
 
 const PROMPT_PRESETS = {
   scalping: "You are an ultra-fast high-frequency scalping trading bot. Your goal is to validate short-term trading signals.\nAnalyze the technical data, RSI, order book volume, and LDR news.\nFocus heavily on momentum and short-term volatility.\n\nContext:\nPair: {{pair}}\nPrice: {{price}}\nSignal: {{signal}}\nLDR Summary: {{ldr_summary}}\nLDR Sentiment Score: {{ldr_sentiment_score}}\nLDR Risk Level: {{ldr_risk_level}}\nIndicators (RSI, etc.): {{indicators}}\n\nShould we PASS or BLOCK this signal? Scalpers require strong immediate momentum and low risk.\nReply with JSON: { \"decision\": \"PASS\" or \"BLOCK\", \"confidence\": 0.0-1.0, \"reason\": \"string\" }",
@@ -279,6 +280,10 @@ const Settings = () => {
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2h6zM8 8v2M8 5v0"/></svg>
                     Discord
                 </div>
+                <div onClick={() => setActiveSection('connections')} style={{ ...navItemStyle, ...(activeSection === 'connections' ? navItemActive : {}) }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 10L10 6M4.5 8L2.5 10a2.5 2.5 0 003.5 3.5l2-2M11.5 8l2-2A2.5 2.5 0 0010 2.5L8 4.5"/></svg>
+                    {language === 'ru' ? 'Подключения' : 'Connections'}
+                </div>
                 <div onClick={() => setActiveSection('filters')} style={{ ...navItemStyle, ...(activeSection === 'filters' ? navItemActive : {}) }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H2v2l5 5v5l2 2V9l5-5V2z"/></svg>
                     {language === 'ru' ? 'Фильтры' : 'Filters'}
@@ -386,6 +391,7 @@ const Settings = () => {
                         </div>
                     </div>
                 )}
+                {activeSection === 'connections' && <ConnectionsSettings />}
                 {activeSection === 'filters' && (
                     <div style={{ maxWidth: '640px' }}>
                         <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-primary)' }}>{language === 'ru' ? 'Глобальные фильтры' : 'Global Filters'}</div>

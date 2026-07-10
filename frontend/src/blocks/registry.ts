@@ -119,6 +119,9 @@ export const registry: Record<string, BlockConfig> = {
   // Выходные
   signal_long: { type: 'signal', id: 'signal_long', name: 'LONG сигнал', category: 'Выходные', dotColor: '#10B981', defaultData: { signalType: 'LONG' } },
   signal_short: { type: 'signal', id: 'signal_short', name: 'SHORT сигнал', category: 'Выходные', dotColor: '#EF4444', defaultData: { signalType: 'SHORT' } },
+  telegram_delivery: { type: 'telegram_output', id: 'telegram_delivery', name: '✈️ Telegram', category: 'Выходные', dotColor: '#229ED9', defaultData: { connectionId: '', chatId: '', template: '', silent: false } },
+  discord_delivery: { type: 'discord_output', id: 'discord_delivery', name: '🎮 Discord', category: 'Выходные', dotColor: '#5865F2', defaultData: { connectionId: '', template: '', useEmbed: true } },
+  webhook_delivery: { type: 'webhook_output', id: 'webhook_delivery', name: '🔗 Webhook', category: 'Выходные', dotColor: '#8b5cf6', defaultData: { connectionId: '', template: '', signPayload: false } },
 
   // Торговые действия
   trade_market_order: { type: 'trade_action', id: 'trade_market_order', name: 'Market Order', category: '🚀 Торговля', dotColor: '#3b82f6', defaultData: { action: 'market_order', side: 'BUY', volume: '100%' } },
@@ -215,5 +218,8 @@ export const EDGE_COLORS: Record<string, string> = {
   portfolio_risk_sizer: '#f59e0b',
   paper_trading_output: '#22d3ee',
   testnet_trading_output: '#3b82f6',
+  telegram_output: '#229ED9',
+  discord_output: '#5865F2',
+  webhook_output: '#8b5cf6',
   ...cloudEdgeColors,
 };

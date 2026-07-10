@@ -52,8 +52,16 @@ export class TelegramService implements OnModuleInit {
     }
   }
 
+  // Global broadcast (every signal to the default chat) can be disabled once
+  // per-strategy delivery nodes are used instead.
+  private async globalBroadcastEnabled(): Promise<boolean> {
+    const flag = await this.settingsRepo.findOneBy({ key: 'global_broadcast_enabled' });
+    return flag?.value !== 'false';
+  }
+
   async sendSignal(signal: any, candles?: any[], rsiValues?: number[], customMessage?: string) {
     if (!this.bot || !this.chatId) return;
+    if (!(await this.globalBroadcastEnabled())) return;
 
     const isLong = signal.type === 'LONG';
     const price: number = parseFloat(signal.price);

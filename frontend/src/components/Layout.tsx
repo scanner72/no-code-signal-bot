@@ -103,6 +103,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   useKeyboardShortcuts(shortcuts);
 
   const navGroups = [
+    ...getCloudNavSections(t),
     {
       title: t('nav_build'),
       items: [
@@ -133,7 +134,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { id: 'ml',        icon: <Brain size={18} />,           label: t('ml_trainer') },
       ],
     },
-    ...getCloudNavSections(t),
   ];
 
 
