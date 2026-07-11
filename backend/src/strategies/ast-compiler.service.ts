@@ -428,16 +428,35 @@ export class AstCompilerService {
       }
 
       case 'conditional_fork': {
-        const trueEdge = inputEdges.find((e) => e.sourceHandle === 'true');
-        const falseEdge = inputEdges.find((e) => e.sourceHandle === 'false');
+        // Prefer the upstream node's compiled AST as the condition (canvas
+        // wiring); fall back to the raw Pine expression string captured by
+        // the Pine importer when there is no incoming edge.
+        const forkInputEdge = inputEdges[0];
+        const forkSourceNode = forkInputEdge ? allNodes.find((n) => n.id === forkInputEdge.source) : null;
 
         return {
           type: 'conditional_fork',
-          condition: currentNode.data.condition || 'unknown',
+          condition: forkSourceNode
+            ? this.buildNodeAst(forkSourceNode, allNodes, allEdges)
+            : (currentNode.data.condition || null),
           trueSignal: currentNode.data.trueSignal || 'LONG',
-          falseSignal: currentNode.data.falseSignal || 'SHORT',
+          // null means "no else branch" (fire only when condition is true)
+          falseSignal: currentNode.data.falseSignal !== undefined ? currentNode.data.falseSignal : 'SHORT',
           trueLabel: currentNode.data.trueLabel,
           falseLabel: currentNode.data.falseLabel,
+        };
+      }
+
+      case 'lookback_window': {
+        const lbInputEdge = inputEdges[0];
+        const lbSourceNode = lbInputEdge ? allNodes.find((n) => n.id === lbInputEdge.source) : null;
+        return {
+          type: 'lookback_window',
+          lookbackBars: Number(currentNode.data.lookbackBars) || 5,
+          logic: currentNode.data.logic || 'all',
+          condition: lbSourceNode
+            ? this.buildNodeAst(lbSourceNode, allNodes, allEdges)
+            : (currentNode.data.condition || null),
         };
       }
 

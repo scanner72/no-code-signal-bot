@@ -167,6 +167,7 @@ export class BacktestService {
     // Converts O(n²) per-candle indicator recalculation into O(n) precompute + O(1) lookup.
     // Series are right-aligned to candle index: value(i) = series[i - (n - series.length)].
     const indicatorCache = new Map<string, { series: number[]; offset: number }>();
+    const corrTargets = new Set<string>(); // pairs referenced by logic_corr nodes
     {
       const closesChrono = simCandles.map((c: any) => parseFloat(c.close));
       const highsChrono  = simCandles.map((c: any) => parseFloat(c.high));
@@ -209,10 +210,28 @@ export class BacktestService {
             indicatorCache.set(key, { series: series!, offset: n - series!.length });
           }
         }
-        for (const k of ['condition', 'left', 'right', 'a', 'b']) collect(node[k]);
+        if (node.type === 'logic_corr') corrTargets.add(node.pair || 'BTCUSDT');
+        for (const k of ['condition', 'left', 'right', 'a', 'b', 'incrementCondition', 'resetCondition']) collect(node[k]);
         if (Array.isArray(node.operands)) node.operands.forEach((op: any) => collect(op.ast || op));
       };
       collect(ast);
+    }
+
+    // logic_corr: prefetch the correlated pair's candles for the exact backtest
+    // range and index them by time — the evaluator must never fall back to
+    // "latest candles" (that would leak future data into past evaluations).
+    const corrPairs = new Map<string, Map<string, number>>();
+    for (const corrPair of corrTargets) {
+      try {
+        await this.candlesService.ensureHistoricalData(corrPair, strategy.timeframe, options.start, options.end);
+        const corrCandles = await this.candlesService.getCandlesForRange(corrPair, strategy.timeframe, options.start, options.end);
+        const timeMap = new Map<string, number>();
+        for (const c of corrCandles) timeMap.set(new Date(c.time).toISOString(), parseFloat(String(c.close)));
+        corrPairs.set(corrPair, timeMap);
+        this.logger.log(`logic_corr: prefetched ${timeMap.size} ${strategy.timeframe} candles for ${corrPair}`);
+      } catch (e) {
+        this.logger.warn(`logic_corr: failed to prefetch ${corrPair}: ${(e as Error).message}`);
+      }
     }
 
     // In accurate mode, we fetch 1m candles for sub-candle resolution
@@ -234,6 +253,9 @@ export class BacktestService {
     let balance = options.initialBalance;
     let peakBalance = balance;
     let maxDrawdown = 0;
+    // Run-scoped state for stateful nodes (accumulator): the per-candle
+    // context object is recreated every iteration, so persistence lives here.
+    const runState: any = {};
     let position: { 
       type: string; entryPrice: number; entryTime: any; amount: number; entryIndex: number; 
       stopPrice: number; peakPrice: number; activatedTrailing: boolean 
@@ -269,12 +291,19 @@ export class BacktestService {
         candleIndex: i,   // current chronological candle index
         mlService: this.mlService,
         strategyId: strategy.id,
+        metadata: {},     // per-candle scratch (forkSignal, abVariant, …)
+        state: runState,  // run-scoped persistence (accumulators)
+        corrPairs,        // point-in-time candles for logic_corr
       };
       context.cache.set(strategy.timeframe, currentCandles);
 
       const isTriggered = await this.astEvaluator.evaluateNode(ast, currentCandles, false, context, { backtestMode: !options.useAiNodes });
 
       if (isTriggered && !position) {
+        // Direction: a conditional_fork inside the AST may have routed the
+        // signal (Pine "if cond: long else short"); otherwise the signal
+        // node's own type applies.
+        const signalDir: string = context.metadata?.forkSignal || ast?.signalType || 'LONG';
         let notional = balance * positionSize;
         if (sizingNode) {
           let stopPct: number | undefined;
@@ -323,7 +352,7 @@ export class BacktestService {
 
         // 2. Slippage Simulation
         if (options.slippagePct) {
-            const slipDir = (ast?.signalType === 'SHORT' || position?.type === 'SHORT') ? -1 : 1;
+            const slipDir = (signalDir === 'SHORT') ? -1 : 1;
             executionPrice = executionPrice * (1 + (options.slippagePct / 100) * slipDir);
         }
 
@@ -351,19 +380,19 @@ export class BacktestService {
           const atrArr = this.indicatorsService.calculateATR(recentHighs, recentLows, recentClose, atrPeriod);
           const atrValue = atrArr.length > 0 ? atrArr[atrArr.length - 1] : executionPrice * 0.01;
           const multiplier = atrSLMultiplier;
-          stopPriceFinal = (ast?.signalType === 'LONG')
+          stopPriceFinal = (signalDir === 'LONG')
             ? executionPrice - atrValue * multiplier
             : executionPrice + atrValue * multiplier;
           this.logger.debug(`ATR SL: ATR=${atrValue.toFixed(4)}, mult=${multiplier}, stopPrice=${stopPriceFinal.toFixed(4)}`);
         } else {
-          stopPriceFinal = (ast?.signalType === 'LONG') ? executionPrice * (1 - sl) : executionPrice * (1 + sl);
+          stopPriceFinal = (signalDir === 'LONG') ? executionPrice * (1 - sl) : executionPrice * (1 + sl);
         }
 
         let tpPriceFinal: number | undefined;
         if (sltpNode?.data?.tpMode === 'fib_extension') {
           const tpFibLevel = sltpNode.data?.tpFibLevel ?? 1.272;
           const fibObj = this.indicatorsService.calculateFibLevels(currentCandles, {
-            direction: (ast?.signalType || 'LONG').toLowerCase() as any,
+            direction: signalDir.toLowerCase() as any,
             levels: [tpFibLevel]
           });
           if (fibObj && fibObj.levels[String(tpFibLevel)]) {
@@ -372,7 +401,7 @@ export class BacktestService {
         }
 
         position = {
-          type: ast?.signalType || 'LONG',
+          type: signalDir,
           entryPrice: executionPrice,
           entryTime: simCandles[i].time,
           amount: notional / currentPrice,

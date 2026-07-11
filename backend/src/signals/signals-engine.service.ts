@@ -29,6 +29,7 @@ import { PaperAccountsService } from '../paper-trading/paper-accounts.service';
 import { findPaperNodesForSignal } from '../paper-trading/paper-node-finder';
 import { CrossExchangeService } from '../cross-exchange/cross-exchange.service';
 import { RiskSizingService } from '../risk/risk-sizing.service';
+import { evalSimpleCondition, applyLookbackLogic, stepAccumulator, AccumulatorState } from './node-eval-helpers';
 
 /** Parse a percent/ATR string to a numeric fraction ("2%" → 0.02) */
 function parsePct(val: any): number | null {
@@ -62,6 +63,30 @@ export class SignalsEngineService {
   private lastTickerRefresh = 0;
   private webhooksData: Map<string, { payload: any, timestamp: number }> = new Map();
   private executionTraces: Map<number, any> = new Map();
+  /** accumulator node state, key `${strategyId}:${varName}` — persists across engine ticks */
+  private accumulatorStates: Map<string, AccumulatorState> = new Map();
+  private warnedConditions = new Set<string>();
+
+  /** Node condition = compiled sub-AST (object) or a raw Pine string from the
+   *  importer. Strings support only simple close/high/low/open/volume
+   *  comparisons; anything else is warned once and treated as false. */
+  private async evalConditionOrString(condition: any, candles: any[], context: any, label: string): Promise<boolean> {
+    if (condition && typeof condition === 'object') {
+      return !!(await this.evaluateNode(condition, candles, false, context));
+    }
+    if (typeof condition === 'string' && condition.trim()) {
+      const r = evalSimpleCondition(condition, candles[0]);
+      if (r === null) {
+        if (!this.warnedConditions.has(condition)) {
+          this.warnedConditions.add(condition);
+          this.logger.warn(`${label}: unsupported string condition "${condition}" — evaluated as false. Wire the condition through an incoming edge instead.`);
+        }
+        return false;
+      }
+      return r;
+    }
+    return false;
+  }
   private exchangeTickersCache: Map<string, { tickers: Record<string, any>, timestamp: number }> = new Map();
   private ccxtClients: Map<string, any> = new Map();
 
@@ -406,11 +431,13 @@ export class SignalsEngineService {
       this.logger.log(`SIGNAL TRIGGERED: ${strategy.name} on ${pair}`);
 
       const lastCandle = candles[0];
+      // A conditional_fork in the AST may have routed the direction this tick
+      const signalDir = (context as any)?.metadata?.forkSignal || strategy.ast?.signalType || 'LONG';
       const signal = await this.signalsService.createSignal({
         strategy_id: strategy.id,
         pair: pair,
         timeframe: strategy.timeframe,
-        type: strategy.ast?.signalType || 'LONG',
+        type: signalDir,
         price: parseFloat(lastCandle.close.toString()),
         metadata: {
           strategy_name: strategy.name,
@@ -443,7 +470,7 @@ export class SignalsEngineService {
       if (telegramNode && telegramNode.telegramMessage) {
         customMessage = telegramNode.telegramMessage
           .replace(/\{\{pair\}\}/gi, pair)
-          .replace(/\{\{signal\}\}/gi, strategy.ast?.signalType || 'LONG')
+          .replace(/\{\{signal\}\}/gi, signal.type)
           .replace(/\{\{price\}\}/gi, String(signal.price))
           .replace(/\{\{strategy\}\}/gi, strategy.name);
       }
@@ -790,12 +817,12 @@ export class SignalsEngineService {
     const candles = await this.candlesService.getLatestCandles(pair, timeframe, 150);
     if (!candles || candles.length < 50) return null;
 
-    const context = { pair, timeframe, cache: new Map() };
+    const context: any = { pair, timeframe, cache: new Map(), metadata: {} };
     const isTriggered = await this.evaluateNode(strategy.ast, candles, false, context);
 
     if (isTriggered) {
         return {
-            type: strategy.ast?.signalType || 'LONG',
+            type: context.metadata?.forkSignal || strategy.ast?.signalType || 'LONG',
             price: parseFloat(candles[0].close.toString()),
             created_at: new Date(),
         };
@@ -911,6 +938,55 @@ export class SignalsEngineService {
 
       case 'sentiment':
           return (context as any).sentiment?.score || 0;
+
+      // ── Branching / state / array nodes (parity with ast-evaluator) ──
+
+      case 'conditional_fork': {
+        const condResult = await this.evalConditionOrString(node.condition, currentCandles, context, 'conditional_fork');
+        if (context) (context as any).metadata = (context as any).metadata || {};
+        if (condResult) {
+          if ((context as any)?.metadata) (context as any).metadata.forkSignal = node.trueSignal || 'LONG';
+          return getHistory ? [true] : true;
+        }
+        if (node.falseSignal) {
+          if ((context as any)?.metadata) (context as any).metadata.forkSignal = node.falseSignal;
+          return getHistory ? [true] : true;
+        }
+        return getHistory ? [false] : false;
+      }
+
+      case 'accumulator': {
+        // Live state persists across engine ticks in a service-level Map,
+        // keyed per strategy+variable; stepAccumulator's candle-time gate
+        // ensures the same (still-open) candle isn't counted twice.
+        const varName = node.varName || 'counter';
+        const initialValue = Number(node.initialValue) || 0;
+        const stateKey = `${(context as any)?.strategyId ?? context.pair}:${varName}`;
+        if (!this.accumulatorStates.has(stateKey)) {
+          this.accumulatorStates.set(stateKey, { value: initialValue, lastCandleTime: null });
+        }
+        const accState = this.accumulatorStates.get(stateKey)!;
+        const candleTime = String(currentCandles[0]?.time ?? '');
+
+        const inc = await this.evalConditionOrString(node.incrementCondition, currentCandles, context, `accumulator ${varName}`);
+        const rst = node.resetCondition
+          ? await this.evalConditionOrString(node.resetCondition, currentCandles, context, `accumulator ${varName} reset`)
+          : false;
+        stepAccumulator(accState, candleTime, !!inc, !!rst, Number(node.incrementValue) || 1, initialValue);
+        return getHistory ? [accState.value] : accState.value;
+      }
+
+      case 'lookback_window': {
+        const bars = Math.max(1, Math.min(Number(node.lookbackBars) || 5, currentCandles.length - 1));
+        const results: boolean[] = [];
+        for (let k = 0; k < bars; k++) {
+          const shifted = currentCandles.slice(k);
+          if (!shifted.length) break;
+          results.push(!!(await this.evalConditionOrString(node.condition, shifted, context, 'lookback_window')));
+        }
+        const agg = applyLookbackLogic(results, node.logic);
+        return getHistory ? [agg] : agg;
+      }
 
       case 'logic_corr': {
         const targetPair = node.pair || 'BTCUSDT';

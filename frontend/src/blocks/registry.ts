@@ -75,7 +75,11 @@ export const registry: Record<string, BlockConfig> = {
   // Логика
   logic_and: { type: 'logic', id: 'logic_and', name: 'AND', category: 'Логика', dotColor: '#10B981', defaultData: { operator: 'AND', inputsCount: 2 } },
   logic_or: { type: 'logic', id: 'logic_or', name: 'OR', category: 'Логика', dotColor: '#10B981', defaultData: { operator: 'OR', inputsCount: 2 } },
-  logic_corr: { type: 'logic', id: 'logic_corr', name: 'Correlation Filter', category: 'Логика', dotColor: '#6366f1', defaultData: { pair: 'BTCUSDT', minCorr: 0.8 } },
+  // type был 'logic' — перетащенный из палитры фильтр компилировался как пустой AND, а не корреляция
+  logic_corr: { type: 'logic_corr', id: 'logic_corr', name: 'Correlation Filter', category: 'Логика', dotColor: '#6366f1', defaultData: { pair: 'BTCUSDT', minCorr: 0.8 } },
+  conditional_fork: { type: 'conditional_fork', id: 'conditional_fork', name: '🔀 IF/ELSE Ветвление', category: 'Логика', dotColor: '#f97316', defaultData: { trueSignal: 'LONG', falseSignal: 'SHORT', trueLabel: 'True', falseLabel: 'False' } },
+  accumulator: { type: 'accumulator', id: 'accumulator', name: '🧮 Счётчик (var)', category: 'Логика', dotColor: '#eab308', defaultData: { varName: 'counter', initialValue: 0, incrementValue: 1 } },
+  lookback_window: { type: 'lookback_window', id: 'lookback_window', name: '📏 Окно N баров', category: 'Логика', dotColor: '#14b8a6', defaultData: { lookbackBars: 5, logic: 'all' } },
   
   comp_cross_above: { type: 'comparison', id: 'comp_cross_above', name: 'Cross Above', category: 'Логика', dotColor: '#10B981', defaultData: { operator: 'cross_above' } },
   comp_cross_below: { type: 'comparison', id: 'comp_cross_below', name: 'Cross Below', category: 'Логика', dotColor: '#10B981', defaultData: { operator: 'cross_below' } },
@@ -220,6 +224,10 @@ export const EDGE_COLORS: Record<string, string> = {
   portfolio_risk_sizer: '#f59e0b',
   paper_trading_output: '#22d3ee',
   testnet_trading_output: '#3b82f6',
+  logic_corr: '#6366f1',
+  conditional_fork: '#f97316',
+  accumulator: '#eab308',
+  lookback_window: '#14b8a6',
   telegram_output: '#229ED9',
   discord_output: '#5865F2',
   webhook_output: '#8b5cf6',

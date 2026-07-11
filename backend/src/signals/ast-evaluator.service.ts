@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CandlesService } from '../candles/candles.service';
 import { IndicatorsService } from '../indicators/indicators.service';
+import { evalSimpleCondition, applyLookbackLogic, stepAccumulator, AccumulatorState } from './node-eval-helpers';
 
 /**
  * Lightweight AST evaluator for backtest.
@@ -28,6 +29,42 @@ export class AstEvaluatorService {
       ? { ...context, isBacktest: true }
       : context;
     return this.evaluateNodeStandalone(node, candles, getHistory, ctx);
+  }
+
+  /**
+   * A node condition is either a compiled sub-AST (object — full evaluation)
+   * or a raw Pine expression string from the importer (only the simple
+   * close/high/low/open/volume comparisons are supported; anything else is
+   * logged once and treated as false, never silently guessed).
+   */
+  private warnedConditions = new Set<string>();
+  private async evalConditionOrString(condition: any, candles: any[], context: any, label: string): Promise<boolean> {
+    if (condition && typeof condition === 'object') {
+      return !!(await this.evaluateNodeStandalone(condition, candles, false, context));
+    }
+    if (typeof condition === 'string' && condition.trim()) {
+      const r = evalSimpleCondition(condition, candles[0]);
+      if (r === null) {
+        if (!this.warnedConditions.has(condition)) {
+          this.warnedConditions.add(condition);
+          this.logger.warn(`${label}: unsupported string condition "${condition}" — evaluated as false. Wire the condition through an incoming edge instead.`);
+        }
+        return false;
+      }
+      return r;
+    }
+    return false;
+  }
+
+  /** Accumulator state lives on context.state — one object per backtest run. */
+  private getAccumulatorState(context: any, varName: string, initialValue: number): AccumulatorState {
+    if (!context) return { value: initialValue, lastCandleTime: null }; // degenerate: stateless call
+    context.state = context.state || {};
+    context.state.accumulators = context.state.accumulators || new Map<string, AccumulatorState>();
+    if (!context.state.accumulators.has(varName)) {
+      context.state.accumulators.set(varName, { value: initialValue, lastCandleTime: null });
+    }
+    return context.state.accumulators.get(varName);
   }
 
   private async evaluateNodeStandalone(node: any, candles: any[], getHistory = false, context?: any): Promise<any> {
@@ -89,6 +126,95 @@ export class AstEvaluatorService {
         if (!Array.isArray(valA) || !Array.isArray(valB) || valA.length < 2 || valB.length < 2) return false;
         if (node.direction === 'above') return valA[valA.length - 2] <= valB[valB.length - 2] && valA[valA.length - 1] > valB[valB.length - 1];
         return valA[valA.length - 2] >= valB[valB.length - 2] && valA[valA.length - 1] < valB[valB.length - 1];
+      }
+
+      // ── Branching / state / array nodes ──
+
+      case 'conditional_fork': {
+        // Evaluates the condition; on true routes trueSignal, on false routes
+        // falseSignal (if defined — a Pine "else" branch). The chosen direction
+        // is written to context.metadata.forkSignal for the engine to consume
+        // when creating the signal / opening the position.
+        const condResult = await this.evalConditionOrString(node.condition, candles, context, `conditional_fork`);
+        if (context) context.metadata = context.metadata || {};
+        if (condResult) {
+          if (context?.metadata) context.metadata.forkSignal = node.trueSignal || 'LONG';
+          return getHistory ? [true] : true;
+        }
+        if (node.falseSignal) {
+          if (context?.metadata) context.metadata.forkSignal = node.falseSignal;
+          return getHistory ? [true] : true;
+        }
+        return getHistory ? [false] : false;
+      }
+
+      case 'accumulator': {
+        // Pine `var x = N; x += k if cond` — a counter persisted across
+        // candles. State lives in context.state (created once per backtest
+        // run), gated so each candle is counted exactly once. Returns the
+        // current value so a downstream comparison (`counter >= 3`) works.
+        const varName = node.varName || 'counter';
+        const initialValue = Number(node.initialValue) || 0;
+        const state = this.getAccumulatorState(context, varName, initialValue);
+        const candleTime = String(candles[0]?.time ?? '');
+
+        const inc = await this.evalConditionOrString(node.incrementCondition, candles, context, `accumulator ${varName}`);
+        const rst = node.resetCondition
+          ? await this.evalConditionOrString(node.resetCondition, candles, context, `accumulator ${varName} reset`)
+          : false;
+        stepAccumulator(state, candleTime, !!inc, !!rst, Number(node.incrementValue) || 1, initialValue);
+        return getHistory ? [state.value] : state.value;
+      }
+
+      case 'lookback_window': {
+        // Pine `for i = 0 to N: if cond[i]` — condition over each of the last
+        // N bars, aggregated by all/any/majority. AST conditions are
+        // re-evaluated with the candle window shifted back bar by bar
+        // (candles are newest-first, so slice(k) makes bar k "current").
+        const bars = Math.max(1, Math.min(Number(node.lookbackBars) || 5, candles.length - 1));
+        const results: boolean[] = [];
+        for (let k = 0; k < bars; k++) {
+          const shifted = candles.slice(k);
+          if (!shifted.length) break;
+          // The precomputed-indicator fast path is anchored on candleIndex —
+          // shift it together with the candle window or every bar would read
+          // the same cached value.
+          const shiftedCtx = context && typeof context.candleIndex === 'number'
+            ? { ...context, candleIndex: context.candleIndex - k }
+            : context;
+          if (shiftedCtx && typeof shiftedCtx.candleIndex === 'number' && shiftedCtx.candleIndex < 0) break;
+          results.push(!!(await this.evalConditionOrString(node.condition, shifted, shiftedCtx, 'lookback_window')));
+        }
+        const agg = applyLookbackLogic(results, node.logic);
+        return getHistory ? [agg] : agg;
+      }
+
+      case 'logic_corr': {
+        // Correlation with another pair. In backtest the target pair's candles
+        // are prefetched point-in-time by backtest.service into
+        // context.corrPairs (Map<pair, Map<timeISO, close>>) — falling back to
+        // "latest candles" here would leak future data into the past.
+        const targetPair = node.pair || 'BTCUSDT';
+        const minCorr = node.minCorr || 0.8;
+        const timeMap: Map<string, number> | undefined = context?.corrPairs?.get?.(targetPair);
+        if (!timeMap) {
+          this.logger.warn(`logic_corr: no prefetched candles for ${targetPair} — returning false (backtest without corrPairs prefetch)`);
+          return false;
+        }
+        const pricesA: number[] = [];
+        const pricesB: number[] = [];
+        // candles are newest-first; walk up to 50 aligned bars
+        for (const c of candles.slice(0, 50)) {
+          const key = new Date(c.time).toISOString();
+          const b = timeMap.get(key);
+          if (b === undefined) continue;
+          pricesA.push(parseFloat(c.close));
+          pricesB.push(b);
+        }
+        if (pricesA.length < 20) return false;
+        pricesA.reverse(); pricesB.reverse();
+        const corr = this.indicatorsService.calculateCorrelation(pricesA, pricesB);
+        return Math.abs(corr) >= minCorr;
       }
 
       // ── Indicators (pure computation) ──

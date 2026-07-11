@@ -164,6 +164,43 @@ describe('BacktestService', () => {
     expect(trade.pnlPercent).toBeGreaterThan(0);
   });
 
+  it('conditional_fork направляет позицию в SHORT, даже когда signalType = LONG', async () => {
+    // Реальный евалуатор — мок скрыл бы запись forkSignal в context.metadata
+    const realIndicators = new IndicatorsService(null as any);
+    const realEvaluator = new AstEvaluatorService(null as any, realIndicators);
+    const mockSignalsGateway = { broadcastProgress: jest.fn().mockResolvedValue(undefined) };
+    const mockRiskSizingService = { computeNotional: jest.fn() };
+    const realService = new BacktestService(
+      mockStrategyRepo, mockCandlesService, realEvaluator as any, realIndicators as any,
+      mockSignalsGateway as any, { predict: jest.fn() } as any, mockRiskSizingService as any,
+    );
+
+    mockStrategyRepo.findOneBy.mockResolvedValue({
+      ...strategy,
+      ast: {
+        type: 'signal',
+        signalType: 'LONG', // fork должен ПЕРЕОПРЕДЕЛИТЬ это направление
+        condition: {
+          type: 'conditional_fork',
+          // условие заведомо ложно → else-ветка → SHORT
+          condition: { type: 'comparison', operator: '<', left: { type: 'constant', value: 10 }, right: 5 },
+          trueSignal: 'LONG',
+          falseSignal: 'SHORT',
+        },
+      },
+    });
+
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 110; i++) candles[i].close = '195'; // -2.5% → для SHORT это профит → TP
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    const result = await realService.run(1, { ...DEFAULT_OPTS, tp: 0.02, sl: 0.05 });
+    expect(result.totalTrades).toBeGreaterThan(0);
+    expect(result.trades[0].type).toBe('SHORT');
+    expect(result.trades[0].pnlPercent).toBeGreaterThan(0);
+  });
+
   it('без dcaRebuy в конфиге поведение не меняется (regression)', async () => {
     mockStrategyRepo.findOneBy.mockResolvedValue({
       ...strategy,
