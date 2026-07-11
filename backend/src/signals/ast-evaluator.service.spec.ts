@@ -54,6 +54,37 @@ describe('AstEvaluatorService — indicator property (backtest standalone)', () 
   });
 });
 
+describe('AstEvaluatorService — orderbook: real snapshot vs. labeled mock', () => {
+  const indicators = new IndicatorsService(null as any);
+  const service = new AstEvaluatorService(null as any, indicators);
+  const candles = [{ close: '100', high: '101', low: '99', volume: 1000 }];
+
+  it('uses the labeled mock when no snapshot is present on the context', async () => {
+    const imbalance = await service.evaluateNode({ type: 'orderbook', params: { metric: 'imbalance' } }, candles, false, {}, { backtestMode: true });
+    const spread = await service.evaluateNode({ type: 'orderbook', params: { metric: 'spread' } }, candles, false, {}, { backtestMode: true });
+    const wall = await service.evaluateNode({ type: 'orderbook', params: { metric: 'wall_distance' } }, candles, false, {}, { backtestMode: true });
+    expect(imbalance).toBe(52.5);
+    expect(spread).toBe(0.05);
+    expect(wall).toBe(0.8);
+  });
+
+  it('uses the real collected snapshot when present on the context, not the mock', async () => {
+    const context = { orderbookSnapshot: { imbalance_pct: 61.2, spread_pct: 0.012, wall_distance_pct: 1.4 } };
+    const imbalance = await service.evaluateNode({ type: 'orderbook', params: { metric: 'imbalance' } }, candles, false, context, { backtestMode: true });
+    const spread = await service.evaluateNode({ type: 'orderbook', params: { metric: 'spread' } }, candles, false, context, { backtestMode: true });
+    const wall = await service.evaluateNode({ type: 'orderbook', params: { metric: 'wall_distance' } }, candles, false, context, { backtestMode: true });
+    expect(imbalance).toBe(61.2);
+    expect(spread).toBe(0.012);
+    expect(wall).toBe(1.4);
+  });
+
+  it('defaults wall_distance to 0 when the snapshot has no wall data', async () => {
+    const context = { orderbookSnapshot: { imbalance_pct: 50, spread_pct: 0.02, wall_distance_pct: null } };
+    const wall = await service.evaluateNode({ type: 'orderbook', params: { metric: 'wall_distance' } }, candles, false, context, { backtestMode: true });
+    expect(wall).toBe(0);
+  });
+});
+
 describe('AstEvaluatorService — input node source (backtest)', () => {
   let service: AstEvaluatorService;
 

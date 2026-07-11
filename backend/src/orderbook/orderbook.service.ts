@@ -150,6 +150,14 @@ export class OrderbookService implements OnModuleDestroy {
     return metrics;
   }
 
+  /** Symbols with an active WS depth subscription (i.e. actively used by a
+   *  live/paper strategy's orderbook node) — used by OrderbookSnapshotService
+   *  to know which pairs to persist history for, without opening new
+   *  connections of its own. */
+  getActiveSymbols(): string[] {
+    return [...this.activeWs.keys()];
+  }
+
   async getDepthSnapshot(pair: string, limit: number = 500) {
     const ob = await this.binanceApi.fetchOrderbook(pair, limit);
     

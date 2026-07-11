@@ -1365,7 +1365,11 @@ export class SignalsEngineService {
 
       case 'orderbook': {
         const metric = node.params?.metric || 'imbalance';
-        
+
+        // Backtest path mocks this metric because Binance has no historical L2
+        // depth archive — see OrderbookSnapshot / ast-evaluator.service.ts for
+        // the going-forward data collection plan. Live trading below always
+        // uses the real WS/REST-backed OrderbookService.
         if (context.isBacktest && node.params?.mockBacktest !== false) {
           if (metric === 'imbalance') return getHistory ? [52.5] : 52.5;
           if (metric === 'spread') return getHistory ? [0.05] : 0.05;

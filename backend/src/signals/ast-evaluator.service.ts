@@ -227,6 +227,21 @@ export class AstEvaluatorService {
       // ── Orderbook: mock values in backtest (matches SignalsEngine backtest behavior) ──
       case 'orderbook': {
         const metric = node.params?.metric || 'imbalance';
+
+        // Real point-in-time snapshot, populated by backtest.service.ts from
+        // OrderbookSnapshot rows collected going forward by
+        // OrderbookSnapshotService (see backend/src/orderbook/). Binance (like
+        // most exchanges) has no historical L2 depth archive, so backtests
+        // over periods before collection started fall through to the labeled
+        // mock below — never silently faked as real.
+        const snap = context?.orderbookSnapshot;
+        if (snap) {
+          if (metric === 'imbalance') { const r = Number(snap.imbalance_pct); return getHistory ? [r] : r; }
+          if (metric === 'spread') { const r = Number(snap.spread_pct); return getHistory ? [r] : r; }
+          if (metric === 'wall_distance') { const r = Number(snap.wall_distance_pct ?? 0); return getHistory ? [r] : r; }
+        }
+
+        // MOCK fallback — no snapshot available for this candle's period.
         if (metric === 'imbalance') return getHistory ? [52.5] : 52.5;
         if (metric === 'spread') return getHistory ? [0.05] : 0.05;
         if (metric === 'wall_distance') return getHistory ? [0.8] : 0.8;
