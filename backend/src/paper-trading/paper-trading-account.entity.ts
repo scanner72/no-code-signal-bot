@@ -56,6 +56,11 @@ export class PaperTradingAccount {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   partial_tps: Array<{ target: number; closePercent: number }>;
 
+  /** DCA/Rebuy: усредняет позицию при движении цены против неё на triggerPercent,
+   *  добавляя маржу = original margin_used × sizeMultiplier. Независим от partial_tps. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  dca_rebuy_levels: Array<{ triggerPercent: number; sizeMultiplier: number }>;
+
   /** Сколько сигналов пропущено из-за нехватки баланса (виден на ноде) */
   @Column({ type: 'int', default: 0 })
   skipped_signals: number;

@@ -19,6 +19,7 @@ interface PaperNodeData {
   trailingActivation?: string | number;
   moveSLtoBE?: boolean;
   partialTPs?: Array<{ target: any; closePercent: any }>;
+  dcaRebuy?: { levels?: Array<{ triggerPercent: any; sizeMultiplier: any }> };
 }
 
 /** "1.5%" | 1.5 → 1.5; пусто → null */
@@ -74,6 +75,12 @@ export class PaperAccountsService {
               .map((p) => ({ target: parsePercent(p.target) ?? 0, closePercent: Number(p.closePercent) || 0 }))
               .filter((p) => p.target > 0 && p.closePercent > 0)
               .sort((a, b) => a.target - b.target)
+          : [],
+        dca_rebuy_levels: Array.isArray(d.dcaRebuy?.levels)
+          ? d.dcaRebuy.levels
+              .map((l) => ({ triggerPercent: parsePercent(l.triggerPercent) ?? 0, sizeMultiplier: Number(l.sizeMultiplier) || 0 }))
+              .filter((l) => l.triggerPercent > 0 && l.sizeMultiplier > 0)
+              .sort((a, b) => a.triggerPercent - b.triggerPercent)
           : [],
       };
 
@@ -159,6 +166,7 @@ export class PaperAccountsService {
       stop_price: null,
       trailing_active: false,
       partial_tp_hits: 0,
+      dca_hits: 0,
       volume: margin,
       remaining_volume: margin,
       margin_used: margin,
@@ -243,13 +251,13 @@ export class PaperAccountsService {
     const account = await this.accountRepository.findOneBy({ id: trade.paper_account_id });
     if (!account) return;
 
-    const entry = Number(trade.entry_price);
+    let entry = Number(trade.entry_price);
     const lev = Number(trade.leverage_used) || 1;
 
     if (currentPrice > Number(trade.highest_price)) trade.highest_price = currentPrice;
     if (currentPrice < Number(trade.lowest_price)) trade.lowest_price = currentPrice;
 
-    const pricePnl = trade.type === 'LONG'
+    let pricePnl = trade.type === 'LONG'
       ? ((currentPrice - entry) / entry) * 100
       : ((entry - currentPrice) / entry) * 100;
 
@@ -260,6 +268,51 @@ export class PaperAccountsService {
       await this.virtualTradeRepository.save(trade);
       await this.closeAccountTrade(trade.id, currentPrice, 'LIQUIDATION');
       return;
+    }
+
+    // ── 1.5 DCA / Rebuy ──────────────────────────────────────────────────
+    // Adds margin (deducted from the account balance, like a fresh entry)
+    // when the price has moved against the position by the next configured
+    // level's threshold, then recomputes the weighted average entry price.
+    // entry/pricePnl are refreshed immediately so steps below this tick see
+    // the post-DCA state, not the stale pre-DCA one.
+    const dcaLevels = Array.isArray(account.dca_rebuy_levels) ? account.dca_rebuy_levels : [];
+    if (dcaLevels.length > 0 && Number(trade.dca_hits) < dcaLevels.length) {
+      const level = dcaLevels[Number(trade.dca_hits)];
+      if (-pricePnl >= Number(level.triggerPercent)) {
+        const addMargin = Number(trade.margin_used) * Number(level.sizeMultiplier);
+        const fresh = await this.accountRepository.findOneByOrFail({ id: account.id });
+        if (addMargin > 0 && addMargin <= Number(fresh.current_balance)) {
+          fresh.current_balance = Number(fresh.current_balance) - addMargin;
+          await this.accountRepository.save(fresh);
+          account.current_balance = fresh.current_balance;
+
+          const oldQty = Number(trade.remaining_volume) / entry;
+          const addQty = addMargin / currentPrice;
+          const newEntry = (Number(trade.remaining_volume) + addMargin) / (oldQty + addQty);
+
+          trade.remaining_volume = Number(trade.remaining_volume) + addMargin;
+          trade.margin_used = Number(trade.margin_used); // original stake for future levels stays unchanged
+          trade.entry_price = newEntry;
+          trade.dca_hits = Number(trade.dca_hits) + 1;
+
+          if (!trade.trailing_active) {
+            trade.stop_price = null; // let the fixed-SL fallback recompute from the new entry below
+          }
+
+          this.logger.log(
+            `[PaperAccount #${account.id}] DCA#${trade.dca_hits} for #${trade.id}: added $${addMargin.toFixed(2)} at ${currentPrice}, new avg entry ${newEntry.toFixed(4)}`,
+          );
+
+          entry = newEntry;
+          pricePnl = trade.type === 'LONG'
+            ? ((currentPrice - entry) / entry) * 100
+            : ((entry - currentPrice) / entry) * 100;
+          trade.pnl_percent = pricePnl * lev;
+        } else {
+          this.logger.warn(`[PaperAccount #${account.id}] DCA#${Number(trade.dca_hits) + 1} skipped for #${trade.id}: insufficient balance`);
+        }
+      }
     }
 
     // ── 2. Trailing stop ─────────────────────────────────────────────────

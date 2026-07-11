@@ -84,6 +84,10 @@ export class VirtualTrade {
   @Column('decimal', { precision: 20, scale: 8, nullable: true })
   remaining_volume: number; // remaining position size in USD after partial closes
 
+  // ── DCA / Rebuy tracking ──────────────────────────────────────────────────
+  @Column({ type: 'int', default: 0 })
+  dca_hits: number; // how many DCA/rebuy levels have fired
+
   @Column({ default: 'NONE' })
   ab_variant: string; // NONE, A, B
 

@@ -1767,6 +1767,115 @@ export const STRATEGY_TEMPLATES: StrategyTemplate[] = [
       { id: 'tense2_18', source: 'tens2_or', target: 'tens2_sig' },
     ],
   },
+
+  // ─── 49. Order Flow Scalp SHORT ─────────────────────────────────────────────
+  // Недостающее зеркало существующего "Order Flow Scalp LONG" (#29) — та же
+  // логика (CVD + Delta + VWAP), развёрнутая для шортов.
+  {
+    id: 'of-scalp-short',
+    name: '📊 Order Flow Scalp SHORT',
+    category: 'Импульс',
+    difficulty: 'Продвинутая',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '5m',
+    description: 'Зеркальная версия Order Flow Scalp LONG. Входит в шорт когда CVD (Cumulative Volume Delta) падает, текущая дельта отрицательная и цена ниже VWAP — продавцы доминируют на всех трёх уровнях.',
+    logic: [
+      'CVD < 0 — кумулятивные продажи доминируют',
+      'Volume Delta < 0 — текущая свеча медвежья по объёмам',
+      'Цена < VWAP — цена ниже справедливой средней за день',
+    ],
+    nodes: [
+      { id: 't49_cvd', type: 'order_flow', position: { x: 0, y: 0 }, data: { metric: 'cvd' } },
+      { id: 't49_delta', type: 'order_flow', position: { x: 0, y: 90 }, data: { metric: 'delta' } },
+      { id: 't49_vwap', type: 'indicator', position: { x: 0, y: 180 }, data: { name: 'VWAP', params: { anchor: 'D' } } },
+      { id: 't49_price', type: 'input', position: { x: 0, y: 270 }, data: { source: 'markPrice' } },
+      { id: 't49_cmp_cvd', type: 'comparison', position: { x: 240, y: 0 }, data: { operator: '<', value: 0 } },
+      { id: 't49_cmp_delta', type: 'comparison', position: { x: 240, y: 90 }, data: { operator: '<', value: 0 } },
+      { id: 't49_cmp_vwap', type: 'comparison', position: { x: 240, y: 220 }, data: { operator: '<' } },
+      { id: 't49_and', type: 'logic', position: { x: 480, y: 130 }, data: { operator: 'AND' } },
+      { id: 't49_sig', type: 'signal', position: { x: 720, y: 130 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'te49_1', source: 't49_cvd', target: 't49_cmp_cvd', targetHandle: 'a' },
+      { id: 'te49_2', source: 't49_delta', target: 't49_cmp_delta', targetHandle: 'a' },
+      { id: 'te49_3', source: 't49_price', target: 't49_cmp_vwap', targetHandle: 'a' },
+      { id: 'te49_4', source: 't49_vwap', target: 't49_cmp_vwap', targetHandle: 'b' },
+      { id: 'te49_5', source: 't49_cmp_cvd', target: 't49_and' },
+      { id: 'te49_6', source: 't49_cmp_delta', target: 't49_and' },
+      { id: 'te49_7', source: 't49_cmp_vwap', target: 't49_and' },
+      { id: 'te49_8', source: 't49_and', target: 't49_sig' },
+    ],
+  },
+
+  // ─── 50. Order Flow Reversal Scalp LONG ─────────────────────────────────────
+  // Идея (в духе NFI "Scalp Mode" — интрабар-дисбаланс спроса/предложения):
+  // не продолжение импульса (как #29/#49), а разворот на границе диапазона,
+  // подтверждённый реальным order flow (не захардкоженной orderbook-заглушкой).
+  {
+    id: 'of-reversal-scalp-long',
+    name: '📊 Order Flow Разворот-Скальп LONG',
+    category: 'Импульс',
+    difficulty: 'Продвинутая',
+    signal: 'LONG',
+    pair: 'BTCUSDT',
+    timeframe: '1m',
+    description: 'Скальп на развороте: цена касается нижней полосы Боллинджера, но объёмная дельта уже положительна — покупатели поглощают продажи прямо на границе диапазона. Отличие от Order Flow Scalp: там подтверждение импульса, здесь — подтверждение разворота.',
+    logic: [
+      'Цена ≤ BB(20) Lower — касание нижней границы диапазона',
+      'Volume Delta > 0 — покупатели уже перехватили инициативу внутри свечи',
+    ],
+    nodes: [
+      { id: 't50_price', type: 'input', position: { x: 0, y: 0 }, data: { source: 'markPrice' } },
+      { id: 't50_bbl', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'BollingerBands', params: { period: 20, stdDev: 2 }, property: 'lower' } },
+      { id: 't50_delta', type: 'order_flow', position: { x: 0, y: 180 }, data: { metric: 'delta' } },
+      { id: 't50_cmp_bb', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '<' } },
+      { id: 't50_cmp_delta', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '>', value: 0 } },
+      { id: 't50_and', type: 'logic', position: { x: 480, y: 110 }, data: { operator: 'AND' } },
+      { id: 't50_sig', type: 'signal', position: { x: 720, y: 110 }, data: { signalType: 'LONG' } },
+    ],
+    edges: [
+      { id: 'te50_1', source: 't50_price', target: 't50_cmp_bb', targetHandle: 'a' },
+      { id: 'te50_2', source: 't50_bbl', target: 't50_cmp_bb', targetHandle: 'b' },
+      { id: 'te50_3', source: 't50_delta', target: 't50_cmp_delta', targetHandle: 'a' },
+      { id: 'te50_4', source: 't50_cmp_bb', target: 't50_and' },
+      { id: 'te50_5', source: 't50_cmp_delta', target: 't50_and' },
+      { id: 'te50_6', source: 't50_and', target: 't50_sig' },
+    ],
+  },
+
+  // ─── 51. Order Flow Reversal Scalp SHORT ────────────────────────────────────
+  {
+    id: 'of-reversal-scalp-short',
+    name: '📊 Order Flow Разворот-Скальп SHORT',
+    category: 'Импульс',
+    difficulty: 'Продвинутая',
+    signal: 'SHORT',
+    pair: 'BTCUSDT',
+    timeframe: '1m',
+    description: 'Зеркальная версия: цена касается верхней полосы Боллинджера, но объёмная дельта уже отрицательна — продавцы поглощают покупки на границе диапазона.',
+    logic: [
+      'Цена ≥ BB(20) Upper — касание верхней границы диапазона',
+      'Volume Delta < 0 — продавцы уже перехватили инициативу внутри свечи',
+    ],
+    nodes: [
+      { id: 't51_price', type: 'input', position: { x: 0, y: 0 }, data: { source: 'markPrice' } },
+      { id: 't51_bbu', type: 'indicator', position: { x: 0, y: 90 }, data: { name: 'BollingerBands', params: { period: 20, stdDev: 2 }, property: 'upper' } },
+      { id: 't51_delta', type: 'order_flow', position: { x: 0, y: 180 }, data: { metric: 'delta' } },
+      { id: 't51_cmp_bb', type: 'comparison', position: { x: 240, y: 40 }, data: { operator: '>' } },
+      { id: 't51_cmp_delta', type: 'comparison', position: { x: 240, y: 180 }, data: { operator: '<', value: 0 } },
+      { id: 't51_and', type: 'logic', position: { x: 480, y: 110 }, data: { operator: 'AND' } },
+      { id: 't51_sig', type: 'signal', position: { x: 720, y: 110 }, data: { signalType: 'SHORT' } },
+    ],
+    edges: [
+      { id: 'te51_1', source: 't51_price', target: 't51_cmp_bb', targetHandle: 'a' },
+      { id: 'te51_2', source: 't51_bbu', target: 't51_cmp_bb', targetHandle: 'b' },
+      { id: 'te51_3', source: 't51_delta', target: 't51_cmp_delta', targetHandle: 'a' },
+      { id: 'te51_4', source: 't51_cmp_bb', target: 't51_and' },
+      { id: 'te51_5', source: 't51_cmp_delta', target: 't51_and' },
+      { id: 'te51_6', source: 't51_and', target: 't51_sig' },
+    ],
+  },
 ];
 
 export const CATEGORY_COLORS: Record<string, { bg: string; color: string; border: string }> = {

@@ -126,7 +126,23 @@ export class BacktestService {
         }
       }
     }
-    
+
+    // DCA / Rebuy levels: average into the position when price moves against
+    // it by a configured percentage. Sized as a multiple of the original
+    // notional (not the running average), matching how position-management
+    // "rebuy" modes are commonly described (e.g. rebuy_mode_stakes).
+    const dcaLevels: Array<{ triggerPercent: number; sizeMultiplier: number }> = (() => {
+      const raw = sltpNode?.data?.dcaRebuy?.levels;
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((l: any) => ({
+          triggerPercent: parseFloat(String(l.triggerPercent).replace('%', '')) || 0,
+          sizeMultiplier: parseFloat(String(l.sizeMultiplier)) || 0,
+        }))
+        .filter((l) => l.triggerPercent > 0 && l.sizeMultiplier > 0)
+        .sort((a, b) => a.triggerPercent - b.triggerPercent);
+    })();
+
     // Coerce start/end to Date objects (optimizer may call this directly with strings)
     options.start = new Date(options.start);
     options.end   = new Date(options.end);
@@ -369,12 +385,48 @@ export class BacktestService {
         (position as any).entryFee = entryFee;
         (position as any).partialTpHits = 0;
         (position as any).remainingAmount = notional / currentPrice;
+        (position as any).originalNotional = notional;
+        (position as any).dcaHits = 0;
         if (context.metadata) {
           (position as any).abVariant = context.metadata.abVariant;
           (position as any).modelUsedId = context.metadata.modelUsedId;
         }
 
       } else if (position) {
+        // DCA / Rebuy: average into the position when it has moved against us
+        // by the next configured level's threshold. Runs before the trailing
+        // stop check since trailing only activates on a favorable move — the
+        // two are mutually exclusive in practice, but the activatedTrailing
+        // guard below keeps a genuinely active trailing stop from being
+        // clobbered by a stale/naive stop recompute.
+        if (dcaLevels.length > 0 && (position as any).dcaHits < dcaLevels.length) {
+          const level = dcaLevels[(position as any).dcaHits];
+          const adverseMovePct = (position.type === 'LONG'
+            ? (position.entryPrice - currentPrice) / position.entryPrice
+            : (currentPrice - position.entryPrice) / position.entryPrice) * 100;
+
+          if (adverseMovePct >= level.triggerPercent) {
+            const addNotional = (position as any).originalNotional * level.sizeMultiplier;
+            const addAmount = addNotional / currentPrice;
+            const addFee = addNotional * fee;
+            const oldAmount = position.amount;
+            const newAmount = oldAmount + addAmount;
+
+            position.entryPrice = (position.entryPrice * oldAmount + currentPrice * addAmount) / newAmount;
+            position.amount = newAmount;
+            (position as any).remainingAmount = Number((position as any).remainingAmount) + addAmount;
+            (position as any).entryFee = Number((position as any).entryFee) + addFee;
+            (position as any).dcaHits += 1;
+
+            if (!position.activatedTrailing) {
+              position.stopPrice = position.type === 'LONG' ? position.entryPrice * (1 - sl) : position.entryPrice * (1 + sl);
+              if (sltpNode?.data?.tpMode !== 'fib_extension') {
+                (position as any).tpPrice = position.type === 'LONG' ? position.entryPrice * (1 + tp) : position.entryPrice * (1 - tp);
+              }
+            }
+          }
+        }
+
         // Trailing Stop Logic
         if (options.useTrailingStop) {
           const distance = options.trailingDistance || 0.01;

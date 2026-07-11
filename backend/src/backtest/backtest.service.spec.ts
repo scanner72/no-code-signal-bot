@@ -133,6 +133,59 @@ describe('BacktestService', () => {
     expect(result.trades[0].pnlPercent).toBeLessThan(0);
   });
 
+  it('DCA/Rebuy averages into the position and closes profitably below the original entry (LONG)', async () => {
+    mockStrategyRepo.findOneBy.mockResolvedValue({
+      ...strategy,
+      nodes: [
+        { id: 'sltp1', type: 'trade_action', data: { action: 'sltp', dcaRebuy: { levels: [{ triggerPercent: 5, sizeMultiplier: 1 }] } } },
+      ],
+    });
+
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';   // entry
+    candles[101].close = '188';   // -6% → triggers the 5% DCA level, averages entry to ~193.79
+    candles[102].close = '198';   // above the new TP (~197.67) but still below the original entry (200)
+    for (let i = 103; i < 110; i++) candles[i].close = '198';
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    // Wide SL (10%) so the post-DCA stop isn't hit by the same adverse candle;
+    // tight TP (2%) so recovery to 198 (not all the way back to 200) still closes in profit.
+    const result = await service.run(1, { ...DEFAULT_OPTS, tp: 0.02, sl: 0.10 });
+    expect(result.totalTrades).toBeGreaterThan(0);
+    const trade = result.trades[0];
+    expect(trade.entryPrice).toBeLessThan(200);
+    expect(trade.entryPrice).toBeGreaterThan(188);
+    expect(trade.pnlPercent).toBeGreaterThan(0);
+  });
+
+  it('без dcaRebuy в конфиге поведение не меняется (regression)', async () => {
+    mockStrategyRepo.findOneBy.mockResolvedValue({
+      ...strategy,
+      nodes: [{ id: 'sltp1', type: 'trade_action', data: { action: 'sltp' } }],
+    });
+
+    const candles = makeCandles(110, 100);
+    candles[100].close = '200';
+    for (let i = 101; i < 110; i++) candles[i].close = '205';
+    mockCandlesService.getCandlesForRange.mockResolvedValue(candles);
+
+    let called = 0;
+    mockSignalsEngine.evaluateNode.mockImplementation(() => {
+      called++;
+      return Promise.resolve(called === 1);
+    });
+
+    const result = await service.run(1, { ...DEFAULT_OPTS, tp: 0.02, sl: 0.01 });
+    expect(result.totalTrades).toBeGreaterThan(0);
+    expect(result.trades[0].entryPrice).toBe(200);
+  });
+
   it('компилированный AST (name/params) с реальным евалуатором: RSI<30 открывает сделки (regression: 0 trades)', async () => {
     // Реальный евалуатор + реальные индикаторы — мок скрывал несовпадение полей
     // (компилятор пишет {name, params.period}, движок читал {indicator, period})

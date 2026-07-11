@@ -137,6 +137,7 @@ export const registry: Record<string, BlockConfig> = {
       trailingActivation: '0.5%',
       moveSLtoBE: false,
       partialTPs: [],
+      dcaRebuy: { levels: [] },
     },
   },
 
@@ -160,6 +161,7 @@ export const registry: Record<string, BlockConfig> = {
       trailingActivation: '0.5%',
       moveSLtoBE: false,
       partialTPs: [],
+      dcaRebuy: { levels: [] },
     },
   },
   testnet_trading: {

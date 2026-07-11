@@ -57,6 +57,14 @@ const PaperTradingNode = ({ id, data, selected }: NodeProps) => {
   const addTp = () => patch({ partialTPs: [...tps, { target: '', closePercent: '' }] });
   const removeTp = (i: number) => patch({ partialTPs: tps.filter((_, idx) => idx !== i) });
 
+  // DCA/Rebuy уровни: [{ triggerPercent: 5, sizeMultiplier: 1 }, ...] — усредняет
+  // позицию при движении цены против неё, добавляя margin_used × sizeMultiplier.
+  const dcaLevels: Array<{ triggerPercent: any; sizeMultiplier: any }> = Array.isArray(data.dcaRebuy?.levels) ? data.dcaRebuy.levels : [];
+  const setDca = (i: number, field: 'triggerPercent' | 'sizeMultiplier', val: string) =>
+    patch({ dcaRebuy: { levels: dcaLevels.map((l, idx) => (idx === i ? { ...l, [field]: val } : l)) } });
+  const addDca = () => patch({ dcaRebuy: { levels: [...dcaLevels, { triggerPercent: '', sizeMultiplier: '1' }] } });
+  const removeDca = (i: number) => patch({ dcaRebuy: { levels: dcaLevels.filter((_, idx) => idx !== i) } });
+
   const pnl = Number(stats?.totalPnlPercent ?? 0);
 
   return (
@@ -152,6 +160,21 @@ const PaperTradingNode = ({ id, data, selected }: NodeProps) => {
                   onChange={(e) => setTp(i, 'closePercent', e.target.value)} />
                 <span className="nodrag" style={{ color: '#ef4444', cursor: 'pointer', fontWeight: 700, padding: '0 2px' }}
                   onClick={() => removeTp(i)}>×</span>
+              </div>
+            ))}
+            <div style={nodeParam}>DCA/Rebuy уровни
+              <span className="nodrag" style={{ color: CYAN, cursor: 'pointer', fontWeight: 700 }} onClick={addDca}>
+                + добавить
+              </span>
+            </div>
+            {dcaLevels.map((l, i) => (
+              <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
+                <input className="nodrag" style={{ ...inputStyle, width: 56 }} value={l.triggerPercent ?? ''} placeholder="просадка %"
+                  onChange={(e) => setDca(i, 'triggerPercent', e.target.value)} />
+                <input className="nodrag" style={{ ...inputStyle, width: 56 }} value={l.sizeMultiplier ?? ''} placeholder="× размер"
+                  onChange={(e) => setDca(i, 'sizeMultiplier', e.target.value)} />
+                <span className="nodrag" style={{ color: '#ef4444', cursor: 'pointer', fontWeight: 700, padding: '0 2px' }}
+                  onClick={() => removeDca(i)}>×</span>
               </div>
             ))}
             {stats?.accountId && (

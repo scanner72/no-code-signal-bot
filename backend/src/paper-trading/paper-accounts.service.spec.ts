@@ -235,7 +235,7 @@ describe('PaperAccountsService.processAccountTrade', () => {
   const baseTrade = () => ({
     id: 11, paper_account_id: 5, status: 'OPEN', type: 'LONG',
     entry_price: 100, highest_price: 100, lowest_price: 100, peak_price: 100,
-    stop_price: null, trailing_active: false, partial_tp_hits: 0,
+    stop_price: null, trailing_active: false, partial_tp_hits: 0, dca_hits: 0,
     margin_used: 100, remaining_volume: 100, leverage_used: 10,
   });
 
@@ -329,6 +329,44 @@ describe('PaperAccountsService.processAccountTrade', () => {
     expect(Number(savedTrade.pnl_value)).toBeCloseTo(2); // 1 (partial) + 1 (close leg: 50 × 2% = 1)
     expect(Number(savedTrade.pnl_percent)).toBeCloseTo(2); // 2 / margin_used(100) × 100
     expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: Number(account.current_balance) + 50 + 1 }));
+  });
+
+  it('DCA/Rebuy: усредняет позицию и списывает добавленную маржу со счёта', async () => {
+    const account = { ...baseAccount, current_balance: 900, dca_rebuy_levels: [{ triggerPercent: 5, sizeMultiplier: 1 }] };
+    accountRepo.findOneBy.mockResolvedValue(account);
+    accountRepo.findOneByOrFail.mockResolvedValue({ ...account });
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+
+    await service.processAccountTrade(trade, 94); // -6% ≥ 5% порог → DCA срабатывает
+
+    expect(trade.dca_hits).toBe(1);
+    expect(Number(trade.entry_price)).toBeCloseTo(96.907, 2); // средневзвешенная цена входа
+    expect(Number(trade.remaining_volume)).toBeCloseTo(200);   // 100 (исходная) + 100 (добавленная)
+    expect(accountRepo.save).toHaveBeenCalledWith(expect.objectContaining({ current_balance: 800 }));
+  });
+
+  it('DCA/Rebuy: не срабатывает при недостаточном балансе счёта', async () => {
+    const account = { ...baseAccount, current_balance: 50, dca_rebuy_levels: [{ triggerPercent: 5, sizeMultiplier: 1 }] };
+    accountRepo.findOneBy.mockResolvedValue(account);
+    accountRepo.findOneByOrFail.mockResolvedValue({ ...account });
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+
+    await service.processAccountTrade(trade, 94);
+
+    expect(trade.dca_hits).toBe(0);
+    expect(Number(trade.entry_price)).toBe(100);
+  });
+
+  it('DCA/Rebuy: не срабатывает, пока движение цены не достигло порога', async () => {
+    const account = { ...baseAccount, current_balance: 900, dca_rebuy_levels: [{ triggerPercent: 5, sizeMultiplier: 1 }] };
+    accountRepo.findOneBy.mockResolvedValue(account);
+    accountRepo.findOneByOrFail.mockResolvedValue({ ...account });
+    const trade: any = { ...baseTrade(), leverage_used: 1 };
+
+    await service.processAccountTrade(trade, 97); // -3% < 5%
+
+    expect(trade.dca_hits).toBe(0);
+    expect(Number(trade.entry_price)).toBe(100);
   });
 });
 

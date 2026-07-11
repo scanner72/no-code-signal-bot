@@ -2178,6 +2178,20 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
                                 set('partialTPs', partialTPs.filter((_, i) => i !== idx));
                             };
 
+                            const dcaLevels: Array<{ triggerPercent: string; sizeMultiplier: string }> = data.dcaRebuy?.levels || [];
+                            const setDcaLevel = (idx: number, field: 'triggerPercent' | 'sizeMultiplier', val: string) => {
+                                const updated = [...dcaLevels];
+                                updated[idx] = { ...updated[idx], [field]: val };
+                                set('dcaRebuy', { levels: updated });
+                            };
+                            const addDcaLevel = () => {
+                                const next = [...dcaLevels, { triggerPercent: `${(dcaLevels.length + 1) * 5}%`, sizeMultiplier: '1' }];
+                                set('dcaRebuy', { levels: next });
+                            };
+                            const removeDcaLevel = (idx: number) => {
+                                set('dcaRebuy', { levels: dcaLevels.filter((_, i) => i !== idx) });
+                            };
+
                             return (
                                 <>
                                     {/* SL MODE SWITCHER */}
@@ -2318,6 +2332,66 @@ const PropertiesPanel = ({ selectedNode, onUpdate, onDelete, nodeCount = 0, pair
                                             style={{
                                                 background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)',
                                                 borderRadius: 8, color: '#10b981', fontSize: 12, fontWeight: 800,
+                                                padding: '8px 12px', cursor: 'pointer', width: '100%', marginTop: '6px',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                                            }}
+                                        >
+                                            + {language === 'ru' ? 'Добавить уровень' : 'Add Level'}
+                                        </button>
+                                    </div>
+
+                                    {/* DCA / Rebuy Section */}
+                                    <div style={{ marginBottom: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '15px' }}>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span>DCA / Rebuy</span>
+                                            <span style={{ fontSize: '10px', color: '#3b82f6', background: 'rgba(59,130,246,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                                                {dcaLevels.length} lvl
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.5 }}>
+                                            {language === 'ru'
+                                                ? 'Усредняет позицию при движении цены против неё — добавляет объём × множитель от исходного размера на каждом уровне просадки.'
+                                                : 'Averages into the position when price moves against it — adds volume × multiplier of the original size at each drawdown level.'}
+                                        </div>
+
+                                        {dcaLevels.map((lvl, idx) => (
+                                            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', width: '20px' }}>#{idx + 1}</span>
+                                                <div style={{ flex: 1, display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={lvl.triggerPercent}
+                                                        placeholder="5%"
+                                                        title={language === 'ru' ? 'Просадка % для срабатывания' : 'Adverse move % to trigger'}
+                                                        style={{ ...inputStyle, width: '100%', flex: 1, minWidth: '50px' }}
+                                                        onChange={e => setDcaLevel(idx, 'triggerPercent', e.target.value)}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={lvl.sizeMultiplier}
+                                                        placeholder="1"
+                                                        title={language === 'ru' ? 'Множитель исходного размера' : 'Multiplier of original size'}
+                                                        style={{ ...inputStyle, width: '70px' }}
+                                                        onChange={e => setDcaLevel(idx, 'sizeMultiplier', e.target.value)}
+                                                    />
+                                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>×</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => removeDcaLevel(idx)}
+                                                    style={{
+                                                        background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                                                        borderRadius: 6, color: '#ef4444', fontSize: 11, fontWeight: 900,
+                                                        width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    }}
+                                                >✕</button>
+                                            </div>
+                                        ))}
+
+                                        <button
+                                            onClick={addDcaLevel}
+                                            style={{
+                                                background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)',
+                                                borderRadius: 8, color: '#3b82f6', fontSize: 12, fontWeight: 800,
                                                 padding: '8px 12px', cursor: 'pointer', width: '100%', marginTop: '6px',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                             }}
