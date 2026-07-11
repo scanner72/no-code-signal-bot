@@ -123,6 +123,23 @@ const nodeTypes = {
 
 const SINK_NODE_TYPES = ['trade_action', 'signal', 'paper_trading_output', 'testnet_trading_output', 'telegram_output', 'discord_output', 'webhook_output', ...cloudSinkTypes];
 
+// Node types that evaluate autonomously (feed on candles/exchange/context
+// directly) and therefore only need an OUTGOING edge to be considered
+// connected. Must match the standalone `case` handlers in
+// signals-engine.service.ts / ast-evaluator.service.ts — the second group are
+// legacy flat types (pre-`smc`-wrapper strategies still store them) that the
+// engines fully support; leaving them off this list falsely highlights old
+// strategies' nodes as disconnected.
+const TRUE_SOURCE_NODE_TYPES = [
+  'input', 'exchange', 'exchange_data', 'exchange_scanner', 'webhook', 'polymarket_scanner', 'finviz_scanner',
+  'indicator', 'smc', 'timeFilter', 'sentiment', 'pump_dump', 'order_flow', 'orderbook', 'ai_forecast', 'deribit_pcr',
+  'user_level', 'scanner', 'heym_mcp', 'mcp_tool', 'hermes', 'ml_filter', 'deep_research', 'portfolio_risk_sizer',
+  // legacy flat / autonomous types still evaluated by the engines:
+  'fvg', 'eqh_eql', 'order_block', 'market_structure', 'liquidity_sweep', 'fib_ote', 'premium_discount',
+  'daily_bias', 'ict_killzone', 'power_of_3', 'time_filter', 'order_book', 'custom_code', 'llm_filter', 'logic_corr',
+  'constant',
+];
+
 
 
 const initialNodes = [
@@ -457,11 +474,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
     let changed = false;
     
     // 1. Identify true start sources (roots for BFS)
-    const trueSources = [
-      'input', 'exchange', 'exchange_data', 'exchange_scanner', 'webhook', 'polymarket_scanner', 'finviz_scanner',
-      'indicator', 'smc', 'timeFilter', 'sentiment', 'pump_dump', 'order_flow', 'orderbook', 'ai_forecast', 'deribit_pcr',
-      'user_level', 'scanner', 'heym_mcp', 'mcp_tool', 'hermes', 'ml_filter', 'deep_research', 'portfolio_risk_sizer'
-    ];
+    const trueSources = TRUE_SOURCE_NODE_TYPES;
     
     const activeSources = nodes.filter(n => 
       trueSources.includes(n.type!) && edges.some(e => e.source === n.id)
@@ -1464,12 +1477,7 @@ const StrategyBuilder = ({ onBack, initialStrategy }: { onBack?: () => void; ini
 
                 {/* ═══ DEBUG PANEL OVERLAY ═══ */}
                 {isDebugging && (() => {
-                  const trueSources = [
-                    'input', 'exchange', 'exchange_data', 'exchange_scanner', 'webhook', 'polymarket_scanner',
-                    'finviz_scanner', 'indicator', 'smc', 'timeFilter', 'sentiment', 'pump_dump', 'order_flow',
-                    'orderbook', 'ai_forecast', 'deribit_pcr', 'user_level', 'scanner', 'heym_mcp', 'mcp_tool',
-                    'hermes', 'ml_filter', 'deep_research', 'portfolio_risk_sizer',
-                  ];
+                  const trueSources = TRUE_SOURCE_NODE_TYPES;
                   const sinkTypes = SINK_NODE_TYPES;
 
                   const disconnectedNodes = nodes.filter(n => {
