@@ -4,15 +4,27 @@ import { GridManagerService } from './grid-manager.service';
 import { Strategy } from '../strategies/strategy.entity';
 import { CandlesService } from '../candles/candles.service';
 import { IndicatorsService } from '../indicators/indicators.service';
+import { GridLevelOrder } from './grid-level-order.entity';
+import { CCXTQueueService } from './ccxt-queue.service';
+import { CrossExchangeService } from '../cross-exchange/cross-exchange.service';
 
 describe('GridManagerService', () => {
   let service: GridManagerService;
   let strategyRepositoryMock: any;
+  let gridOrderRepositoryMock: any;
   let candlesServiceMock: any;
   let indicatorsServiceMock: any;
+  let ccxtQueueServiceMock: any;
+  let crossExchangeServiceMock: any;
 
   beforeEach(async () => {
     strategyRepositoryMock = {
+      findOne: jest.fn(),
+    };
+
+    gridOrderRepositoryMock = {
+      create: jest.fn(),
+      save: jest.fn(),
       findOne: jest.fn(),
     };
 
@@ -24,6 +36,14 @@ describe('GridManagerService', () => {
       calculateATR: jest.fn(),
     };
 
+    ccxtQueueServiceMock = {
+      enqueueOrder: jest.fn(),
+    };
+
+    crossExchangeServiceMock = {
+      getExchange: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GridManagerService,
@@ -32,12 +52,24 @@ describe('GridManagerService', () => {
           useValue: strategyRepositoryMock,
         },
         {
+          provide: getRepositoryToken(GridLevelOrder),
+          useValue: gridOrderRepositoryMock,
+        },
+        {
           provide: CandlesService,
           useValue: candlesServiceMock,
         },
         {
           provide: IndicatorsService,
           useValue: indicatorsServiceMock,
+        },
+        {
+          provide: CCXTQueueService,
+          useValue: ccxtQueueServiceMock,
+        },
+        {
+          provide: CrossExchangeService,
+          useValue: crossExchangeServiceMock,
         },
       ],
     }).compile();

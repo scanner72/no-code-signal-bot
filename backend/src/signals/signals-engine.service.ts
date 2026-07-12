@@ -25,6 +25,7 @@ import { OrderbookService } from '../orderbook/orderbook.service';
 import { OcoManagerService } from '../orders/oco-manager.service';
 import { CCXTQueueService } from '../orders/ccxt-queue.service';
 import { AlgoExecutionService } from '../orders/algo-execution.service';
+import { GridManagerService } from '../orders/grid-manager.service';
 import { PaperAccountsService } from '../paper-trading/paper-accounts.service';
 import { findPaperNodesForSignal } from '../paper-trading/paper-node-finder';
 import { CrossExchangeService } from '../cross-exchange/cross-exchange.service';
@@ -118,6 +119,7 @@ export class SignalsEngineService {
     private paperAccountsService: PaperAccountsService,
     private crossExchangeService: CrossExchangeService,
     private riskSizing: RiskSizingService,
+    private gridManagerService: GridManagerService,
   ) { }
 
   public getExecutionTrace(strategyId: number) {
@@ -593,9 +595,19 @@ export class SignalsEngineService {
       if (telegramNode?.alertOnly) {
         this.logger.log(`[alertOnly] Skipping live execution for strategy ${strategy.name}`);
       } else {
-        const { amount, tpPrice, slPrice } = await this.getLiveNotionalAndExits(strategy, pair, signal.price, signal.type, candles);
-        await this.executeLiveEntry(strategy, pair, signal.price, signal.type, amount);
-        await this.placeSltpOco(strategy, pair, signal.price, signal.type, amount, tpPrice, slPrice);
+        let gridNode = strategy.nodes?.find((n: any) => n.data?.action === 'grid');
+        if (!gridNode && strategy.ast) {
+          gridNode = findAstNode(strategy.ast, 'trade_action', 'grid');
+        }
+
+        if (gridNode) {
+          this.logger.log(`[Grid Execution] Grid Bot node detected for strategy ${strategy.name}. Executing grid orders...`);
+          await this.gridManagerService.executeGrid(strategy.id, signal.price);
+        } else {
+          const { amount, tpPrice, slPrice } = await this.getLiveNotionalAndExits(strategy, pair, signal.price, signal.type, candles);
+          await this.executeLiveEntry(strategy, pair, signal.price, signal.type, amount);
+          await this.placeSltpOco(strategy, pair, signal.price, signal.type, amount, tpPrice, slPrice);
+        }
       }
     }
   }

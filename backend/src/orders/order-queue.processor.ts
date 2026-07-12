@@ -4,6 +4,7 @@ import { Job } from 'bull';
 import { OrderQueuePayload } from './ccxt-queue.service';
 import { CrossExchangeService } from '../cross-exchange/cross-exchange.service';
 import { AlgoExecutionService } from './algo-execution.service';
+import { GridManagerService } from './grid-manager.service';
 import { classifyCcxtError, normalizeAmountPrice } from './ccxt-error.util';
 
 @Processor('orders-execution')
@@ -14,6 +15,7 @@ export class OrderQueueProcessor {
     private readonly crossExchangeService: CrossExchangeService,
     @Inject(forwardRef(() => AlgoExecutionService))
     private readonly algoExecutionService: AlgoExecutionService,
+    private readonly gridManagerService: GridManagerService,
   ) {}
 
   @Process('execute-order')
@@ -43,6 +45,11 @@ export class OrderQueueProcessor {
       }
 
       this.logger.log(`[Worker] Order successfully executed on ${exchangeId}. Exchange Order ID: ${order.id}`);
+
+      if (order && order.id) {
+        await this.gridManagerService.linkExchangeOrderId(String(job.id), String(order.id));
+      }
+
       return order;
     } catch (error) {
       this.handleCcxtFailure(job, error, `order on ${exchangeId}`);

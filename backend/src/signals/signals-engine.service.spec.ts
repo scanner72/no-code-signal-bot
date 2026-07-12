@@ -82,6 +82,7 @@ describe('SignalsEngineService.evaluateNode', () => {
       null as any, // paperAccountsService
       mockCrossExchange as any,
       mockRiskSizing as any,
+      null as any, // gridManagerService
     );
   });
 

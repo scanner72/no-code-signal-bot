@@ -5,6 +5,7 @@ import { CCXTQueueService } from './ccxt-queue.service';
 import { OrderQueueProcessor } from './order-queue.processor';
 import { OcoManagerService } from './oco-manager.service';
 import { OcoBracketOrder } from './oco-bracket-order.entity';
+import { GridLevelOrder } from './grid-level-order.entity';
 import { GridManagerService } from './grid-manager.service';
 import { Strategy } from '../strategies/strategy.entity';
 import { CrossExchangeModule } from '../cross-exchange/cross-exchange.module';
@@ -15,7 +16,7 @@ import { AlgoExecutionService } from './algo-execution.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([OcoBracketOrder, Strategy, AlgoExecutionState]),
+    TypeOrmModule.forFeature([OcoBracketOrder, GridLevelOrder, Strategy, AlgoExecutionState]),
     BullModule.registerQueue({
       name: 'orders-execution',
       limiter: {
