@@ -12,6 +12,7 @@ import NewStrategyModal from './NewStrategyModal';
 import Breadcrumbs from './Breadcrumbs';
 import { CyberQuantLogo } from './CyberQuantLogo';
 import ShortcutsHelp from './ShortcutsHelp';
+import RiskDisclaimerModal from './RiskDisclaimerModal';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useLanguageStore } from '../stores/useLanguageStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -535,6 +536,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       />
       <NewStrategyModal isOpen={newStrategyOpen} onClose={() => setNewStrategyOpen(false)} />
       <ShortcutsHelp isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <RiskDisclaimerModal />
     </div>
   );
 };

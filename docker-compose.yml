@@ -18,6 +18,33 @@ services:
       timeout: 5s
       retries: 5
 
+  db-backup:
+    image: postgres:15-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: user
+      PGPASSWORD: password
+      PGDATABASE: signals_db
+      BACKUP_INTERVAL_HOURS: "24"
+      BACKUP_KEEP: "7"
+    volumes:
+      - db_backups:/backups
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[db-backup] start interval=$${BACKUP_INTERVAL_HOURS}h keep=$${BACKUP_KEEP}";
+        while true; do
+          TS=$$(date +%Y%m%d_%H%M%S);
+          FILE=/backups/signals_db_$${TS}.sql.gz;
+          if pg_dump | gzip > "$$FILE"; then echo "[db-backup] ok $$FILE"; else echo "[db-backup] FAILED"; rm -f "$$FILE"; fi;
+          ls -1t /backups/*.sql.gz 2>/dev/null | tail -n +$$((BACKUP_KEEP + 1)) | xargs -r rm -f;
+          sleep $$((BACKUP_INTERVAL_HOURS * 3600));
+        done
+
   redis:
     image: redis:alpine
     ports:
@@ -247,5 +274,6 @@ services:
 volumes:
   postgres_data:
   kronos_cache:
+  db_backups:
   ldr_data:
   freellmapi_data:
