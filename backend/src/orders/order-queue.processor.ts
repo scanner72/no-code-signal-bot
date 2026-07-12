@@ -4,6 +4,7 @@ import { Job } from 'bull';
 import { OrderQueuePayload } from './ccxt-queue.service';
 import { CrossExchangeService } from '../cross-exchange/cross-exchange.service';
 import { AlgoExecutionService } from './algo-execution.service';
+import { classifyCcxtError, normalizeAmountPrice } from './ccxt-error.util';
 
 @Processor('orders-execution')
 export class OrderQueueProcessor {
@@ -28,22 +29,42 @@ export class OrderQueueProcessor {
         await ccxtExchange.loadMarkets();
       }
 
+      // B2: нормализуем объём/цену под шаг биржи (Invalid lot size / price step)
+      const norm = normalizeAmountPrice(ccxtExchange, pair, amount, price);
+
       let order;
       if (type === 'market') {
-        order = await ccxtExchange.createMarketOrder(pair, side, amount, undefined, params);
+        order = await ccxtExchange.createMarketOrder(pair, side, norm.amount, undefined, params);
       } else {
-        if (!price) {
+        if (!norm.price) {
           throw new Error('Limit price must be specified for limit orders');
         }
-        order = await ccxtExchange.createLimitOrder(pair, side, amount, price, params);
+        order = await ccxtExchange.createLimitOrder(pair, side, norm.amount, norm.price, params);
       }
 
       this.logger.log(`[Worker] Order successfully executed on ${exchangeId}. Exchange Order ID: ${order.id}`);
       return order;
     } catch (error) {
-      this.logger.error(`[Worker] Failed to execute order on ${exchangeId} (job ${job.id}): ${error.message}`, error.stack);
-      throw error; // Re-throw so Bull Queue retry logic applies
+      this.handleCcxtFailure(job, error, `order on ${exchangeId}`);
     }
+  }
+
+  /**
+   * B3: единая обработка ошибок CCXT. Постоянные ошибки (нет средств / невалидный
+   * ордер / авторизация) снимаем с ретраев (job.discard), временные (сеть / rate-limit /
+   * биржа недоступна) — перебрасываем, чтобы сработал back-off Bull.
+   */
+  private handleCcxtFailure(job: Job, error: any, ctx: string): never {
+    const { permanent, category } = classifyCcxtError(error);
+    if (permanent) {
+      this.logger.error(`[Worker] PERMANENT ${category} on ${ctx} (job ${job.id}) — снят с ретраев: ${error.message}`);
+      if (typeof (job as any).discard === 'function') {
+        (job as any).discard(); // не ретраить постоянную ошибку
+      }
+    } else {
+      this.logger.warn(`[Worker] TRANSIENT ${category} on ${ctx} (job ${job.id}) — будет ретрай: ${error.message}`);
+    }
+    throw error;
   }
 
   @Process('execute-algo-slice')
@@ -65,14 +86,19 @@ export class OrderQueueProcessor {
         await ccxtExchange.loadMarkets();
       }
 
-      const order = await ccxtExchange.createMarketOrder(pair, side, amount);
+      const norm = normalizeAmountPrice(ccxtExchange, pair, amount);
+      const order = await ccxtExchange.createMarketOrder(pair, side, norm.amount);
       this.logger.log(`[Worker] Slice ${sliceIndex + 1}/${totalSlices} successfully executed. Order ID: ${order.id}`);
 
       // 3. Update progress
-      await this.algoExecutionService.updateProgress(executionId, amount);
+      await this.algoExecutionService.updateProgress(executionId, norm.amount);
       return order;
     } catch (error) {
-      this.logger.error(`[Worker] Failed to execute algo slice ${sliceIndex + 1} (execution ${executionId}): ${error.message}`, error.stack);
+      const { permanent, category } = classifyCcxtError(error);
+      this.logger.error(`[Worker] ${permanent ? 'PERMANENT' : 'TRANSIENT'} ${category} on algo slice ${sliceIndex + 1} (execution ${executionId}): ${error.message}`);
+      if (permanent && typeof (job as any).discard === 'function') {
+        (job as any).discard();
+      }
       await this.algoExecutionService.markAsFailed(executionId);
       throw error;
     }
